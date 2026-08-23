@@ -212,6 +212,10 @@
            (rlm-context-object-find store (rlm-context-object-digest first))
          (check (and found (string= content "durable context"))
                 "context lookup did not return the verified content"))
+       (check (handler-case
+                  (progn (rlm-context-object-find store "../outside") nil)
+                (rlm-view-error () t))
+              "invalid object digest was accepted as a pathname")
        (with-open-file (stream (rlm-context-object-pathname first)
                                :direction :output
                                :if-exists :supersede)
