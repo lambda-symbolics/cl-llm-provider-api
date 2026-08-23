@@ -3,6 +3,155 @@
 Portable Common Lisp protocols and value types for language-model providers and
 bounded inference inputs.
 
+The library defines semantic provider events, provider results, extensible CLOS
+provider and wire protocols, shared call/token/depth budgets, read-only context
+views, and content-addressed context objects. Provider implementations retain
+ownership of credentials, HTTP clients, model catalogs, registries, and agent
+orchestration.
+
+* Systems and package
+
+- ASDF system: =cl-llm-provider-api=
+- Test system: =cl-llm-provider-api/tests=
+- Package: =CL-LLM-PROVIDER-API=
+- Nickname: =LLM-PROVIDER-API=
+
+Install the locked dependencies and run all tests:
+
+#+begin_src sh
+./script/bootstrap
+./script/check
+#+end_src
+
+* Provider values
+
+All values are ordinary CLOS instances created with =MAKE-INSTANCE=.
+
+- =PROVIDER-EVENT= is the root event class.
+- =ASSISTANT-DELTA-EVENT= and =REASONING-DELTA-EVENT= carry streamed text.
+- =PROVIDER-ITEM-EVENT= carries one completed provider-native item.
+- =PROVIDER-COMPLETED-EVENT= carries response identity, usage, and turn state.
+- =PROVIDER-RETRY-EVENT= carries bounded reconnect metadata.
+- =PROVIDER-RESULT= carries ordered output items, tool calls, usage, routing
+  state, and =:CONTINUE=, =:END=, or =:UNSPECIFIED= turn completion.
+
+#+begin_src lisp
+(make-instance 'llm-provider-api:provider-result
+               :response-id "response-1"
+               :output-items (list message)
+               :tool-calls calls
+               :usage '(:total-tokens 42)
+               :turn-completion :end)
+#+end_src
+
+Output items and usage metadata deliberately have type =T=. A provider may use
+hash tables, association lists, structures, or application-specific objects.
+
+* Provider protocol
+
+Subclass =MODEL-PROVIDER= and implement =PROVIDER-STREAM-TURN=. The callback
+receives semantic =PROVIDER-EVENT= instances and the method returns one
+=PROVIDER-RESULT=.
+
+#+begin_src lisp
+(defclass example-provider (llm-provider-api:model-provider) ())
+
+(defmethod llm-provider-api:provider-stream-turn
+    ((provider example-provider) conversation
+     &key tool-namespaces event-callback goal-context compaction-p)
+  (declare (ignore provider tool-namespaces goal-context compaction-p))
+  (funcall event-callback
+           (make-instance 'llm-provider-api:assistant-delta-event
+                          :text "hello"))
+  (make-instance 'llm-provider-api:provider-result
+                 :output-items (list conversation)
+                 :turn-completion :end))
+#+end_src
+
+The portable provider protocol also exposes:
+
+- =PROVIDER-FAMILY=
+- =PROVIDER-WITH-CONFIGURATION=
+- =PROVIDER-CONSUME-STREAM=
+- =PROVIDER-NATIVE-COMPACT-CONVERSATION=
+- =PROVIDER-SET-REASONING-SUMMARIES=
+- =PROVIDER-OUTPUT-CEILING-P=
+- =PROVIDER-NORMALIZE-OUTPUT-ITEM=
+
+Conservative defaults return =:CUSTOM=, =NIL=, the unchanged provider, or the
+unchanged item where a safe default exists.
+
+* Wire protocol
+
+=RESPONSES-API-PROVIDER= and =CHAT-COMPLETIONS-PROVIDER= identify common wire
+families. =PROVIDER-WIRE-PROTOCOL= returns =:RESPONSES-API=,
+=:CHAT-COMPLETIONS=, or =:CUSTOM=.
+
+Request implementations can specialize:
+
+- =PROVIDER-WIRE-TOOL-NAME=, =PROVIDER-WIRE-TOOL=, and =PROVIDER-WIRE-TOOLS=
+- =PROVIDER-WIRE-INPUT-ITEM=
+- =PROVIDER-RESPONSES-WIRE-EFFORT=
+- =PROVIDER-RESPONSES-REASONING-SUMMARY=
+- =PROVIDER-RESPONSES-HOSTED-TOOLS=
+- =PROVIDER-RESPONSES-REQUEST-NAMESPACES=
+- =PROVIDER-RESPONSES-REQUEST-FIELDS=
+- =PROVIDER-REQUEST-OBJECT=
+
+The Responses API default joins a namespace and tool name with a dot. Wire
+objects remain application-defined values, so the library does not impose a
+JSON representation.
+
+* Bounded inference
+
+** Budgets
+
+=RLM-BUDGET-CREATE= creates a subtree budget with shared call and token counters
+and frame-local recursion depth. =RLM-BUDGET-ACQUIRE-REQUEST= atomically reserves
+one call and a bounded output tranche. Settle it with
+=RLM-BUDGET-SETTLE-OUTPUT=. Descendants created by =RLM-BUDGET-DESCEND= share the
+same counters.
+
+#+begin_src lisp
+(let* ((budget (llm-provider-api:rlm-budget-create
+                :calls 8 :tokens 80000 :depth 2))
+       (tranche (llm-provider-api:rlm-budget-acquire-request budget)))
+  (unwind-protect
+       (call-provider :maximum-output-tokens tranche)
+    (llm-provider-api:rlm-budget-settle-output budget tranche usage-total)))
+#+end_src
+
+Exhaustion signals =RLM-BUDGET-EXHAUSTED= with a =:CALLS=, =:TOKENS=, or
+=:DEPTH= dimension and an optional task label.
+
+** Views
+
+=RLM-VIEW-MATERIALIZE= accepts a string, pathname, =RLM-VIEW=, or a plist with
+=:CONTENT= or =:PATH= and an optional =:LABEL=. =RLM-VIEWS-MATERIALIZE= numbers
+duplicate labels. =RLM-VIEWS-RENDER= emits digest-delimited read-only blocks.
+
+** Context objects
+
+=RLM-CONTEXT-STORE-CREATE= opens a directory-backed content-addressed store.
+=RLM-CONTEXT-INTERN= and =RLM-CONTEXT-INTERN-PATHNAME= publish UTF-8 content
+atomically under its SHA-256 digest. Reads and lookups verify the digest and
+signal =RLM-VIEW-ERROR= if stored content is corrupt.
+
+#+begin_src lisp
+(let* ((store (llm-provider-api:rlm-context-store-create #P"context/"))
+       (object (llm-provider-api:rlm-context-intern
+                store "large immutable input" :label "corpus")))
+  (values (llm-provider-api:rlm-context-object-digest object)
+          (llm-provider-api:rlm-context-object-content object)))
+#+end_src
+
+* Dependencies
+
+- Babel
+- Bordeaux Threads
+- Ironclad
+- ASDF/UIOP
+
 * License
 
 COLL-Attribution, copyright 2026 Lambda Symbolics OÜ. See =LICENSE.lisp=.
