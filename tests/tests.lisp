@@ -228,6 +228,43 @@
          (check (string= (rlm-context-object-content repaired) "durable context")
                 "reintern did not repair corrupt content"))))))
 
+(defun test-inference-object-paths ()
+  "Exercise absolute store identity and cache pathname confinement."
+  (call-with-temporary-directory
+   (lambda (directory)
+     (let* ((*default-pathname-defaults* directory)
+            (store (rlm-context-store-create #P"objects/"))
+            (object (rlm-context-intern store "confined context"))
+            (outside (merge-pathnames "outside.txt" directory)))
+       (check (uiop:absolute-pathname-p (rlm-context-store-root store))
+              "relative context store root was not made absolute")
+       (with-open-file (stream outside
+                               :direction :output
+                               :if-exists :supersede
+                               :if-does-not-exist :create)
+         (write-string "confined context" stream))
+       (let ((forged
+               (make-instance 'rlm-context-object
+                              :store store
+                              :digest (rlm-context-object-digest object)
+                              :label "forged"
+                              :characters (length "confined context")
+                              :pathname outside)))
+         (check (handler-case
+                    (progn (rlm-context-object-content forged) nil)
+                  (rlm-view-error () t))
+                "context object accepted a pathname outside its store"))
+       (call-with-temporary-directory
+        (lambda (other-directory)
+          (let* ((other-store (rlm-context-store-create other-directory))
+                 (copied (rlm-context-designator-object other-store object)))
+            (check (string= (rlm-context-object-content copied)
+                            "confined context")
+                   "foreign context object did not retain its content")
+            (check (uiop:subpathp (rlm-context-object-pathname copied)
+                                  (rlm-context-store-root other-store))
+                   "foreign context object was not copied into the target store"))))))))
+
 (defun run-tests ()
   "Run every cl-llm-provider-api test."
   (setf *assertions* 0)
@@ -237,5 +274,6 @@
   (test-inference-budget-contention)
   (test-inference-views)
   (test-inference-objects)
+  (test-inference-object-paths)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)

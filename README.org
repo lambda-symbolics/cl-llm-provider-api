@@ -135,7 +135,9 @@ duplicate labels. =RLM-VIEWS-RENDER= emits digest-delimited read-only blocks.
 =RLM-CONTEXT-STORE-CREATE= opens a directory-backed content-addressed store.
 =RLM-CONTEXT-INTERN= and =RLM-CONTEXT-INTERN-PATHNAME= publish UTF-8 content
 atomically under its SHA-256 digest. Reads and lookups verify the digest and
-signal =RLM-VIEW-ERROR= if stored content is corrupt.
+signal =RLM-VIEW-ERROR= if stored content is corrupt. Store roots are
+canonical absolute directories. Object reads reject noncanonical cache paths,
+and passing an object to another store re-interns its verified content there.
 
 #+begin_src lisp
 (let* ((store (llm-provider-api:rlm-context-store-create #P"context/"))

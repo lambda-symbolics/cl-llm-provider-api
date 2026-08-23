@@ -11,7 +11,12 @@
   (:documentation "A content-addressed store for bounded inference context."))
 
 (defclass rlm-context-object ()
-  ((digest
+  ((store
+    :initarg :store
+    :reader rlm-context-object--store
+    :type rlm-context-store
+    :documentation "The store whose canonical pathname owns this object.")
+   (digest
     :initarg :digest
     :reader rlm-context-object-digest
     :type string
@@ -35,9 +40,13 @@
 
 (defun rlm-context-store-create (root)
   "Create a context object store rooted at directory ROOT."
-  (let ((directory (uiop:ensure-directory-pathname root)))
-    (ensure-directories-exist directory)
-    (make-instance 'rlm-context-store :root directory)))
+  (let* ((directory
+           (uiop:ensure-absolute-pathname
+            (uiop:ensure-directory-pathname root)
+            *default-pathname-defaults*))
+         (created (ensure-directories-exist directory)))
+    (make-instance 'rlm-context-store
+                   :root (uiop:ensure-directory-pathname (truename created)))))
 
 (defun rlm-context-object--digest-p (digest)
   "Return true when DIGEST is a canonical lowercase SHA-256 string."
@@ -56,6 +65,12 @@
            :message "expected a lowercase 64-character SHA-256 digest"))
   (merge-pathnames (make-pathname :name digest :type "txt")
                    (rlm-context-store-root store)))
+
+(defun rlm-context-object--canonical-file-p (pathname)
+  "Return true when PATHNAME exists as the canonical cache file itself."
+  (let ((resolved (probe-file pathname)))
+    (and resolved
+         (uiop:pathname-equal pathname resolved))))
 
 (defun rlm-context-object--write (store pathname content)
   "Atomically publish CONTENT at PATHNAME inside STORE."
@@ -84,10 +99,11 @@ longer matches its digest is repaired atomically from CONTENT."
   (check-type content string)
   (let* ((digest (rlm-content-digest content))
          (pathname (rlm-context-object--pathname store digest)))
-    (unless (and (probe-file pathname)
+    (unless (and (rlm-context-object--canonical-file-p pathname)
                  (string= content (uiop:read-file-string pathname)))
       (rlm-context-object--write store pathname content))
     (make-instance 'rlm-context-object
+                   :store store
                    :digest digest
                    :label (or label "context")
                    :characters (length content)
@@ -108,6 +124,10 @@ longer matches its digest is repaired atomically from CONTENT."
   "Return the verified object for DIGEST and its content, or NIL when absent."
   (let ((pathname (rlm-context-object--pathname store digest)))
     (when (probe-file pathname)
+      (unless (rlm-context-object--canonical-file-p pathname)
+        (error 'rlm-view-error
+               :designator digest
+               :message "the stored context object is not a canonical cache file"))
       (let ((content (uiop:read-file-string pathname)))
         (unless (string= digest (rlm-content-digest content))
           (error 'rlm-view-error
@@ -115,6 +135,7 @@ longer matches its digest is repaired atomically from CONTENT."
                  :message "the stored context object no longer matches its digest"))
         (values
          (make-instance 'rlm-context-object
+                        :store store
                         :digest digest
                         :label "context"
                         :characters (length content)
@@ -123,18 +144,31 @@ longer matches its digest is repaired atomically from CONTENT."
 
 (defun rlm-context-object-content (object)
   "Return OBJECT's content after verifying its digest."
-  (let ((content (uiop:read-file-string (rlm-context-object-pathname object))))
-    (unless (string= (rlm-context-object-digest object)
-                     (rlm-content-digest content))
+  (let* ((pathname (rlm-context-object-pathname object))
+         (expected
+           (rlm-context-object--pathname
+            (rlm-context-object--store object)
+            (rlm-context-object-digest object))))
+    (unless (and (uiop:pathname-equal pathname expected)
+                 (rlm-context-object--canonical-file-p pathname))
       (error 'rlm-view-error
              :designator object
-             :message "the context object no longer matches its digest"))
-    content))
+             :message "the context object is outside its canonical store path"))
+    (let ((content (uiop:read-file-string pathname)))
+      (unless (string= (rlm-context-object-digest object)
+                       (rlm-content-digest content))
+        (error 'rlm-view-error
+               :designator object
+               :message "the context object no longer matches its digest"))
+      content)))
 
 (defun rlm-context-designator-object (store designator)
   "Intern one context DESIGNATOR: an object, string, pathname, or plist."
   (typecase designator
-    (rlm-context-object designator)
+    (rlm-context-object
+     (rlm-context-intern store
+                         (rlm-context-object-content designator)
+                         :label (rlm-context-object-label designator)))
     (string (rlm-context-intern store designator))
     (pathname (rlm-context-intern-pathname store designator))
     (cons
