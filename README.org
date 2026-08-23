@@ -1,0 +1,8 @@
+#+title: cl-llm-provider-api
+
+Portable Common Lisp protocols and value types for language-model providers and
+bounded inference inputs.
+
+* License
+
+COLL-Attribution, copyright 2026 Lambda Symbolics OÜ. See =LICENSE.lisp=.
