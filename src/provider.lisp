@@ -121,12 +121,34 @@
 ;;;; -- Provider Protocol --
 
 (defclass model-provider ()
-  ()
+  ((registration
+    :initarg :registration
+    :initform nil
+    :accessor model-provider-registration
+    :type t
+    :documentation "Opaque registry metadata associated with this provider."))
   (:documentation "The abstract interface between an agent and a model service."))
 
 (defclass subscription-provider (model-provider)
-  ()
-  (:documentation "A marker for model providers backed by subscription access."))
+  ((configuration
+    :initarg :configuration
+    :initform nil
+    :reader provider-configuration
+    :type t
+    :documentation "Opaque immutable configuration for this provider instance.")
+   (credential-manager
+    :initarg :credential-manager
+    :initform nil
+    :reader provider-credential-manager
+    :type t
+    :documentation "Opaque credential manager used by this provider instance.")
+   (session-id
+    :initarg :session-id
+    :initform nil
+    :reader provider-session-id
+    :type t
+    :documentation "Opaque session identity associated with this provider instance."))
+  (:documentation "A model provider backed by subscription or managed credentials."))
 
 (defgeneric provider-family (provider)
   (:documentation "Return the model family keyword PROVIDER serves."))

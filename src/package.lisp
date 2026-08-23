@@ -11,6 +11,7 @@
    #:assistant-delta-event-text
    #:chat-completions-provider
    #:model-provider
+   #:model-provider-registration
    #:provider-completed-event
    #:provider-completed-event-response-id
    #:provider-completed-event-turn-completion
@@ -49,6 +50,9 @@
    #:provider-wire-tool-name
    #:provider-wire-tools
    #:provider-with-configuration
+   #:provider-configuration
+   #:provider-credential-manager
+   #:provider-session-id
    #:reasoning-delta-event
    #:reasoning-delta-event-text
    #:responses-api-provider

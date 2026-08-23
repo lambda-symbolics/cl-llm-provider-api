@@ -59,13 +59,25 @@
 
 (defun test-provider-protocol ()
   "Exercise generic provider and wire protocol defaults."
-  (let* ((provider (make-instance 'test-responses-provider))
+  (let* ((provider (make-instance 'test-responses-provider
+                                  :registration '(:name "test")
+                                  :configuration '(:model "test-model")
+                                  :credential-manager ':test-credentials
+                                  :session-id "session-1"))
          (events nil)
          (result (provider-stream-turn
                   provider '(:role :user)
                   :event-callback (lambda (event) (push event events)))))
-    (check (eq (provider-family provider) :custom)
-           "provider family default is not custom")
+     (check (eq (provider-family provider) :custom)
+            "provider family default is not custom")
+     (check (equal (model-provider-registration provider) '(:name "test"))
+            "provider lost its opaque registration")
+     (check (equal (provider-configuration provider) '(:model "test-model"))
+            "subscription provider lost its configuration")
+     (check (eq (provider-credential-manager provider) :test-credentials)
+            "subscription provider lost its credential manager")
+     (check (string= (provider-session-id provider) "session-1")
+            "subscription provider lost its session identity")
     (check (eq (provider-wire-protocol provider) :responses-api)
            "Responses provider has the wrong wire family")
     (check (string= (provider-wire-tool-name provider "resource" "read")
