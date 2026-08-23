@@ -10,7 +10,10 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
-                             (:file "provider"))))
+                             (:file "provider")
+                             (:file "inference-budget")
+                             (:file "inference-view")
+                             (:file "inference-object"))))
   :in-order-to ((asdf:test-op (asdf:test-op #:cl-llm-provider-api/tests))))
 
 (asdf:defsystem #:cl-llm-provider-api/tests

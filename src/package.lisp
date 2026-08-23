@@ -2,6 +2,11 @@
   (:nicknames #:llm-provider-api)
   (:use #:cl)
   (:export
+   #:*rlm-default-call-budget*
+   #:*rlm-default-depth-budget*
+   #:*rlm-default-token-budget*
+   #:*rlm-output-reserve-share*
+   #:*rlm-output-reserve-tokens*
    #:assistant-delta-event
    #:assistant-delta-event-text
    #:chat-completions-provider
@@ -44,6 +49,42 @@
    #:reasoning-delta-event
    #:reasoning-delta-event-text
    #:responses-api-provider
+   #:rlm-budget
+   #:rlm-budget-acquire-request
+   #:rlm-budget-create
+   #:rlm-budget-descend
+   #:rlm-budget-exhausted
+   #:rlm-budget-exhausted-dimension
+   #:rlm-budget-exhausted-task
+   #:rlm-budget-remaining-calls
+   #:rlm-budget-remaining-depth
+   #:rlm-budget-remaining-tokens
+   #:rlm-budget-settle-output
+   #:rlm-content-digest
+   #:rlm-context-designator-object
+   #:rlm-context-intern
+   #:rlm-context-intern-pathname
+   #:rlm-context-object
+   #:rlm-context-object-characters
+   #:rlm-context-object-content
+   #:rlm-context-object-digest
+   #:rlm-context-object-find
+   #:rlm-context-object-label
+   #:rlm-context-object-pathname
+   #:rlm-context-store
+   #:rlm-context-store-create
+   #:rlm-context-store-root
+   #:rlm-view
+   #:rlm-view-content
+   #:rlm-view-digest
+   #:rlm-view-error
+   #:rlm-view-error-designator
+   #:rlm-view-error-message
+   #:rlm-view-label
+   #:rlm-view-materialize
+   #:rlm-view-origin
+   #:rlm-views-materialize
+   #:rlm-views-render
    #:subscription-provider
    #:turn-completion))
 

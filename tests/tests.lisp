@@ -95,10 +95,141 @@
     (check (null (provider-responses-request-fields provider nil))
            "Responses request fields default is not NIL")))
 
+(defun test-inference-budget ()
+  "Exercise shared call, token, and depth accounting."
+  (let ((budget (rlm-budget-create :calls 2 :tokens 100 :depth 1)))
+    (check (= (rlm-budget-remaining-calls budget) 2)
+           "fresh budget lost calls")
+    (let ((tranche (rlm-budget-acquire-request budget)))
+      (check (= tranche 25) "reservation did not take a bounded share")
+      (check (= (rlm-budget-remaining-tokens budget) 75)
+             "reservation did not leave the expected token balance")
+      (rlm-budget-settle-output budget tranche 40)
+      (check (= (rlm-budget-remaining-tokens budget) 60)
+             "settlement did not charge actual usage"))
+    (let ((tranche (rlm-budget-acquire-request budget)))
+      (check (= tranche 16) "small reservation missed the provider floor")
+      (rlm-budget-settle-output budget tranche nil)
+      (check (= (rlm-budget-remaining-tokens budget) 60)
+             "unknown usage did not refund its reservation"))
+    (check (handler-case
+               (progn
+                 (rlm-budget-acquire-request budget :task "again")
+                 nil)
+             (rlm-budget-exhausted (condition)
+               (and (eq (rlm-budget-exhausted-dimension condition) :calls)
+                    (string= (rlm-budget-exhausted-task condition) "again"))))
+           "drained call budget did not identify its dimension and task"))
+  (let* ((root (rlm-budget-create :calls 2 :tokens 50 :depth 1))
+         (child (rlm-budget-descend root :task "child")))
+    (check (zerop (rlm-budget-remaining-depth child))
+           "descended budget did not spend depth")
+    (rlm-budget-acquire-request child)
+    (check (= (rlm-budget-remaining-calls root) 1)
+           "descended budget did not share the call pool")
+    (check (handler-case
+               (progn (rlm-budget-descend child) nil)
+             (rlm-budget-exhausted (condition)
+               (eq (rlm-budget-exhausted-dimension condition) :depth)))
+           "zero-depth budget allowed another descent")))
+
+(defun test-inference-budget-contention ()
+  "Exercise atomic reservations under concurrent acquisition."
+  (let* ((budget (rlm-budget-create :calls 16 :tokens 100 :depth 1))
+         (lock (bordeaux-threads:make-lock "budget test results"))
+         (tranches nil)
+         (refusals 0))
+    (mapc #'bordeaux-threads:join-thread
+          (loop repeat 8
+                collect
+                (bordeaux-threads:make-thread
+                 (lambda ()
+                   (handler-case
+                       (let ((tranche (rlm-budget-acquire-request budget)))
+                         (bordeaux-threads:with-lock-held (lock)
+                           (push tranche tranches)))
+                     (rlm-budget-exhausted ()
+                       (bordeaux-threads:with-lock-held (lock)
+                         (incf refusals))))))))
+    (check (= (+ (length tranches) refusals) 8)
+           "a competing reservation disappeared")
+    (check (<= (reduce #'+ tranches :initial-value 0) 100)
+           "concurrent reservations oversubscribed the token pool")
+    (check (plusp (length tranches))
+           "every concurrent reservation was refused")))
+
+(defun test-inference-views ()
+  "Exercise view materialization, provenance, and rendering."
+  (let ((views (rlm-views-materialize
+                (list "first literal"
+                      (list :label "notes" :content "second literal")))))
+    (check (equal (mapcar #'rlm-view-label views) '("literal" "notes"))
+           "view labels changed during materialization")
+    (check (string= (rlm-view-digest (first views))
+                    (rlm-content-digest "first literal"))
+           "view digest does not match its content")
+    (let ((rendered (rlm-views-render views)))
+      (check (search "label=\"notes\"" rendered)
+             "rendered views omitted their label")
+      (check (search "second literal" rendered)
+             "rendered views omitted exact content")
+      (check (search (subseq (rlm-view-digest (second views)) 0 12) rendered)
+             "rendered views omitted digest provenance")))
+  (check (equal (mapcar #'rlm-view-label
+                        (rlm-views-materialize (list "one" "two")))
+                '("literal#1" "literal#2"))
+         "duplicate view labels were not numbered"))
+
+(defun call-with-temporary-directory (function)
+  "Call FUNCTION with a fresh directory and remove it afterwards."
+  (let* ((base (uiop:temporary-directory))
+         (directory (merge-pathnames
+                     (format nil "cl-llm-provider-api-~36R/" (random (expt 36 8)))
+                     base)))
+    (ensure-directories-exist directory)
+    (unwind-protect
+         (funcall function directory)
+      (uiop:delete-directory-tree directory :validate t :if-does-not-exist :ignore))))
+
+(defun test-inference-objects ()
+  "Exercise content-addressed context storage and integrity checks."
+  (call-with-temporary-directory
+   (lambda (directory)
+     (let* ((store (rlm-context-store-create directory))
+            (first (rlm-context-intern store "durable context" :label "notes"))
+            (second (rlm-context-intern store "durable context")))
+       (check (string= (rlm-context-object-digest first)
+                       (rlm-context-object-digest second))
+              "identical context did not share an object identity")
+       (check (equal (rlm-context-object-pathname first)
+                     (rlm-context-object-pathname second))
+              "identical context did not share an object pathname")
+       (check (string= (rlm-context-object-content first) "durable context")
+              "context object did not return its content")
+       (multiple-value-bind (found content)
+           (rlm-context-object-find store (rlm-context-object-digest first))
+         (check (and found (string= content "durable context"))
+                "context lookup did not return the verified content"))
+       (with-open-file (stream (rlm-context-object-pathname first)
+                               :direction :output
+                               :if-exists :supersede)
+         (write-string "corrupt" stream))
+       (check (handler-case
+                  (progn (rlm-context-object-content first) nil)
+                (rlm-view-error () t))
+              "corrupt context content passed integrity verification")
+       (let ((repaired (rlm-context-intern store "durable context")))
+         (check (string= (rlm-context-object-content repaired) "durable context")
+                "reintern did not repair corrupt content"))))))
+
 (defun run-tests ()
   "Run every cl-llm-provider-api test."
   (setf *assertions* 0)
   (test-provider-values)
   (test-provider-protocol)
+  (test-inference-budget)
+  (test-inference-budget-contention)
+  (test-inference-views)
+  (test-inference-objects)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)
