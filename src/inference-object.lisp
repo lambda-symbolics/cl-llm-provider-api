@@ -39,8 +39,21 @@
     (ensure-directories-exist directory)
     (make-instance 'rlm-context-store :root directory)))
 
+(defun rlm-context-object--digest-p (digest)
+  "Return true when DIGEST is a canonical lowercase SHA-256 string."
+  (and (stringp digest)
+       (= (length digest) 64)
+       (every (lambda (character)
+                (or (digit-char-p character)
+                    (find character "abcdef" :test #'char=)))
+              digest)))
+
 (defun rlm-context-object--pathname (store digest)
   "Return DIGEST's canonical pathname under STORE."
+  (unless (rlm-context-object--digest-p digest)
+    (error 'rlm-view-error
+           :designator digest
+           :message "expected a lowercase 64-character SHA-256 digest"))
   (merge-pathnames (make-pathname :name digest :type "txt")
                    (rlm-context-store-root store)))
 
