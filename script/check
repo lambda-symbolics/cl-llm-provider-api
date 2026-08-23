@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd -- "$root"
+
+if [ ! -r "$root/.qlot/setup.lisp" ]; then
+  printf '%s\n' 'cl-llm-provider-api dependencies are missing; run ./script/bootstrap.' >&2
+  exit 1
+fi
+
+exec sbcl --noinform --non-interactive \
+  --load "$root/.qlot/setup.lisp" \
+  --eval '(require :asdf)' \
+  --eval '(asdf:load-asd (truename "cl-llm-provider-api.asd"))' \
+  --eval '(asdf:test-system "cl-llm-provider-api")'
