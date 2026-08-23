@@ -64,6 +64,8 @@
          (result (provider-stream-turn
                   provider '(:role :user)
                   :event-callback (lambda (event) (push event events)))))
+    (check (eq (provider-family provider) :custom)
+           "provider family default is not custom")
     (check (eq (provider-wire-protocol provider) :responses-api)
            "Responses provider has the wrong wire family")
     (check (string= (provider-wire-tool-name provider "resource" "read")

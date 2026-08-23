@@ -15,6 +15,8 @@
    #:provider-completed-event-response-id
    #:provider-completed-event-turn-completion
    #:provider-completed-event-usage
+   #:provider-consume-stream
+   #:provider-family
    #:provider-event
    #:provider-item-event
    #:provider-item-event-item
@@ -46,6 +48,7 @@
    #:provider-wire-tool
    #:provider-wire-tool-name
    #:provider-wire-tools
+   #:provider-with-configuration
    #:reasoning-delta-event
    #:reasoning-delta-event-text
    #:responses-api-provider

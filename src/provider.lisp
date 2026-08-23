@@ -128,11 +128,27 @@
   ()
   (:documentation "A marker for model providers backed by subscription access."))
 
+(defgeneric provider-family (provider)
+  (:documentation "Return the model family keyword PROVIDER serves."))
+
+(defmethod provider-family ((provider model-provider))
+  "Identify a provider without a declared family as custom."
+  (declare (ignore provider))
+  :custom)
+
+(defgeneric provider-with-configuration (provider configuration)
+  (:documentation
+   "Return PROVIDER reconfigured for CONFIGURATION while preserving session state."))
+
 (defgeneric provider-stream-turn
     (provider conversation
      &key tool-namespaces event-callback goal-context compaction-p)
   (:documentation
    "Stream one model response for CONVERSATION and return a PROVIDER-RESULT."))
+
+(defgeneric provider-consume-stream (provider stream headers event-callback)
+  (:documentation
+   "Consume a provider wire STREAM and emit semantic events through EVENT-CALLBACK."))
 
 (defgeneric provider-native-compact-conversation
     (provider conversation &key tool-namespaces event-callback)
@@ -167,11 +183,11 @@
 
 ;;;; -- Provider Wire Protocol --
 
-(defclass responses-api-provider (model-provider)
+(defclass responses-api-provider (subscription-provider)
   ()
   (:documentation "A provider using the streaming Responses API wire protocol."))
 
-(defclass chat-completions-provider (model-provider)
+(defclass chat-completions-provider (subscription-provider)
   ()
   (:documentation
    "A provider using the streaming Chat Completions wire protocol."))
