@@ -107,7 +107,12 @@
     (check (null (provider-responses-reasoning-summary provider nil))
            "reasoning summary style default is not NIL")
     (check (null (provider-responses-request-fields provider nil))
-           "Responses request fields default is not NIL")))
+           "Responses request fields default is not NIL")
+    (check (null (provider-responses-request-fields
+                  provider nil :compaction-p t))
+           "Responses request fields rejected compaction context")
+    (check (eq (provider-responses-instructions-placement provider) :input)
+           "Responses instructions placement default is not input")))
 
 (defun test-inference-budget ()
   "Exercise shared call, token, and depth accounting."

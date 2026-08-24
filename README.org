@@ -94,13 +94,17 @@ Request implementations can specialize:
 - =PROVIDER-RESPONSES-WIRE-EFFORT=
 - =PROVIDER-RESPONSES-REASONING-SUMMARY=
 - =PROVIDER-RESPONSES-HOSTED-TOOLS=
+- =PROVIDER-RESPONSES-INSTRUCTIONS-PLACEMENT=
 - =PROVIDER-RESPONSES-REQUEST-NAMESPACES=
 - =PROVIDER-RESPONSES-REQUEST-FIELDS=
 - =PROVIDER-REQUEST-OBJECT=
 
 The Responses API default joins a namespace and tool name with a dot. Wire
 objects remain application-defined values, so the library does not impose a
-JSON representation.
+JSON representation. Responses instructions use conversation input items by
+default. Providers may return =:TOP-LEVEL= from
+=PROVIDER-RESPONSES-INSTRUCTIONS-PLACEMENT= to use a top-level =instructions=
+request field instead.
 
 * Bounded inference
 

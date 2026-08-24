@@ -27,6 +27,7 @@
    #:provider-progress-event
    #:provider-request-object
    #:provider-responses-hosted-tools
+   #:provider-responses-instructions-placement
    #:provider-responses-reasoning-summary
    #:provider-responses-request-fields
    #:provider-responses-request-namespaces

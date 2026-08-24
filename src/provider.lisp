@@ -286,15 +286,29 @@
   (declare (ignore provider))
   tool-namespaces)
 
-(defgeneric provider-responses-request-fields (provider conversation)
+(defgeneric provider-responses-request-fields
+    (provider conversation &key compaction-p)
   (:documentation
    "Return PROVIDER-specific alternating fields for one Responses request."))
 
 (defmethod provider-responses-request-fields
-    ((provider responses-api-provider) conversation)
+    ((provider responses-api-provider) conversation &key compaction-p)
   "Add no provider-specific request fields by default."
-  (declare (ignore provider conversation))
+  (declare (ignore provider conversation compaction-p))
   nil)
+
+(defgeneric provider-responses-instructions-placement (provider)
+  (:documentation
+   "Return where PROVIDER places Responses request instructions.
+
+:INPUT uses conversation input items. :TOP-LEVEL uses a top-level instructions
+request field."))
+
+(defmethod provider-responses-instructions-placement
+    ((provider responses-api-provider))
+  "Place instructions in conversation input items by default."
+  (declare (ignore provider))
+  :input)
 
 (defgeneric provider-request-object
     (provider conversation tool-namespaces &key goal-context compaction-p)
