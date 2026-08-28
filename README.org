@@ -106,6 +106,26 @@ default. Providers may return =:TOP-LEVEL= from
 =PROVIDER-RESPONSES-INSTRUCTIONS-PLACEMENT= to use a top-level =instructions=
 request field instead.
 
+* Stream engine
+
+=READ-SSE-DATA= decodes one server-sent event's joined data field from a
+character stream. Lines and events are bounded by
+=*SSE-MAXIMUM-LINE-CHARACTERS*= and =*SSE-MAXIMUM-EVENT-CHARACTERS*=;
+violations signal the class named by =*STREAM-LIMIT-ERROR-CLASS*=,
+=PROVIDER-STREAM-LIMIT-ERROR= by default. A drained stream returns
+=*SSE-END-OF-STREAM*=. Hosts needing runtime-specific inactivity deadlines
+install a wrapper as =*SSE-READ-LINE-FUNCTION*=.
+
+=READ-CHARACTER-SEQUENCE= fills a string like =READ-SEQUENCE= using requests
+no larger than =*CHARACTER-READ-SEQUENCE-WINDOW*=, staying on the portable
+buffered path on runtimes whose large decoded reads misbehave.
+
+=CALL-WITH-BOUNDED-RETRIES= retries an attempt function over the
+=*BOUNDED-RETRY-DELAYS*= backoff schedule when it signals
+=PROVIDER-RETRYABLE-ERROR=, reports each wait through =PROVIDER-RETRY-EVENT=
+callbacks, and restarts immediately on =PROVIDER-RESAMPLE-REQUESTED=. Hosts
+bridge their own condition types by inheriting from these classes.
+
 * Bounded inference
 
 ** Budgets
