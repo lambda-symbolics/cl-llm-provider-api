@@ -2,16 +2,27 @@
   (:nicknames #:llm-provider-api)
   (:use #:cl)
   (:export
+   #:*bounded-retry-delays*
+   #:*bounded-retry-sleep-function*
+   #:*character-read-sequence-window*
    #:*rlm-default-call-budget*
    #:*rlm-default-depth-budget*
    #:*rlm-default-token-budget*
    #:*rlm-output-reserve-share*
    #:*rlm-output-reserve-tokens*
+   #:*sse-end-of-stream*
+   #:*sse-maximum-event-characters*
+   #:*sse-maximum-line-characters*
+   #:*sse-read-line-function*
+   #:*stream-limit-error-class*
    #:assistant-delta-event
    #:assistant-delta-event-text
+   #:call-with-bounded-retries
    #:chat-completions-provider
    #:model-provider
    #:model-provider-registration
+   #:provider-api-error
+   #:provider-api-error-message
    #:provider-completed-event
    #:provider-completed-event-response-id
    #:provider-completed-event-turn-completion
@@ -38,12 +49,18 @@
    #:provider-result-tool-calls
    #:provider-result-turn-completion
    #:provider-result-turn-state
+   #:provider-resample-requested
+   #:provider-resample-requested-attempt
+   #:provider-resample-requested-maximum-attempts
+   #:provider-resample-requested-triggers
    #:provider-result-usage
    #:provider-retry-event
    #:provider-retry-event-attempt
    #:provider-retry-event-delay
    #:provider-retry-event-maximum-attempts
+   #:provider-retryable-error
    #:provider-set-reasoning-summaries
+   #:provider-stream-limit-error
    #:provider-stream-turn
    #:provider-wire-input-item
    #:provider-wire-protocol
@@ -54,6 +71,8 @@
    #:provider-configuration
    #:provider-credential-manager
    #:provider-session-id
+   #:read-character-sequence
+   #:read-sse-data
    #:reasoning-delta-event
    #:reasoning-delta-event-text
    #:responses-api-provider
@@ -93,6 +112,8 @@
    #:rlm-view-origin
    #:rlm-views-materialize
    #:rlm-views-render
+   #:sse-data-line
+   #:sse-read-line-characters
    #:subscription-provider
    #:turn-completion))
 

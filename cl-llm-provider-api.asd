@@ -2,7 +2,7 @@
   :description "Portable protocols and value types for language-model providers."
   :author "Lambda Symbolics OÜ"
   :license "COLL-Attribution"
-  :version "0.1.0"
+  :version "0.2.0"
   :serial t
   :depends-on (#:babel
                #:bordeaux-threads
@@ -11,6 +11,7 @@
                 :serial t
                 :components ((:file "package")
                              (:file "provider")
+                             (:file "engine")
                              (:file "inference-budget")
                              (:file "inference-view")
                              (:file "inference-object"))))
