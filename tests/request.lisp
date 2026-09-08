@@ -1,7 +1,100 @@
 (in-package #:cl-llm-provider-api)
 
+(defun test-request-callback-condition-identity ()
+  "Keep callback conditions out of the transport retry classifier."
+  (dolist (phase '(:delta :terminal :completion))
+    (dolist (class '(usocket:socket-error usocket:ns-try-again-error
+                     sb-sys:deadline-timeout simple-error))
+      (let* ((failure (make-condition class))
+             (attempts 0)
+             (cleanups 0)
+             (completions 0)
+             (retry-events nil)
+             (result
+               (handler-case
+                   (call-with-bounded-retries
+                    (lambda ()
+                      (incf attempts)
+                      (provider--call-with-transport-normalization
+                       (lambda ()
+                         (provider-execute-request
+                          (make-instance 'responses-api-provider) nil
+                          :transport
+                          (lambda (request)
+                            (declare (ignore request))
+                            (values
+                             (make-string-input-stream
+                              (concatenate
+                               'string
+                               (test-sse-event-string
+                                (json-object "type" "response.output_text.delta"
+                                             "delta" "hello"))
+                               (test-sse-event-string
+                                (json-object "type" "response.completed"
+                                             "response" (json-object "id" "done")))))
+                             200 nil))
+                          :event-callback
+                          (lambda (event)
+                            (when (or (and (eq phase ':delta)
+                                           (typep event 'assistant-delta-event))
+                                      (and (eq phase ':terminal)
+                                           (typep event 'provider-completed-event)))
+                              (error failure)))
+                          :cleanup
+                          (lambda (stream)
+                            (incf cleanups)
+                            (provider--close-response-stream stream))
+                          :completion
+                          (lambda ()
+                            (incf completions)
+                            (when (eq phase ':completion) (error failure)))))))
+                    (lambda (event) (push event retry-events))
+                    :maximum-retries 1 :delay-function (constantly 0)
+                    :sleep-function (constantly nil))
+                 (condition (condition) condition))))
+        (test-assert (eq result failure) "callback failures preserve condition identity")
+        (test-assert (and (= attempts 1) (= cleanups 1) (null retry-events))
+                     "callback failures do not retry the completed request")
+        (test-assert (= completions (if (eq phase ':completion) 1 0))
+                     "completion is only called after successful consumption")))))
+
+(defun test-request-transport-conditions ()
+  "Normalize opening and line-read failures at their transport boundaries."
+  (dolist (phase '(:open :read))
+    (dolist (case '((usocket:socket-error t)
+                    (usocket:ns-try-again-error t)
+                    (sb-sys:deadline-timeout t)
+                    (cl+ssl::cl+ssl-error nil)))
+      (destructuring-bind (class retryable-p) case
+        (let* ((failure (make-condition class))
+               (stream (make-string-input-stream ""))
+               (*sse-read-line-function*
+                 (lambda (stream) (declare (ignore stream)) (error failure)))
+               (result
+                 (handler-case
+                     (provider--call-with-transport-normalization
+                      (lambda ()
+                        (provider-execute-request
+                         (make-instance 'responses-api-provider) nil
+                         :transport (lambda (request)
+                                      (declare (ignore request))
+                                      (when (eq phase ':open) (error failure))
+                                      (values stream 200 nil))
+                         :event-callback #'identity)))
+                   (condition (condition) condition))))
+          (unwind-protect
+               (progn
+                 (test-assert (and (typep result 'provider-error)
+                                   (eq (not (null (typep result 'provider-retryable-error)))
+                                       retryable-p))
+                              "transport operations retain their failure classification")
+                 (test-assert (eq (open-stream-p stream) (eq phase ':open))
+                              "acquired streams are closed after read failures"))
+            (provider--close-response-stream stream)))))))
 (defun run-request-tests ()
   "Exercise transport injection, cleanup, deadline, and redaction boundaries."
+  (test-request-callback-condition-identity)
+  (test-request-transport-conditions)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case
       (let* ((secret (make-string 19 :initial-element #\k))

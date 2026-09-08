@@ -51,12 +51,15 @@ The library closes every acquired stream, normalizes HTTP and terminal failures,
 and redacts supplied secrets from detached headers, events, results, and diagnostics.
 Completion runs after valid terminal consumption and stream cleanup.
 
-Load =cl-llm-provider-api/dexador= when using Dexador to normalize its HTTP,
-socket, TLS, and deadline conditions. Credentials and authenticated request headers
-are supplied by the application. Resampling and transient retries use separate
-budgets in =CALL-WITH-BOUNDED-RETRIES=. Supply =:maximum-retries=,
-=:delay-function= (retry number and condition), and =:call-with-attempt= for a
-custom delay policy or attempt scope.
+Load =cl-llm-provider-api/dexador= and wrap the request thunk with
+=PROVIDER--CALL-WITH-TRANSPORT-NORMALIZATION= to classify socket, TLS, and deadline
+conditions from transport opening and SSE line reads. Application callbacks run
+outside that classifier. Pass =:terminal-errors-p t= only when wrapping a transport
+opening directly. Convert Dexador HTTP conditions with =PROVIDER-SIGNAL-HTTP-FAILURE=.
+Supply credentials and authenticated request headers from the application.
+Resampling and transient retries use separate budgets in =CALL-WITH-BOUNDED-RETRIES=.
+Supply =:maximum-retries=, =:delay-function= (retry number and condition), and
+=:call-with-attempt= for a custom delay policy or attempt scope.
 
 * Context assembly and output contracts
 

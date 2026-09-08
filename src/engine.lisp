@@ -138,6 +138,14 @@ supported runtime.")
                (t
                 (vector-push-extend character characters))))))
 
+(defparameter *provider-transport-operation-wrapper*
+  (lambda (function &key terminal-errors-p)
+    (declare (ignore terminal-errors-p))
+    (funcall function))
+  "Request-local adapter for actual transport opening and SSE line reads.
+The wrapper accepts a thunk and :TERMINAL-ERRORS-P, true only for opening.
+Application callbacks execute outside this boundary.")
+
 (defparameter *sse-read-line-function* #'sse-read-line-characters
   "The bounded line reader used by READ-SSE-DATA.
 Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
@@ -152,7 +160,9 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
                    (get-output-stream-string data-stream)
                    *sse-end-of-stream*)))
       (loop
-        (let ((raw-line (funcall *sse-read-line-function* stream)))
+        (let ((raw-line
+                (funcall *provider-transport-operation-wrapper*
+                         (lambda () (funcall *sse-read-line-function* stream)))))
           (when (eq raw-line *sse-end-of-stream*)
             (return (event-data)))
           (let ((line (string-right-trim '(#\Return) raw-line)))

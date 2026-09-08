@@ -126,7 +126,9 @@ are scoped to this call and redacted before emitting detached wire values."
          (*provider-active-credential-redaction-marker*
            (cl-rfc8628:safe-redaction-marker
             *provider-credential-redaction-marker* secrets)))
-    (multiple-value-bind (stream status raw-headers) (funcall transport request)
+    (multiple-value-bind (stream status raw-headers)
+        (funcall *provider-transport-operation-wrapper*
+                 (lambda () (funcall transport request)) :terminal-errors-p t)
       (let ((result
               (unwind-protect
                    (let ((headers (provider--sanitize-wire-value raw-headers)))

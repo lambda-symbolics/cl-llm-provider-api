@@ -29,10 +29,19 @@
 
 (defun provider--call-with-transport-normalization
     (attempt-function &key terminal-errors-p)
-  "Normalize dependency transport conditions from ATTEMPT-FUNCTION.
-When TERMINAL-ERRORS-P is true, normalize raw SIMPLE-ERROR failures at the
-transport-opening boundary. Leave application callback failures untouched."
-  (handler-case (funcall attempt-function)
+  "Normalize transport operations during ATTEMPT-FUNCTION, not its callbacks.
+Bind the adapter used by PROVIDER-EXECUTE-REQUEST and SSE line reads. With
+TERMINAL-ERRORS-P, ATTEMPT-FUNCTION itself must be a transport-opening operation;
+raw SIMPLE-ERROR failures at that boundary become terminal provider errors."
+  (if terminal-errors-p
+      (provider--normalize-transport-operation attempt-function :terminal-errors-p t)
+      (let ((*provider-transport-operation-wrapper*
+              #'provider--normalize-transport-operation))
+        (funcall attempt-function))))
+
+(defun provider--normalize-transport-operation (function &key terminal-errors-p)
+  "Normalize dependency conditions from one transport FUNCTION."
+  (handler-case (funcall function)
                 (sb-sys:deadline-timeout (condition)
                  (provider--signal-transport-failure
                   (provider--transport-failure-message

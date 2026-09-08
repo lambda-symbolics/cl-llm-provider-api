@@ -386,6 +386,7 @@
 (defun run-wire-tests ()
   "Run concrete wire fixtures."
   (let ((*wire-test-checks* 0))
+    (run-request-tests)
     (test-provider-usage-normalization)
     (test-provider-stream-decoding)
     (test-provider-stream-failures)
