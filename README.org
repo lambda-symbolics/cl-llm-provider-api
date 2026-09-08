@@ -47,9 +47,11 @@ values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
 Call =PROVIDER-EXECUTE-REQUEST= with =:transport=, =:event-callback=, and optional
 =:secrets=, =:cleanup=, =:call-with-deadline=, and =:completion= hooks. The transport
 accepts the request object and returns a stream, HTTP status, and response headers.
-The library closes every acquired stream, normalizes HTTP and terminal failures,
-and redacts supplied secrets from detached headers, events, results, and diagnostics.
-Completion runs after valid terminal consumption and stream cleanup.
+The library normalizes HTTP and terminal failures and redacts supplied secrets
+from detached headers, events, results, and diagnostics. Use =:cleanup= to dispose
+of each acquired stream; the default abort-closes it. Cleanup is best effort:
+its errors and deadline failures do not replace the request outcome. Completion
+runs after valid terminal consumption and cleanup.
 
 Load =cl-llm-provider-api/dexador= and wrap the request thunk with
 =PROVIDER--CALL-WITH-TRANSPORT-NORMALIZATION= to classify socket, TLS, and deadline

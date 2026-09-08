@@ -119,9 +119,11 @@
   "Execute REQUEST using an injected TRANSPORT accepting the request object.
 
 TRANSPORT returns a stream, HTTP status, and response headers. CLEANUP runs on
-all exits after obtaining the stream. CALL-WITH-DEADLINE wraps the stream
-consumer. COMPLETION runs after a valid terminal response and cleanup. Secrets
-are scoped to this call and redacted before emitting detached wire values."
+all exits after obtaining the stream. Cleanup is best effort: its errors and
+deadline failures cannot replace the request result, failure, or nonlocal exit.
+CALL-WITH-DEADLINE wraps the stream consumer. COMPLETION runs after a valid
+terminal response and cleanup. Secrets are scoped to this call and redacted
+before emitting detached wire values."
   (let* ((*provider-active-credential-values* secrets)
          (*provider-active-credential-redaction-marker*
            (cl-rfc8628:safe-redaction-marker
@@ -140,6 +142,8 @@ are scoped to this call and redacted before emitting detached wire values."
                               (lambda ()
                                 (provider-consume-stream
                                  provider stream headers event-callback))))
-                (funcall cleanup stream))))
+                (handler-case (funcall cleanup stream)
+                  (sb-sys:deadline-timeout () nil)
+                  (error () nil)))))
         (when completion (funcall completion))
         result))))

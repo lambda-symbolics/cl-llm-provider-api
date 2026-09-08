@@ -91,10 +91,67 @@
                  (test-assert (eq (open-stream-p stream) (eq phase ':open))
                               "acquired streams are closed after read failures"))
             (provider--close-response-stream stream)))))))
+
+(defun test-request-cleanup-failure-precedence ()
+  "Preserve request results and nonlocal exits when best-effort cleanup fails."
+  (dolist (phase '(:callback-error :cancel :http-error :interrupted :complete))
+    (dolist (class '(simple-error usocket:socket-error sb-sys:deadline-timeout))
+      (let* ((failure (make-condition 'simple-error :format-control "callback failed"))
+             (cleanup-failure (make-condition class))
+             (cancellation-marker (list :cancelled))
+             (stream
+               (make-string-input-stream
+                (if (member phase '(:http-error :interrupted))
+                    ""
+                    (test-sse-event-string
+                     (json-object "type" "response.completed"
+                                  "response" (json-object "id" "done"))))))
+             (cleanups 0)
+             (completions 0)
+             (result
+               (handler-case
+                   (multiple-value-list
+                    (catch 'request-cancel
+                      (provider-execute-request
+                       (make-instance 'responses-api-provider) nil
+                       :transport (lambda (request)
+                                    (declare (ignore request))
+                                    (values stream (if (eq phase ':http-error) 429 200)
+                                            nil))
+                       :event-callback
+                       (lambda (event)
+                         (declare (ignore event))
+                         (case phase
+                           (:callback-error (error failure))
+                           (:cancel (throw 'request-cancel
+                                      (values :cancelled cancellation-marker)))))
+                       :cleanup (lambda (stream)
+                                  (incf cleanups)
+                                  (close stream)
+                                  (error cleanup-failure))
+                       :completion (lambda () (incf completions)))))
+                 (condition (condition) condition))))
+        (test-assert (case phase
+                       (:callback-error (eq result failure))
+                       (:cancel (equal result (list :cancelled cancellation-marker)))
+                       (:http-error (and (typep result 'provider-retryable-error)
+                                         (= (provider-error-status result) 429)))
+                       (:interrupted (typep result 'response-stream-error))
+                       (:complete (and (listp result)
+                                       (typep (first result) 'provider-result)
+                                       (string= (provider-result-response-id (first result))
+                                                "done"))))
+                     "cleanup failures preserve the original outcome")
+        (test-assert (and (= cleanups 1) (not (open-stream-p stream)))
+                     "cleanup runs once on every acquired stream")
+        (test-assert (= completions (if (eq phase ':complete) 1 0))
+                     "cleanup errors do not change successful completion ownership")))))
+
 (defun run-request-tests ()
   "Exercise transport injection, cleanup, deadline, and redaction boundaries."
   (test-request-callback-condition-identity)
   (test-request-transport-conditions)
+  (test-request-cleanup-failure-precedence)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case
       (let* ((secret (make-string 19 :initial-element #\k))
