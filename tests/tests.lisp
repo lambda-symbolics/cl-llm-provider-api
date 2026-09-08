@@ -407,6 +407,7 @@
                   (= (provider-retry-event-maximum-attempts (first events)) 3))
              "the resample event did not reflect the provider budget"))))
 
+
 (defun run-tests ()
   "Run every cl-llm-provider-api test."
   (setf *assertions* 0)
@@ -420,5 +421,7 @@
   (test-inference-views)
   (test-inference-objects)
   (test-inference-object-paths)
+  (test-context-assembly)
+  (test-output-contracts)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)

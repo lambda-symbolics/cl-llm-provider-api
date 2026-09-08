@@ -23,6 +23,28 @@ Install the locked dependencies and run all tests:
 ./script/check
 #+end_src
 
+Load =cl-llm-provider-api/context= for context assembly and
+=cl-llm-provider-api/contracts= for structured-output contracts.
+
+* Context assembly and output contracts
+
+Create bounded =CONTEXT-CONTRIBUTION= values with =MAKE-CONTEXT-CONTRIBUTION=.
+Use =MAKE-CONTEXT-RESOLVER= and =CONTEXT-RESOLVE= to select contributions by
+lifetime, supersession, deduplication, conflict group, mandatory class, priority,
+and available budget. A =CONTEXT-SELECTION= includes selected and omitted values.
+Call =CONTEXT-SELECTION-COMPLETE= only after a successful request to acknowledge
+successful-delivery lifetimes. Applications supply request identity, token costs,
+rendering, and evidence trust boundaries.
+
+Use =OUTPUT-SCHEMA-NORMALIZE= for the supported native schema subset and
+=OUTPUT-SCHEMA->JSON= for its JSON representation. Validate values with
+=OUTPUT-SCHEMA-VALID-P=. Decode exact JSON through =OUTPUT-JSON-DECODE= and
+convert portable tagged values through =OUTPUT-JSON->SEXP= and
+=OUTPUT-SEXP->JSON=. Object properties and required keys, arrays, scalar JSON
+types, enums, alternatives, and additional-property constraints are supported.
+Invalid contracts and values signal =OUTPUT-CONTRACT-ERROR= and
+=OUTPUT-VALUE-ERROR= with field diagnostics.
+
 * Provider values
 
 All values are ordinary CLOS instances created with =MAKE-INSTANCE=.
