@@ -55,6 +55,19 @@
                              (not (search secret (provider-error-request-id outcome)))
                              (equal order '(:cleanup)))
                         "HTTP failure classification precedes consumption"))))))
+  (dolist (terminal-errors-p '(nil t))
+    (let* ((failure (make-condition 'simple-error :format-control "request failed"))
+           (result
+             (handler-case
+                 (provider--call-with-transport-normalization
+                  (lambda () (error failure)) :terminal-errors-p terminal-errors-p)
+               (error (condition) condition))))
+      (test-assert
+       (if terminal-errors-p
+           (and (typep result 'provider-error)
+                (not (typep result 'provider-retryable-error)))
+           (eq failure result))
+       "opening failures are terminal; application callback errors keep their identity")))
   (let ((attempts 0) (wrappers 0) (delays nil) (events nil))
     (test-assert
      (eq :complete

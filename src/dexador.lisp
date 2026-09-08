@@ -27,8 +27,11 @@
          (provider--response-request-id headers) :response
          (and body (bounded-string body :limit 2000))))))
 
-(defun provider--call-with-transport-normalization (attempt-function)
-  "Call ATTEMPT-FUNCTION and normalize dependency transport conditions."
+(defun provider--call-with-transport-normalization
+    (attempt-function &key terminal-errors-p)
+  "Normalize dependency transport conditions from ATTEMPT-FUNCTION.
+When TERMINAL-ERRORS-P is true, normalize raw SIMPLE-ERROR failures at the
+transport-opening boundary. Leave application callback failures untouched."
   (handler-case (funcall attempt-function)
                 (sb-sys:deadline-timeout (condition)
                  (provider--signal-transport-failure
@@ -62,4 +65,12 @@
                  (provider--signal-transport-failure
                   (provider--transport-failure-message
                    "The provider TLS connection could not be established." condition)
-                  :retryable-p nil))))
+                  :retryable-p nil))
+                (simple-error (condition)
+                  (if terminal-errors-p
+                      (provider--signal-transport-failure
+                       (provider--transport-failure-message
+                        "The provider transport failed before a response was received."
+                        condition)
+                       :retryable-p nil)
+                      (error condition)))))
