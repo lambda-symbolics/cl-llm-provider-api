@@ -18,3 +18,23 @@
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2026-01-01")
   :version "ql-2025-06-22"))
+("dexador" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2026-01-01")
+  :version "ql-2026-01-01"))
+("cl+ssl" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2026-01-01")
+  :version "ql-2026-01-01"))
+("usocket" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2026-01-01")
+  :version "ql-2026-01-01"))
+("clinker-transcript" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/lambda-symbolics/clinker-transcript.git" :ref "73aebf6c498bc6c9b42d2a5fdbe961163feaa933")
+  :version "git-73aebf6c498bc6c9b42d2a5fdbe961163feaa933"))
+("cl-rfc8628" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/lambda-symbolics/cl-rfc8628.git" :ref "37aaeef092c1212d0886bdd68af6eebecd77a98f")
+  :version "git-37aaeef092c1212d0886bdd68af6eebecd77a98f"))

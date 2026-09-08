@@ -2,3 +2,8 @@ ql babel 2026-01-01
 ql bordeaux-threads 2026-01-01
 ql ironclad 2026-01-01
 ql yason 2026-01-01
+ql dexador 2026-01-01
+ql cl+ssl 2026-01-01
+ql usocket 2026-01-01
+git clinker-transcript https://github.com/lambda-symbolics/clinker-transcript.git :ref 73aebf6c498bc6c9b42d2a5fdbe961163feaa933
+git cl-rfc8628 https://github.com/lambda-symbolics/cl-rfc8628.git :ref 37aaeef092c1212d0886bdd68af6eebecd77a98f

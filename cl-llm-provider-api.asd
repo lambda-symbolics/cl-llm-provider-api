@@ -25,16 +25,40 @@
   :description
   "Tests for cl-llm-provider-api."
   :depends-on
-  (#:cl-llm-provider-api/context #:cl-llm-provider-api/contracts)
+  (#:cl-llm-provider-api/dexador #:cl-llm-provider-api/context
+   #:cl-llm-provider-api/contracts)
   :serial
   t
   :components
   ((:module "tests" :serial t :components
-    ((:file "tests") (:file "context-tests") (:file "contract-tests"))))
+    ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
+     (:file "contract-tests") (:file "chat") (:file "anthropic"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))
    (uiop/package:symbol-call '#:cl-llm-provider-api/tests '#:run-tests)))
+
+(asdf/parse-defsystem:defsystem #:cl-llm-provider-api/wire
+  :description
+  "Concrete Responses, Chat Completions, and Messages protocols."
+  :depends-on
+  (#:cl-llm-provider-api #:yason #:clinker-transcript #:cl-rfc8628)
+  :serial
+  t
+  :components
+  ((:module "src" :serial t :components
+    ((:file "wire-json") (:file "wire-conditions") (:file "wire-transport")
+     (:file "wire-items") (:file "wire-client") (:file "responses")
+     (:file "chat-policy") (:file "chat-completions") (:file "usage")
+     (:file "request") (:file "anthropic")))))
+
+(asdf/parse-defsystem:defsystem #:cl-llm-provider-api/dexador
+  :description
+  "Optional Dexador condition normalization for provider transports."
+  :depends-on
+  (#:cl-llm-provider-api/wire #:dexador #:cl+ssl #:usocket)
+  :components
+  ((:file "src/dexador")))
 
 (asdf/parse-defsystem:defsystem #:cl-llm-provider-api/context
   :description

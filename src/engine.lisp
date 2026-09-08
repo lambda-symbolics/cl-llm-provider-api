@@ -13,7 +13,25 @@
      (format stream "~A" (provider-api-error-message condition))))
   (:documentation "A provider engine operation failed."))
 
-(define-condition provider-retryable-error (provider-api-error)
+(define-condition provider-error (provider-api-error)
+  ((status :initarg :status :initform nil :reader provider-error-status
+           :type (or null integer)
+           :documentation "The HTTP status, if a response was received.")
+   (code :initarg :code :initform nil :reader provider-error-code
+         :type (or null string)
+         :documentation "The provider's structured error code, if supplied.")
+   (request-id :initarg :request-id :initform nil :reader provider-error-request-id
+               :type (or null string)
+               :documentation "The request identifier, if supplied.")
+   (response-id :initarg :response-id :initform nil :reader provider-error-response-id
+                :type (or null string)
+                :documentation "The failed response identifier, if supplied.")
+   (response :initarg :response :initform nil :reader provider-error-response
+             :type (or null string)
+             :documentation "A bounded provider response safe for display."))
+  (:documentation "A model-provider request failed."))
+
+(define-condition provider-retryable-error (provider-error)
   ()
   (:documentation "A transient provider failure eligible for bounded retry."))
 
@@ -164,48 +182,38 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
 (defparameter *bounded-retry-sleep-function* #'sleep
   "Function used to wait between provider retry attempts.")
 
-(defun call-with-bounded-retries (attempt-function event-callback
-                                  &key (delays *bounded-retry-delays*)
-                                       (sleep-function
-                                        *bounded-retry-sleep-function*))
-  "Call ATTEMPT-FUNCTION of no arguments with bounded transport recovery.
 
-PROVIDER-RESAMPLE-REQUESTED restarts the attempt immediately, because a
-fresh sample is the remedy for a stochastic degenerate generation and the
-signaling provider enforces its own per-turn resample budget. Any other
-PROVIDER-RETRYABLE-ERROR waits for the next entry in DELAYS before the
-attempt is repeated, and propagates once DELAYS is exhausted.
-EVENT-CALLBACK receives one PROVIDER-RETRY-EVENT before each wait and
-another with a zero delay when the wait ends, so a stalled reconnect never
-reads as a frozen countdown."
+(defun call-with-bounded-retries
+       (attempt-function event-callback
+        &key (delays *bounded-retry-delays*) (maximum-retries (length delays))
+        delay-function (sleep-function *bounded-retry-sleep-function*)
+        (call-with-attempt #'funcall))
+  "Call ATTEMPT-FUNCTION with bounded transient retry and independent resampling. DELAY-FUNCTION receives the one-based retry number and condition. CALL-WITH-ATTEMPT wraps each attempt for host deadlines or scoped resources."
   (let ((retry-number 0))
     (loop
-      (handler-case
-          (return-from call-with-bounded-retries
-            (funcall attempt-function))
-        (provider-resample-requested (condition)
-          (funcall event-callback
-                   (make-instance
-                    'provider-retry-event
-                    :attempt (provider-resample-requested-attempt condition)
-                    :maximum-attempts
-                    (provider-resample-requested-maximum-attempts condition)
-                    :delay 0)))
-        (provider-retryable-error (condition)
-          (when (= retry-number (length delays))
-            (error condition))
-          (let ((delay (nth retry-number delays)))
-            (funcall event-callback
-                     (make-instance
-                      'provider-retry-event
-                      :attempt (1+ retry-number)
-                      :maximum-attempts (length delays)
-                      :delay delay))
-            (funcall sleep-function delay)
-            (funcall event-callback
-                     (make-instance
-                      'provider-retry-event
-                      :attempt (1+ retry-number)
-                      :maximum-attempts (length delays)
-                      :delay 0))
-            (incf retry-number)))))))
+     (handler-case (return (funcall call-with-attempt attempt-function))
+                   (provider-resample-requested (condition)
+                    (funcall event-callback
+                             (make-instance 'provider-retry-event :attempt
+                                            (provider-resample-requested-attempt
+                                             condition)
+                                            :maximum-attempts
+                                            (provider-resample-requested-maximum-attempts
+                                             condition)
+                                            :delay 0)))
+                   (provider-retryable-error (condition)
+                    (when (>= retry-number maximum-retries) (error condition))
+                    (incf retry-number)
+                    (let ((delay
+                           (if delay-function
+                               (funcall delay-function retry-number condition)
+                               (nth (1- retry-number) delays))))
+                      (funcall event-callback
+                               (make-instance 'provider-retry-event :attempt
+                                              retry-number :maximum-attempts
+                                              maximum-retries :delay delay))
+                      (funcall sleep-function delay)
+                      (funcall event-callback
+                               (make-instance 'provider-retry-event :attempt
+                                              retry-number :maximum-attempts
+                                              maximum-retries :delay 0))))))))

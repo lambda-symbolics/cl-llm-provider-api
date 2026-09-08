@@ -3,15 +3,16 @@
 Portable Common Lisp protocols and value types for language-model providers and
 bounded inference inputs.
 
-The library defines semantic provider events, provider results, extensible CLOS
-provider and wire protocols, shared call/token/depth budgets, read-only context
-views, and content-addressed context objects. Provider implementations retain
-ownership of credentials, HTTP clients, model catalogs, registries, and agent
-orchestration.
+The library defines semantic provider events and results, concrete wire clients,
+context assembly, structured-output contracts, shared inference budgets, read-only
+views, and content-addressed context objects. Applications own credential stores,
+model catalogs, registries, prompt policy, conversation projection, and tool dispatch.
 
 * Systems and package
 
 - ASDF system: =cl-llm-provider-api=
+- Optional concrete protocols: =cl-llm-provider-api/wire=
+- Optional HTTP condition adapter: =cl-llm-provider-api/dexador=
 - Test system: =cl-llm-provider-api/tests=
 - Package: =CL-LLM-PROVIDER-API=
 - Nickname: =LLM-PROVIDER-API=
@@ -23,8 +24,39 @@ Install the locked dependencies and run all tests:
 ./script/check
 #+end_src
 
-Load =cl-llm-provider-api/context= for context assembly and
-=cl-llm-provider-api/contracts= for structured-output contracts.
+* Projected requests and execution
+
+Load =cl-llm-provider-api/wire= for Responses, Chat Completions, and Anthropic
+Messages encoding and stream assembly. Use hash tables for JSON objects, vectors
+for arrays, and portable Responses-shaped transcript items. Subclass the existing
+provider classes to specialize wire naming, instruction placement, and provider
+metadata without introducing application objects into the wire layer.
+
+Construct =WIRE-REQUEST= with =:model=, =:items=, =:prefix=, =:suffix=, and an
+=:options= property list. Supply already-projected history and instruction texts.
+Call =PROVIDER-REQUEST-OBJECT= with a provider, the projection, and tool vector.
+Responses accepts namespace declarations; Chat Completions and Messages accept
+encoded tools. Use =PROVIDER-WIRE-TOOLS= for protocol-specific tool projection.
+
+Shared options include =:maximum-output-tokens=. Responses additionally accepts
+=:reasoning-effort=, =:reasoning-summary=, and =:fields= (alternating wire keys and
+values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
+=:reasoning-effort=, and =:output-ceiling-field=. Messages accepts =:cache-p= and
+=:ephemeral-items= for separately projected volatile history.
+
+Call =PROVIDER-EXECUTE-REQUEST= with =:transport=, =:event-callback=, and optional
+=:secrets=, =:cleanup=, =:call-with-deadline=, and =:completion= hooks. The transport
+accepts the request object and returns a stream, HTTP status, and response headers.
+The library closes every acquired stream, normalizes HTTP and terminal failures,
+and redacts supplied secrets from detached headers, events, results, and diagnostics.
+Completion runs after valid terminal consumption and stream cleanup.
+
+Load =cl-llm-provider-api/dexador= when using Dexador to normalize its HTTP,
+socket, TLS, and deadline conditions. Credentials and authenticated request headers
+are supplied by the application. Resampling and transient retries use separate
+budgets in =CALL-WITH-BOUNDED-RETRIES=. Supply =:maximum-retries=,
+=:delay-function= (retry number and condition), and =:call-with-attempt= for a
+custom delay policy or attempt scope.
 
 * Context assembly and output contracts
 

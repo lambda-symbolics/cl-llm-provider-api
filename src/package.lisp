@@ -1,5 +1,3 @@
-
-
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
@@ -117,6 +115,118 @@
            #:sse-read-line-characters
            #:subscription-provider
            #:turn-completion
+           #:provider--call-with-transport-normalization
+           #:provider-signal-http-failure
+           #:response-item-reasoning-summary
+           #:provider-result-assistant-text
+           #:response-item-assistant-text
+           #:responses-standard-instructions
+           #:responses-developer-message
+           #:provider-unauthorized
+           #:response-stream-limit-error
+           #:response-stream-error
+           #:provider-transport-error
+           #:provider-incomplete-response
+           #:provider-protocol-error
+           #:provider-error
+           #:openai-compatible--fallback-tool-name
+           #:openai-compatible--function-call-item
+           #:openai-compatible--stream-tool-states
+           #:openai-compatible--choice-tool-deltas
+           #:openai-compatible--tool-delta-index
+           #:openai-compatible--append-tool-delta
+           #:openai-compatible-tool-state
+           #:openai-compatible--delta-text
+           #:openai-compatible--chat-context-message
+           #:openai-compatible--chat-system-message
+           #:openai-compatible--chat-input-messages
+           #:openai-compatible--chat-input-item
+           #:openai-compatible--chat-tool-output
+           #:openai-compatible--chat-function-calls
+           #:openai-compatible--chat-function-call-entry
+           #:openai-compatible--chat-message
+           #:openai-compatible--wire-call-name
+           #:openai-compatible--chat-content
+           #:openai-compatible--chat-content-part
+           #:openai-compatible--wire-tools
+           #:openai-compatible--standalone-wire-tool
+           #:openai-compatible--wire-tool
+           #:openai-compatible--wire-function
+           #:openai-compatible--decode-wire-tool-name
+           #:openai-compatible--wire-tool-name
+           #:provider--signal-event-failure
+           #:provider--signal-incomplete-response
+           #:provider--event-incomplete-reason
+           #:provider--signal-invalid-terminal-reason
+           #:provider--signal-terminal-protocol-error
+           #:*provider-incomplete-terminal-reasons*
+           #:provider--signal-incomplete-terminal
+           #:provider--condition-string
+           #:provider-rate-limit-error-p
+           #:provider--retryable-event-error-code-p
+           #:provider--event-request-id
+           #:provider--event-response-id
+           #:provider--event-error-code
+           #:provider--event-error-object
+           #:provider--event-response
+           #:provider--decode-sse-data
+           #:provider--read-sse-data
+           #:provider--signal-transport-failure
+           #:provider--transport-failure-message
+           #:provider--signal-stream-protocol-failure
+           #:provider--signal-stream-interruption
+           #:provider--reasoning-summary-key
+           #:provider-note-doom-loop-event
+           #:normalize-response-item
+           #:provider--signal-http-status-failure
+           #:provider-retryable-status-p
+           #:provider--http-error-message
+           #:provider--error-body-detail
+           #:provider--response-request-id
+           #:response-header
+           #:provider--sanitize-wire-value
+           #:provider--sanitize-wire-string
+           #:*provider-active-credential-redaction-marker*
+           #:*provider-active-credential-values*
+           #:*provider-credential-redaction-marker*
+           #:*provider-retryable-http-statuses*
+           #:*provider-error-detail-limit*
+           #:*provider-retryable-event-error-codes*
+           #:*provider-rate-limit-event-error-codes*
+           #:*provider-wire-function-name-maximum-length*
+           #:provider-wire-function-name--literal-character-p
+           #:provider-wire-function-name--valid-p
+           #:provider-wire-function-name--escape-sequence-p
+           #:provider-wire-function-name--encode-component
+           #:provider-wire-function-name--decode-component
+           #:provider-wire-function-name--encode
+           #:provider-wire-function-name--decode-readable
+           #:provider-wire-function-name--decode-legacy
+           #:provider-wire-function-name--decode
+           #:provider-usage--field
+           #:provider-usage--nested-field
+           #:provider-usage-normalize
+           #:provider-error-status
+           #:provider-error-code
+           #:provider-error-request-id
+           #:provider-error-response-id
+           #:provider-error-response
+           #:provider-incomplete-response-reason
+           #:*provider-error-body-deadline-seconds*
+           #:provider-call-with-response-deadline
+           #:provider--close-response-stream
+           #:provider--drain-error-body
+           #:provider--error-body-text
+           #:*openai-compatible-wire-tool-name-maximum-length*
+           #:wire-request
+           #:wire-request-model
+           #:wire-request-items
+           #:wire-request-prefix
+           #:wire-request-suffix
+           #:wire-request-options
+           #:provider-execute-request
+           #:provider-account-label
+           #:provider-note-response-headers
            #:context-contribution
            #:context-contribution-lifetime
            #:context-contribution-class
@@ -144,8 +254,6 @@
            #:context-selection-contributions
            #:context-selection-omitted
            #:context-selection-complete
-           #:context-contribution-token-estimate
-           #:output-json-number-p
            #:output-contract-error
            #:output-contract-error-field
            #:output-value-error
@@ -154,6 +262,9 @@
            #:output-schema-valid-p
            #:output-json-decode
            #:output-json->sexp
-           #:output-sexp->json))
+           #:output-sexp->json
+           #:output-json-number-p
+           #:anthropic-messages-provider
+           #:context-contribution-token-estimate))
 
 (in-package #:cl-llm-provider-api)
