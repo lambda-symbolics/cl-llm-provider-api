@@ -6,9 +6,20 @@
   "Maximum seconds spent reading an optional provider error body.")
 
 (defun provider-call-with-response-deadline (seconds function)
-  "Call FUNCTION under an SBCL response deadline of SECONDS, preserving all values."
+  "Call FUNCTION under a response deadline of SECONDS, preserving all values.
+
+SBCL deadlines interrupt the blocking reads that honour them, which Windows
+socket reads do not, so a timer interrupts the thread there and reports the
+same SB-SYS:DEADLINE-TIMEOUT condition."
+  #-win32
   (sb-sys:with-deadline (:seconds seconds)
-    (funcall function)))
+    (funcall function))
+  #+win32
+  (handler-case
+      (sb-ext:with-timeout seconds
+        (funcall function))
+    (sb-ext:timeout ()
+      (error 'sb-sys:deadline-timeout :seconds seconds))))
 
 (defun provider--close-response-stream (stream)
   "Abortively close STREAM without allowing cleanup failure to escape."
