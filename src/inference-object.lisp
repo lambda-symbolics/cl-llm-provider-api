@@ -72,23 +72,66 @@
     (and resolved
          (uiop:pathname-equal pathname resolved))))
 
+(defun rlm-context-object--published-p (pathname content)
+  "Return true when PATHNAME already holds CONTENT as a canonical file."
+  (and (rlm-context-object--canonical-file-p pathname)
+       (string= content
+                (uiop:read-file-string pathname :external-format :utf-8))))
+
+(defun rlm-context-object--discard (temporary)
+  "Delete TEMPORARY, retrying briefly while another process still holds it.
+
+Windows refuses to delete a file that a scanner or reader has open; the store
+is content-addressed, so a temporary that outlives the retries is harmless."
+  (loop repeat 20
+        while (probe-file temporary)
+        do (handler-case
+               (delete-file temporary)
+             (file-error ()
+               (sleep 0.05)))))
+
+(defun rlm-context-object--publish (temporary pathname content)
+  "Rename TEMPORARY to PATHNAME, tolerating what Windows refuses transiently.
+
+A rename fails there while a scanner still holds the fresh temporary file or
+while another process reads the canonical file. The store is
+content-addressed, so a canonical file already holding CONTENT counts as
+published; otherwise the rename is retried briefly before the failure
+propagates."
+  (loop for attempt from 1
+        do (handler-case
+               (return (uiop:rename-file-overwriting-target temporary pathname))
+             (file-error (condition)
+               (cond
+                 ((rlm-context-object--published-p pathname content)
+                  (return pathname))
+                 ((< attempt 20)
+                  (sleep 0.05))
+                 (t
+                  (error condition)))))))
+
 (defun rlm-context-object--write (store pathname content)
-  "Atomically publish CONTENT at PATHNAME inside STORE."
+  "Atomically publish CONTENT at PATHNAME inside STORE.
+
+The temporary file is closed before it is renamed: Windows refuses to rename
+or delete a file this process still holds open, and :CLOSE-STREAM only takes
+effect at the top level of the WITH-TEMPORARY-FILE body."
   (ensure-directories-exist pathname)
-  (uiop:with-temporary-file (:pathname temporary
-                             :stream stream
-                             :keep t
-                             :directory (rlm-context-store-root store)
-                             :prefix "intern"
-                             :external-format :utf-8)
+  (let ((temporary nil))
     (unwind-protect
-         (progn
+         (uiop:with-temporary-file (:pathname temporary-pathname
+                                    :stream stream
+                                    :keep t
+                                    :directory (rlm-context-store-root store)
+                                    :prefix "intern"
+                                    :external-format :utf-8)
+           (setf temporary temporary-pathname)
            (write-string content stream)
            (finish-output stream)
            :close-stream
-           (uiop:rename-file-overwriting-target temporary pathname))
-      (when (probe-file temporary)
-        (delete-file temporary)))))
+           (rlm-context-object--publish temporary-pathname pathname content))
+      (when temporary
+        (rlm-context-object--discard temporary)))))
 
 (defun rlm-context-intern (store content &key label)
   "Store CONTENT once under its digest and return its object handle.
