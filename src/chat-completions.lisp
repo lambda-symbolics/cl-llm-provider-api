@@ -127,8 +127,11 @@
 (defun openai-compatible--chat-input-messages (items)
   "Translate portable Responses ITEMS into valid Chat Completions messages.
 
-Captured thinking rides on the same round's tool-call assistant
-message, which thinking-mode providers require passed back."
+Captured thinking rides on the assistant message that concludes its round,
+whether that message carries tool calls or a visible answer, because
+thinking-mode providers such as Qwen require it passed back. Thinking that a
+later user turn supersedes, or that no longer follows a model message, is
+dropped rather than replayed."
   (let ((messages nil) (function-calls nil) (pending-reasoning nil))
     (labels ((flush-function-calls ()
                "Append one assistant message for pending function calls."
@@ -148,10 +151,16 @@ message, which thinking-mode providers require passed back."
          ((and (json-object-p item) (clinker-transcript:function-call-item-p item))
           (push item function-calls))
          (t (flush-function-calls)
-          (when (and (json-object-p item) (json-string= (json-get item "role") "user"))
-            (setf pending-reasoning nil))
           (let ((message (openai-compatible--chat-input-item item)))
-            (when message (push message messages))))))
+            (if (and message (json-string= (json-get message "role") "assistant"))
+                (progn
+                  (when pending-reasoning
+                    (setf (gethash "reasoning_content" message) pending-reasoning))
+                  (setf pending-reasoning nil)
+                  (push message messages))
+                (progn
+                  (setf pending-reasoning nil)
+                  (when message (push message messages))))))))
       (flush-function-calls)
       (nreverse messages))))
 
