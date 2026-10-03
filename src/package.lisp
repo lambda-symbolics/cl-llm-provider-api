@@ -28,6 +28,7 @@
            #:provider-completed-event-usage
            #:provider-consume-stream
            #:provider-family
+           #:provider-family-for-registration
            #:provider-event
            #:provider-item-event
            #:provider-item-event-item

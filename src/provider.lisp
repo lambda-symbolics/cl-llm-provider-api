@@ -153,10 +153,20 @@
 (defgeneric provider-family (provider)
   (:documentation "Return the model family keyword PROVIDER serves."))
 
+(defgeneric provider-family-for-registration (registration)
+  (:documentation
+   "Return the model family declared by opaque REGISTRATION metadata, or NIL."))
+
+(defmethod provider-family-for-registration ((registration t))
+  "Treat registration metadata as having no family by default."
+  (declare (ignore registration))
+  nil)
+
 (defmethod provider-family ((provider model-provider))
   "Identify a provider without a declared family as custom."
-  (declare (ignore provider))
-  :custom)
+  (or (provider-family-for-registration
+       (model-provider-registration provider))
+      :custom))
 
 (defgeneric provider-with-configuration (provider configuration)
   (:documentation
