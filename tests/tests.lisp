@@ -413,6 +413,7 @@
   (setf *assertions* 0)
   (test-provider-values)
   (test-provider-protocol)
+  (test-tool-helpers)
   (test-sse-decoding)
   (test-bounded-character-reads)
   (test-bounded-retries)

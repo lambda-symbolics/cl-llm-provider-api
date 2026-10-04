@@ -32,7 +32,7 @@
   :components
   ((:module "tests" :serial t :components
     ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
-     (:file "contract-tests") (:file "chat") (:file "anthropic"))))
+     (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))
@@ -49,8 +49,8 @@
   ((:module "src" :serial t :components
     ((:file "wire-json") (:file "wire-conditions") (:file "wire-transport")
      (:file "wire-items") (:file "wire-client") (:file "responses")
-     (:file "chat-policy") (:file "chat-completions") (:file "usage")
-     (:file "request") (:file "anthropic")))))
+     (:file "tool-helpers") (:file "chat-policy") (:file "chat-completions")
+     (:file "usage") (:file "request") (:file "anthropic")))))
 
 (asdf/parse-defsystem:defsystem #:cl-llm-provider-api/dexador
   :description

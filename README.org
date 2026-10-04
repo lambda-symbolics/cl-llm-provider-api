@@ -240,3 +240,14 @@ and passing an object to another store re-interns its verified content there.
 * License
 
 COLL-Attribution, copyright 2026 Lambda Symbolics OÜ. See =LICENSE.lisp=.
+
+* Tool and schema helpers
+
+The exported tool helpers provide provider-safe names, JSON Schema builders,
+required-argument diagnostics, conservative placeholders, and ordered
+namespace grouping without depending on application registry classes.
+=PROVIDER-TOOL-IDENTIFIER-MAP= sanitizes UTF-8 raw names and appends a stable
+FNV-1a suffix within the 23-character Chat Completions budget.  It signals
+specific duplicate, limit, and collision conditions.  Use
+=PROVIDER-ARRAY-SCHEMA= and =PROVIDER-ENUM-SCHEMA= for reusable schema shapes;
+their optional descriptions are omitted when =NIL=.

@@ -66,6 +66,28 @@
            #:provider-wire-protocol
            #:provider-wire-tool
            #:provider-wire-tool-name
+           #:provider-tool-identifier-error
+           #:provider-tool-identifier-duplicate-error
+           #:provider-tool-identifier-limit-error
+           #:provider-tool-identifier-collision-error
+           #:provider-tool-identifier-error-reason
+           #:provider-tool-identifier-map
+           #:*provider-chat-completions-tool-identifier-limit*
+           #:*provider-tool-identifier-hash-characters*
+           #:*provider-tool-identifier-minimum-limit*
+           #:provider-object-schema
+           #:provider-open-object-schema
+           #:provider-array-schema
+           #:provider-enum-schema
+           #:provider-string-property
+           #:provider-integer-property
+           #:provider-boolean-property
+           #:provider-schema-required-names
+           #:provider-schema-required-groups
+           #:provider-schema-missing-required-names
+           #:provider-schema-argument-placeholder
+           #:provider-call-canonical-name
+           #:provider-group-tool-schemas
            #:provider-wire-tools
            #:provider-with-configuration
            #:provider-configuration
