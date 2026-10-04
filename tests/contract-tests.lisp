@@ -136,9 +136,69 @@
   (check (handler-case (progn (output-json->sexp #\x) nil)
            (output-value-error () t)) "unsupported provider value was accepted"))
 
+(defun test-output-text-answers ()
+  "Test answers found in model text, their validation, and repair reasons."
+  (let ((schema (output-schema-normalize
+                 '(:type :object
+                   :properties (("enabled" (:type :boolean)) ("value" (:type :null)))
+                   :required ("enabled" "value")))))
+    (flet ((answer (text)
+             (multiple-value-list (output-text-answer text schema))))
+      (check (equal (answer "{\"enabled\": false, \"value\": null}")
+                    '((:object ("enabled" nil) ("value" :null)) t nil))
+             "an exact JSON answer validates losslessly")
+      (check (equal (first (answer (format nil "Here it is:~%```json~%{\"enabled\": true, \"value\": null}~%```~%Done.")))
+                    '(:object ("enabled" t) ("value" :null)))
+             "an answer inside prose and a code fence is found")
+      (dolist (case '(("   " "no answer text")
+                      ("no json here" "parseable JSON")
+                      ("{\"enabled\": 1}" "satisfy the required schema")))
+        (destructuring-bind (text reason) case
+          (let ((outcome (answer text)))
+            (check (and (null (second outcome)) (search reason (third outcome)))
+                   "~S needs repair because it has ~A" text reason))))))
+  (check (equalp (multiple-value-list (output-text-json "[1, 2] trailing"))
+                (list (vector 1 2) t))
+         "an array answer before trailing prose is found")
+  (check (null (nth-value 1 (output-text-json "nothing")))
+         "text without JSON yields no value"))
+
+(defun test-output-json-schema-import ()
+  "Test converting JSON Schema objects into native output schemas."
+  (let* ((json (output-json-decode
+                "{\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"on\"], \"properties\": {\"on\": {\"type\": \"boolean\", \"enum\": [true, false]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"maxItems\": 3}}}"))
+         (schema (output-json-schema->schema json)))
+    (check (equal (output-schema-normalize schema)
+                  (output-schema-normalize
+                   '(:type :object
+                     :properties (("on" (:type :boolean :enum (t nil)))
+                                  ("tags" (:type :array :items (:type :string) :max-items 3)))
+                     :required ("on")
+                     :additional-properties nil)))
+           "a JSON Schema object imports to the equivalent native schema")
+    (let ((exported (output-schema->json (output-schema-normalize schema))))
+      (check (equal (output-schema-normalize (output-json-schema->schema exported))
+                    (output-schema-normalize schema))
+             "importing an exported schema gives the same native schema")))
+  (let ((marker (make-hash-table :test #'equal)))
+    (setf (gethash "type" marker) "object"
+          (gethash "additionalProperties" marker) :json-false)
+    (check (null (getf (output-json-schema->schema marker) :additional-properties :missing))
+           "the :JSON-FALSE marker reads as false"))
+  (dolist (bad (list "not an object"
+                     (make-hash-table :test #'equal)
+                     (output-json-decode "{\"type\": 3}")
+                     (output-json-decode "{\"type\": \"object\", \"properties\": []}")))
+    (check (handler-case (progn (output-json-schema->schema bad) nil)
+             (output-contract-error ()
+               t))
+           "malformed JSON Schema ~S signals a contract error" bad)))
+
 (defun test-output-contracts ()
   "Run generic schema, validation, diagnostics and exact JSON tests."
   (test-output-contract-roundtrip)
   (test-output-contract-diagnostics)
   (test-output-contract-types)
-  (test-output-value-failures))
+  (test-output-value-failures)
+  (test-output-text-answers)
+  (test-output-json-schema-import))

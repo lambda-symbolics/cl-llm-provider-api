@@ -1,7 +1,10 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
-  (:export #:provider-account-label-for-registration
+  (:export #:output-text-json
+           #:output-text-answer
+           #:output-json-schema->schema
+           #:provider-account-label-for-registration
            #:provider-post-event-stream
            #:gemini-generate-content-provider
            #:provider-gemini-stream-response

@@ -84,6 +84,13 @@ types, enums, alternatives, and additional-property constraints are supported.
 Invalid contracts and values signal =OUTPUT-CONTRACT-ERROR= and
 =OUTPUT-VALUE-ERROR= with field diagnostics.
 
+=OUTPUT-TEXT-ANSWER= reads a model's free-text answer against a schema: it finds
+one JSON value in the text, tolerating prose and code fences around an object or
+array, validates it, and returns the tagged value, whether it was valid, and
+otherwise a sentence asking the model to repair the answer. =OUTPUT-TEXT-JSON=
+is the extraction alone. =OUTPUT-JSON-SCHEMA->SCHEMA= imports a JSON Schema
+object into the native subset, the reverse of =OUTPUT-SCHEMA->JSON=.
+
 * Provider values
 
 All values are ordinary CLOS instances created with =MAKE-INSTANCE=.
@@ -238,7 +245,8 @@ host's own authentication condition.
 =RLM-BUDGET-CREATE= creates a subtree budget with shared call and token counters
 and frame-local recursion depth. =RLM-BUDGET-ACQUIRE-REQUEST= atomically reserves
 one call and a bounded output tranche. Settle it with
-=RLM-BUDGET-SETTLE-OUTPUT=. Descendants created by =RLM-BUDGET-DESCEND= share the
+=RLM-BUDGET-SETTLE-OUTPUT=, passing =RLM-USAGE-BILLABLE-TOKENS= of the reported
+usage so prompt-cache reads do not drain the pool. Descendants created by =RLM-BUDGET-DESCEND= share the
 same counters.
 
 #+begin_src lisp

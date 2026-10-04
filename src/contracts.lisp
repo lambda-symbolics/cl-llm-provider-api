@@ -423,3 +423,128 @@ lists, cycles, excessive nesting, and inconsistent bounds."
       ;; Parser diagnostics may include input payloads. Do not retain them.
       (error 'output-value-error :message "Could not decode the JSON value."))))
 
+
+
+;;;; -- Answers in Model Text --
+
+(defun output-text-json (text)
+  "Return the JSON value TEXT carries and whether one was found.
+
+TEXT may be exactly one JSON value, or prose and code fences around one object
+or array: the span from the first opening brace or bracket to the last matching
+closer is tried. Values decode as OUTPUT-JSON-DECODE does, keeping false and
+null distinct."
+  (flet ((decode (candidate)
+           (handler-case (values (output-json-decode candidate) t)
+             (error ()
+               (values nil nil)))))
+    (let ((trimmed (string-trim '(#\Space #\Tab #\Newline #\Return) text)))
+      (multiple-value-bind (value found-p) (decode trimmed)
+        (if found-p
+            (values value t)
+            (let* ((object-start (position #\{ trimmed))
+                   (array-start (position #\[ trimmed))
+                   (start (if (and object-start array-start)
+                              (min object-start array-start)
+                              (or object-start array-start)))
+                   (end (and start
+                             (position (if (eql start array-start) #\] #\})
+                                       trimmed :from-end t))))
+              (if (and start end (< start end))
+                  (decode (subseq trimmed start (1+ end)))
+                  (values nil nil))))))))
+
+(defun output-text-answer (text schema)
+  "Return the answer TEXT gives for validated native SCHEMA, its validity, and why not.
+
+The first value is the answer as a portable tagged tree. When the second value
+is NIL the third is a sentence to send back to the model asking it to repair
+the answer: the text was empty, carried no JSON value, or carried one that does
+not satisfy SCHEMA."
+  (let ((trimmed (and (stringp text)
+                      (string-trim '(#\Space #\Tab #\Newline #\Return) text))))
+    (if (not (output--non-empty-string-p trimmed))
+        (values nil nil "The response contained no answer text.")
+        (multiple-value-bind (value found-p) (output-text-json trimmed)
+          (cond
+            ((not found-p)
+             (values nil nil "The response did not contain one parseable JSON value."))
+            ((not (output-schema-valid-p value schema))
+             (values nil nil "The JSON value does not satisfy the required schema."))
+            (t
+             (values (output-json->sexp value) t nil)))))))
+
+
+;;;; -- JSON Schema Import --
+
+(defun output--json-false-p (value)
+  "Return true when VALUE is a decoded JSON false in either common representation."
+  (or (eq value yason:false) (eq value :json-false)))
+
+(defun output--json-schema-get (schema &rest keys)
+  "Return the first value SCHEMA holds under one of KEYS, or NIL."
+  (loop for key in keys
+        for (value present-p) = (multiple-value-list (gethash key schema))
+        when present-p
+          return value))
+
+(defun output-json-schema->schema (schema)
+  "Convert the JSON Schema object SCHEMA to a native output schema.
+
+This is the reverse of OUTPUT-SCHEMA->JSON for the supported subset: type,
+enum, properties, required, additionalProperties, items, minItems and maxItems.
+JSON false, as Yason's false or the :JSON-FALSE marker, becomes native NIL in
+enum and additionalProperties positions. The result still needs
+OUTPUT-SCHEMA-NORMALIZE; malformed input signals OUTPUT-CONTRACT-ERROR."
+  (unless (hash-table-p schema)
+    (output-contract--error :message "A contract must be one JSON Schema object."))
+  (let ((contract nil))
+    (let ((maximum (output--json-schema-get schema "maxItems" "max-items")))
+      (when maximum
+        (setf contract (list* :max-items maximum contract))))
+    (let ((minimum (output--json-schema-get schema "minItems" "min-items")))
+      (when minimum
+        (setf contract (list* :min-items minimum contract))))
+    (let ((items (gethash "items" schema)))
+      (when items
+        (setf contract (list* :items (output-json-schema->schema items) contract))))
+    (multiple-value-bind (additional present-p) (gethash "additionalProperties" schema)
+      (when present-p
+        (setf contract (list* :additional-properties (eq additional t) contract))))
+    (let ((required (gethash "required" schema)))
+      (when required
+        (unless (or (listp required) (and (vectorp required) (not (stringp required))))
+          (output-contract--error :field :required
+                                  :message "Contract required names must be one JSON array."))
+        (setf contract (list* :required (coerce required 'list) contract))))
+    (let ((properties (gethash "properties" schema)))
+      (when properties
+        (unless (hash-table-p properties)
+          (output-contract--error :field :properties
+                                  :message "Contract properties must be one JSON object."))
+        (setf contract
+              (list* :properties
+                     (sort (loop for name being the hash-keys of properties
+                                   using (hash-value child)
+                                 collect (list name (output-json-schema->schema child)))
+                           #'string< :key #'first)
+                     contract))))
+    (let ((enum (gethash "enum" schema)))
+      (when enum
+        (unless (and (vectorp enum) (not (stringp enum)))
+          (output-contract--error :field :enum
+                                  :message "A contract enum must be one JSON array."))
+        (setf contract
+              (list* :enum
+                     (loop for value across enum
+                           collect (if (output--json-false-p value) nil value))
+                     contract))))
+    (let ((type (gethash "type" schema)))
+      (when type
+        (unless (stringp type)
+          (output-contract--error :field :type
+                                  :message "A contract type must be a JSON Schema type string."))
+        (setf contract (list* :type (intern (string-upcase type) :keyword) contract))))
+    (unless contract
+      (output-contract--error :message "A contract requires at least a type or an enum."))
+    contract))
