@@ -152,6 +152,21 @@
                (eq (rlm-budget-exhausted-dimension condition) :depth)))
            "zero-depth budget allowed another descent")))
 
+(defun test-billable-tokens ()
+  "Test usage settlement discounts prompt-cache reads."
+  (check (null (rlm-usage-billable-tokens nil)) "usage without a total refunds the tranche")
+  (check (= (rlm-usage-billable-tokens
+             (let ((usage (make-hash-table :test #'equal)))
+               (setf (gethash "total_tokens" usage) 150
+                     (gethash "cached_input_tokens" usage) 80)
+               usage))
+            70)
+         "cached input tokens do not drain the pool")
+  (check (= (rlm-usage-billable-tokens '(("total_tokens" 150))) 150)
+         "usage without cache counters settles at the reported total")
+  (check (zerop (rlm-usage-billable-tokens '(("total_tokens" 100) ("cached_input_tokens" 120))))
+         "over-reported cache reads clamp at zero"))
+
 (defun test-inference-budget-contention ()
   "Exercise atomic reservations under concurrent acquisition."
   (let* ((budget (rlm-budget-create :calls 16 :tokens 100 :depth 1))
@@ -419,6 +434,7 @@
   (test-bounded-retries)
   (test-inference-budget)
   (test-inference-budget-contention)
+  (test-billable-tokens)
   (test-inference-views)
   (test-inference-objects)
   (test-inference-object-paths)

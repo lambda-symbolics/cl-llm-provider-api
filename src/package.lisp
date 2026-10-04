@@ -4,6 +4,7 @@
   (:export #:output-text-json
            #:output-text-answer
            #:output-json-schema->schema
+           #:rlm-usage-billable-tokens
            #:provider-account-label-for-registration
            #:provider-post-event-stream
            #:gemini-generate-content-provider

@@ -116,6 +116,27 @@ with RLM-BUDGET-SETTLE-OUTPUT once usage is known."
               (- remaining tranche))
         tranche))))
 
+(defun rlm-usage-billable-tokens (usage)
+  "Return USAGE's token total with prompt-cache reads discounted, or NIL.
+
+USAGE is portable usage as a string-keyed hash table or a list of (NAME VALUE)
+entries. Cache reads are repeated context served from the provider's prompt
+cache; charging them at full weight would exhaust a shared-prefix run's token
+budget long before its new work, so the result is total_tokens minus
+cached_input_tokens, never below zero. Usage without a total returns NIL, which
+RLM-BUDGET-SETTLE-OUTPUT treats as a full refund."
+  (flet ((field (name)
+           (let ((value (cond
+                          ((hash-table-p usage)
+                           (gethash name usage))
+                          ((listp usage)
+                           (second (assoc name usage :test #'equal)))
+                          (t
+                           nil))))
+             (and (integerp value) value))))
+    (let ((total (field "total_tokens")))
+      (and total (max 0 (- total (or (field "cached_input_tokens") 0)))))))
+
 (defun rlm-budget-settle-output (budget tranche usage-total)
   "Settle one request's TRANCHE against its reported USAGE-TOTAL.
 
