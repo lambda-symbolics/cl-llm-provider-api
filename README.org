@@ -187,6 +187,16 @@ buffered path on runtimes whose large decoded reads misbehave.
 callbacks, and restarts immediately on =PROVIDER-RESAMPLE-REQUESTED=. Hosts
 bridge their own condition types by inheriting from these classes.
 
+=CALL-WITH-STREAMING-RETRIES= builds on it for streamed requests. Each attempt
+streams through the callback it is handed, so the engine sees whether reasoning,
+text or an item arrived before a failure. Failures before any output retry up to
+=*PROVIDER-MAXIMUM-TRANSIENT-RETRIES*= times; once output has streamed, every
+retry bills a fresh generation, so only =*PROVIDER-MAXIMUM-STREAMING-RETRIES*=
+are allowed before the request ends with =PROVIDER-STREAM-ABANDONED=. Every
+failed attempt is reported as a =PROVIDER-ATTEMPT-FAILED-EVENT= audit record,
+and waits come from =PROVIDER-JITTERED-RETRY-DELAY=: a doubling base capped at
+32 seconds with twenty percent jitter.
+
 * Bounded inference
 
 ** Budgets

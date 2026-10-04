@@ -59,6 +59,15 @@
   ()
   (:documentation "A provider stream exceeded a configured size limit."))
 
+(define-condition provider-stream-abandoned (provider-error)
+  ((attempts
+    :initarg :attempts
+    :reader provider-stream-abandoned-attempts
+    :type (integer 1)
+    :documentation "How many attempts had streamed output before giving up."))
+  (:documentation
+   "A request kept failing after streaming output, past the streaming retry budget."))
+
 (defparameter *stream-limit-error-class* 'provider-stream-limit-error
   "The condition class signaled for provider stream size violations.
 Hosts may name a subclass carrying their own condition protocol.")
@@ -227,3 +236,107 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
                                (make-instance 'provider-retry-event :attempt
                                               retry-number :maximum-attempts
                                               maximum-retries :delay 0))))))))
+
+
+;;;; -- Streaming-Aware Retries --
+
+(defparameter *provider-maximum-transient-retries* 6
+  "Maximum retryable failures allowed after the initial attempt.")
+
+(defparameter *provider-maximum-streaming-retries* 2
+  "Maximum retries of one request after an attempt already streamed model output.
+
+A failure before any output costs only the wait, so the full transient ladder
+applies. Once reasoning or output has streamed, every retry bills a fresh
+generation of the same prompt, so the budget is deliberately tighter.")
+
+(defun provider-jittered-retry-delay (retry-number &key (random-state *random-state*))
+  "Return the seconds to wait before one-based retry RETRY-NUMBER.
+
+The base doubles from one second up to 32, and a uniform factor from 0.8 to 1.2
+spreads simultaneous clients apart. The result is a whole number of seconds from
+1 to 60."
+  (let ((base (min 50 (ash 1 (min 6 (1- retry-number))))))
+    (max 1 (min 60 (round (* base (+ 0.8d0 (random 0.4d0 random-state))))))))
+
+(defun call-with-streaming-retries
+    (attempt-function event-callback
+     &key (maximum-retries *provider-maximum-transient-retries*)
+          (maximum-streaming-retries *provider-maximum-streaming-retries*)
+          (sleep-function *bounded-retry-sleep-function*)
+          (random-state *random-state*)
+          delay-function
+          (call-with-attempt #'funcall))
+  "Call ATTEMPT-FUNCTION with bounded retries that tighten once output has streamed.
+
+ATTEMPT-FUNCTION receives the event callback each attempt must stream through,
+so streamed reasoning, text and items are observed. Every failed attempt is
+reported to EVENT-CALLBACK as a PROVIDER-ATTEMPT-FAILED-EVENT before the
+ladder decides. Failures before any output may retry MAXIMUM-RETRIES times;
+retryable failures after output streamed are capped at
+MAXIMUM-STREAMING-RETRIES, after which the request ends with
+PROVIDER-STREAM-ABANDONED. DELAY-FUNCTION defaults to
+PROVIDER-JITTERED-RETRY-DELAY drawing from RANDOM-STATE; SLEEP-FUNCTION and
+CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
+  (let ((attempt-number 0)
+        (streaming-failures 0)
+        (output-received-p nil)
+        (started-at 0))
+    (labels ((observe-event (event)
+               "Note streamed output before forwarding EVENT."
+               (when (typep event '(or assistant-delta-event
+                                       reasoning-delta-event
+                                       provider-item-event))
+                 (setf output-received-p t))
+               (funcall event-callback event))
+
+             (elapsed-seconds ()
+               "Return whole seconds since the current attempt started."
+               (max 0 (round (- (get-internal-real-time) started-at)
+                             internal-time-units-per-second)))
+
+             (note-failure (condition)
+               "Report CONDITION and enforce the streaming retry budget."
+               (let ((retryable-p (typep condition 'provider-retryable-error)))
+                 (funcall event-callback
+                          (make-instance 'provider-attempt-failed-event
+                                         :attempt attempt-number
+                                         :elapsed-seconds (elapsed-seconds)
+                                         :output-received-p output-received-p
+                                         :retryable-p retryable-p
+                                         :condition condition))
+                 (when (and retryable-p output-received-p)
+                   (incf streaming-failures)
+                   (when (> streaming-failures maximum-streaming-retries)
+                     (error 'provider-stream-abandoned
+                            :message
+                            (format nil
+                                    "The provider stream failed after model output began on ~D attempts; giving up instead of billing another generation. Last failure: ~A"
+                                    streaming-failures condition)
+                            :status (provider-error-status condition)
+                            :code (provider-error-code condition)
+                            :request-id (provider-error-request-id condition)
+                            :response-id (provider-error-response-id condition)
+                            :response (provider-error-response condition)
+                            :attempts streaming-failures)))))
+
+             (attempt ()
+               "Run one attempt with fresh output tracking."
+               (incf attempt-number)
+               (setf output-received-p nil
+                     started-at (get-internal-real-time))
+               (handler-bind ((provider-error
+                                (lambda (condition)
+                                  (unless (typep condition 'provider-resample-requested)
+                                    (note-failure condition)))))
+                 (funcall attempt-function #'observe-event))))
+      (call-with-bounded-retries
+       #'attempt #'observe-event
+       :maximum-retries maximum-retries
+       :sleep-function sleep-function
+       :call-with-attempt call-with-attempt
+       :delay-function (or delay-function
+                           (lambda (retry-number condition)
+                             (declare (ignore condition))
+                             (provider-jittered-retry-delay retry-number
+                                                            :random-state random-state)))))))

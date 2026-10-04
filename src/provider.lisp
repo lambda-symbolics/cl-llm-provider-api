@@ -78,6 +78,33 @@
     :documentation "Seconds to wait before reconnecting."))
   (:documentation "A transient provider stream is about to be retried."))
 
+(defclass provider-attempt-failed-event (provider-event)
+  ((attempt
+    :initarg :attempt
+    :reader provider-attempt-failed-event-attempt
+    :type (integer 1)
+    :documentation "The one-based attempt of the logical request that failed.")
+   (elapsed-seconds
+    :initarg :elapsed-seconds
+    :reader provider-attempt-failed-event-elapsed-seconds
+    :type (integer 0)
+    :documentation "Whole seconds between the attempt's start and its failure.")
+   (output-received-p
+    :initarg :output-received-p
+    :reader provider-attempt-failed-event-output-received-p
+    :type boolean
+    :documentation "Whether the attempt streamed reasoning, text, or an item first.")
+   (retryable-p
+    :initarg :retryable-p
+    :reader provider-attempt-failed-event-retryable-p
+    :type boolean
+    :documentation "Whether the failure class is eligible for the retry ladder.")
+   (condition
+    :initarg :condition
+    :reader provider-attempt-failed-event-condition
+    :documentation "The provider condition that ended the attempt."))
+  (:documentation "One attempt of a provider request failed; it carries the retry audit trail."))
+
 (defclass provider-result ()
   ((response-id
     :initarg :response-id

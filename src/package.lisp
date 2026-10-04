@@ -1,7 +1,19 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
-  (:export #:*provider-model-cache-version*
+  (:export #:provider-attempt-failed-event
+           #:provider-attempt-failed-event-attempt
+           #:provider-attempt-failed-event-elapsed-seconds
+           #:provider-attempt-failed-event-output-received-p
+           #:provider-attempt-failed-event-retryable-p
+           #:provider-attempt-failed-event-condition
+           #:provider-stream-abandoned
+           #:provider-stream-abandoned-attempts
+           #:*provider-maximum-transient-retries*
+           #:*provider-maximum-streaming-retries*
+           #:provider-jittered-retry-delay
+           #:call-with-streaming-retries
+           #:*provider-model-cache-version*
            #:*provider-registry-error-class*
            #:provider-model
            #:provider-model-name

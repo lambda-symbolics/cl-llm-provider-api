@@ -33,7 +33,7 @@
   ((:module "tests" :serial t :components
     ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
-     (:file "registry-tests"))))
+     (:file "registry-tests") (:file "retry-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))

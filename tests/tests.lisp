@@ -428,5 +428,6 @@
   (test-context-assembly)
   (test-output-contracts)
   (run-registry-tests)
+  (run-retry-tests)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)
