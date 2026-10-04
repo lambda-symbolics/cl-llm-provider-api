@@ -28,8 +28,8 @@ Install the locked dependencies and run all tests:
 
 * Projected requests and execution
 
-Load =cl-llm-provider-api/wire= for Responses, Chat Completions, Anthropic, and Gemini
-Messages encoding and stream assembly. Use hash tables for JSON objects, vectors
+Load =cl-llm-provider-api/wire= for Responses, Chat Completions, Anthropic
+Messages, and Gemini GenerateContent encoding and stream assembly. Use hash tables for JSON objects, vectors
 for arrays, and portable Responses-shaped transcript items. Subclass the existing
 provider classes to specialize wire naming, instruction placement, and provider
 metadata without introducing application objects into the wire layer.
