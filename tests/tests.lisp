@@ -427,5 +427,6 @@
   (cl-llm-provider-api::run-anthropic-tests)
   (test-context-assembly)
   (test-output-contracts)
+  (run-registry-tests)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)

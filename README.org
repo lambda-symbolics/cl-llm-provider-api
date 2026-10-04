@@ -5,14 +5,16 @@ bounded inference inputs.
 
 The library defines semantic provider events and results, concrete wire clients,
 context assembly, structured-output contracts, shared inference budgets, read-only
-views, and content-addressed context objects. Applications own credential stores,
-model catalogs, registries, prompt policy, conversation projection, and tool dispatch.
+views, content-addressed context objects, and a layered provider registry with
+model discovery. Applications own credential stores, cache storage, prompt
+policy, conversation projection, and tool dispatch.
 
 * Systems and package
 
 - ASDF system: =cl-llm-provider-api=
 - Optional concrete protocols: =cl-llm-provider-api/wire=
 - Optional HTTP condition adapter: =cl-llm-provider-api/dexador=
+- Optional provider registry: =cl-llm-provider-api/registry=
 - Test system: =cl-llm-provider-api/tests=
 - Package: =CL-LLM-PROVIDER-API=
 - Nickname: =LLM-PROVIDER-API=
@@ -228,6 +230,40 @@ and passing an object to another store re-interns its verified content there.
                 store "large immutable input" :label "corpus")))
   (values (llm-provider-api:rlm-context-object-digest object)
           (llm-provider-api:rlm-context-object-content object)))
+#+end_src
+
+* Provider registry
+
+=cl-llm-provider-api/registry= keeps provider registrations in ordered source
+layers. =provider-registry-create= names the layers from lowest to highest
+precedence, the defaults for models that declare no context window or reasoning
+efforts, and three optional host hooks: functions reading and writing the
+portable model cache form for a context, and a function told whenever the
+effective models may have changed.
+
+=provider-registry-register= adds or replaces one name in one source. A name
+resolves to its highest source, and a later registration wins within one source,
+which =provider-registry-registrations=, =provider-registry-find= and
+=provider-registry-for-model= report. A registration's :MODEL-DISCOVERY function
+receives the context passed to =provider-registry-refresh-models=; discovered
+models follow the declared ones, a declared model gains a discovered context
+window only when it declares none, and refreshes of one provider never overlap.
+A failed refresh keeps the previous models and is returned as a
+=provider-model-discovery-error= instead of signaled.
+=provider-registry-load-model-cache= adopts cached models whose provider and
+discovery endpoint still match, and =provider-registry-snapshot= and
+=provider-registry-restore= undo registry changes exactly. Invalid input signals
+=*provider-registry-error-class*=, =provider-registry-error= unless a host names a
+subclass.
+
+#+begin_src lisp
+(let ((registry (llm-provider-api:provider-registry-create)))
+  (llm-provider-api:provider-registry-register
+   registry "example"
+   :models '((:name "example-large" :context-window 200000))
+   :factory (lambda (&rest arguments) (make-example-provider arguments))
+   :source :builtin)
+  (llm-provider-api:provider-registry-model registry "example-large"))
 #+end_src
 
 * Dependencies

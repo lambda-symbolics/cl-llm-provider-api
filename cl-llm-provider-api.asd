@@ -26,13 +26,14 @@
   "Tests for cl-llm-provider-api."
   :depends-on
   (#:cl-llm-provider-api/dexador #:cl-llm-provider-api/context
-   #:cl-llm-provider-api/contracts)
+   #:cl-llm-provider-api/contracts #:cl-llm-provider-api/registry)
   :serial
   t
   :components
   ((:module "tests" :serial t :components
     ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
-     (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic"))))
+     (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
+     (:file "registry-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))
@@ -51,6 +52,14 @@
      (:file "wire-items") (:file "wire-client") (:file "responses")
      (:file "tool-helpers") (:file "chat-policy") (:file "chat-completions")
      (:file "usage") (:file "request") (:file "anthropic")))))
+
+(asdf/parse-defsystem:defsystem #:cl-llm-provider-api/registry
+  :description
+  "Layered provider registrations with discovered and cached model metadata."
+  :depends-on
+  (#:cl-llm-provider-api)
+  :components
+  ((:file "src/registry")))
 
 (asdf/parse-defsystem:defsystem #:cl-llm-provider-api/dexador
   :description

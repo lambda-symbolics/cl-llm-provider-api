@@ -1,7 +1,57 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
-  (:export #:*bounded-retry-delays*
+  (:export #:*provider-model-cache-version*
+           #:*provider-registry-error-class*
+           #:provider-model
+           #:provider-model-name
+           #:provider-model-description
+           #:provider-model-context-window
+           #:provider-model-context-window-specified-p
+           #:provider-model-reasoning-efforts
+           #:provider-registration
+           #:provider-registration-name
+           #:provider-registration-description
+           #:provider-registration-family
+           #:provider-registration-models
+           #:provider-registration-declared-models
+           #:provider-registration-discovered-models
+           #:provider-registration-model-discovery
+           #:provider-registration-model-discovery-endpoint
+           #:provider-registration-model-discovery-endpoint-resolver
+           #:provider-registration-model-discovery-lock
+           #:provider-registration-factory
+           #:provider-registration-authenticator
+           #:provider-registration-protocol
+           #:provider-registration-endpoint
+           #:provider-registration-source
+           #:provider-registration-sequence
+           #:provider-registry
+           #:provider-registry-sources
+           #:provider-registry-default-context-window
+           #:provider-registry-default-reasoning-efforts
+           #:provider-registry-cache-read-function
+           #:provider-registry-cache-write-function
+           #:provider-registry-change-function
+           #:provider-registry-error
+           #:provider-model-discovery-error
+           #:provider-model-discovery-error-provider-name
+           #:provider-model-discovery-error-cause
+           #:provider-registry-create
+           #:provider-model-create
+           #:provider-registry-register
+           #:provider-registry-unregister
+           #:provider-registry-remove-source
+           #:provider-registry-registrations
+           #:provider-registry-find
+           #:provider-registry-for-model
+           #:provider-registry-model
+           #:provider-registry-model-identifiers
+           #:provider-registry-load-model-cache
+           #:provider-registry-refresh-models
+           #:provider-registry-snapshot
+           #:provider-registry-restore
+           #:*bounded-retry-delays*
            #:*bounded-retry-sleep-function*
            #:*character-read-sequence-window*
            #:*rlm-default-call-budget*
