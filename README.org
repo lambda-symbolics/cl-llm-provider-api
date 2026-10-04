@@ -28,7 +28,7 @@ Install the locked dependencies and run all tests:
 
 * Projected requests and execution
 
-Load =cl-llm-provider-api/wire= for Responses, Chat Completions, and Anthropic
+Load =cl-llm-provider-api/wire= for Responses, Chat Completions, Anthropic, and Gemini
 Messages encoding and stream assembly. Use hash tables for JSON objects, vectors
 for arrays, and portable Responses-shaped transcript items. Subclass the existing
 provider classes to specialize wire naming, instruction placement, and provider
@@ -179,6 +179,18 @@ description words, a term naming a namespace exposes all of it, and at most
 =*PROVIDER-TOOL-SEARCH-DEFAULT-LIMIT*= other tools are returned.
 =PROVIDER-TOOL-SEARCH-OUTPUT-REPLAY= rebuilds a stored output for the next
 request, or replays it empty with =:TRIMMING-P= for compaction.
+
+** Gemini GenerateContent
+
+=GEMINI-GENERATE-CONTENT-PROVIDER= encodes a projected request as
+GenerateContent: prefix texts become the =systemInstruction=, history items
+become =contents= (calls with decoded =args=, results as =functionResponse=
+named after their call, reasoning as thought parts, images as inline base64
+data), and suffix texts trail as one user content. =:MAXIMUM-OUTPUT-TOKENS=
+and =:INCLUDE-THOUGHTS-P= fill =generationConfig=. The SSE consumer streams
+thought and answer text, decodes namespaced calls, maps usage, completes on
+=STOP=, and signals an incomplete response for =MAX_TOKENS=. A host that wraps
+each response in an envelope specializes =PROVIDER-GEMINI-STREAM-RESPONSE=.
 
 * Stream engine
 
