@@ -99,9 +99,9 @@
   (:documentation "Return the provider account label for sanitized failures."))
 
 (defmethod provider-account-label ((provider model-provider))
-  "Supply a neutral account label when the host has no display metadata."
-  (declare (ignore provider))
-  "provider")
+  "Return the label PROVIDER's registration declares, or a neutral one."
+  (or (provider-account-label-for-registration (model-provider-registration provider))
+      "provider"))
 
 (defgeneric provider-note-response-headers (provider headers)
   (:documentation "Observe detached, credential-redacted HTTP response headers."))

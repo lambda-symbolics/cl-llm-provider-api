@@ -222,11 +222,15 @@ Hosts may name a subclass carrying their own condition protocol.")
   (error *provider-registry-error-class* :message (apply #'format nil control arguments)))
 
 
-;;;; -- Family Hook --
+;;;; -- Provider Hooks --
 
 (defmethod provider-family-for-registration ((registration provider-registration))
   "Return the family REGISTRATION declares."
   (provider-registration-family registration))
+
+(defmethod provider-account-label-for-registration ((registration provider-registration))
+  "Return REGISTRATION's provider name as its account label."
+  (provider-registration-name registration))
 
 
 ;;;; -- Registry Construction --

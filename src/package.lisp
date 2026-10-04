@@ -1,7 +1,8 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
-  (:export #:gemini-generate-content-provider
+  (:export #:provider-account-label-for-registration
+           #:gemini-generate-content-provider
            #:provider-gemini-stream-response
            #:*provider-tool-search-default-limit*
            #:*provider-tool-search-description*

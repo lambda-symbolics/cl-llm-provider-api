@@ -189,6 +189,15 @@
   (declare (ignore registration))
   nil)
 
+(defgeneric provider-account-label-for-registration (registration)
+  (:documentation
+   "Return the account label declared by opaque REGISTRATION metadata, or NIL."))
+
+(defmethod provider-account-label-for-registration ((registration t))
+  "Treat registration metadata as having no account label by default."
+  (declare (ignore registration))
+  nil)
+
 (defmethod provider-family ((provider model-provider))
   "Identify a provider without a declared family as custom."
   (or (provider-family-for-registration

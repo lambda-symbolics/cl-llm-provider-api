@@ -205,8 +205,24 @@
               (string= (model-spec-rename "x" "y") "y"))
          "model specifications are named and renamed"))
 
+(defun test-registration-provider-hooks ()
+  "Exercise the account label and family a registration gives its providers."
+  (let ((registry (registry-tests--registry)))
+    (provider-registry-register registry "Acme" :models '("acme-1") :family :acme
+                                                :factory #'registry-tests--factory)
+    (let ((registered (make-instance 'model-provider
+                                     :registration (provider-registry-find registry "acme")))
+          (bare (make-instance 'model-provider)))
+      (check (and (string= (provider-account-label registered) "Acme")
+                  (eq (provider-family registered) :acme))
+             "a registered provider is labelled and classified by its registration")
+      (check (and (string= (provider-account-label bare) "provider")
+                  (eq (provider-family bare) :custom))
+             "a provider without a registration keeps the neutral label and family"))))
+
 (defun run-registry-tests ()
   "Run the registry and model list tests."
+  (test-registration-provider-hooks)
   (test-registry-layers)
   (test-registry-validation)
   (test-registry-discovery-and-cache)
