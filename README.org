@@ -167,6 +167,19 @@ default. Providers may return =:TOP-LEVEL= from
 =PROVIDER-RESPONSES-INSTRUCTIONS-PLACEMENT= to use a top-level =instructions=
 request field instead.
 
+** Deferred namespaces and tool search
+
+=PROVIDER-DEFERRED-WIRE-TOOLS= declares every namespace with
+=defer_loading= functions and adds one client-executed =tool_search= tool
+(=PROVIDER-TOOL-SEARCH-TOOL=, with a host description). When the model answers
+with a call, =PROVIDER-TOOL-SEARCH-CALL-P= recognizes it and
+=PROVIDER-TOOL-SEARCH-OUTPUT= answers it from the offered namespaces: terms
+from the query score exact tool names over name fragments, namespace names and
+description words, a term naming a namespace exposes all of it, and at most
+=*PROVIDER-TOOL-SEARCH-DEFAULT-LIMIT*= other tools are returned.
+=PROVIDER-TOOL-SEARCH-OUTPUT-REPLAY= rebuilds a stored output for the next
+request, or replays it empty with =:TRIMMING-P= for compaction.
+
 * Stream engine
 
 =READ-SSE-DATA= decodes one server-sent event's joined data field from a

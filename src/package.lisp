@@ -1,7 +1,19 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
   (:use #:cl)
-  (:export #:provider-attempt-failed-event
+  (:export #:*provider-tool-search-default-limit*
+           #:*provider-tool-search-description*
+           #:provider-deferred-namespace
+           #:provider-deferred-namespace-tool
+           #:provider-deferred-wire-tools
+           #:provider-result-tool-search-calls
+           #:provider-tool-search
+           #:provider-tool-search-call-p
+           #:provider-tool-search-output
+           #:provider-tool-search-output-replay
+           #:provider-tool-search-terms
+           #:provider-tool-search-tool
+           #:provider-attempt-failed-event
            #:provider-attempt-failed-event-attempt
            #:provider-attempt-failed-event-elapsed-seconds
            #:provider-attempt-failed-event-output-received-p
