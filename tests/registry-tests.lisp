@@ -181,8 +181,31 @@
       (provider-registry-restore registry snapshot)
       (check (provider-registry-model registry "found") "a snapshot restores layers and models"))))
 
+(defun test-model-lists ()
+  "Exercise model list decoding, context windows and model specification helpers."
+  (let ((models (model-list-decode
+                 "{\"data\": [{\"id\": \"a\", \"context_length\": 4096},
+                              {\"id\": \"b\", \"top_provider\": {\"context_length\": \"8192\"}},
+                              {\"id\": \"c\", \"n_ctx\": 2048.0},
+                              {\"id\": \"d\", \"context_window\": -1},
+                              {\"id\": \"skip\"}]}"
+                 :entry-predicate (lambda (entry) (string/= (cl-llm-provider-api::json-get entry "id") "skip")))))
+    (check (equal models '((:name "a" :context-window 4096) (:name "b" :context-window 8192)
+                           (:name "c" :context-window 2048) (:name "d")))
+           "context windows come from every known field and the predicate filters"))
+  (dolist (body '("not json" "{\"data\": 1}" "{\"data\": [{\"name\": \"x\"}]}"))
+    (check (handler-case (progn (model-list-decode body) nil)
+             (provider-model-list-error () t))
+           "an invalid model list ~S is refused" body))
+  (check (and (string= (model-spec-name '(:name "x" :context-window 1)) "x")
+              (equal (model-spec-rename '(:name "x" :context-window 1) "y")
+                     '(:name "y" :context-window 1))
+              (string= (model-spec-rename "x" "y") "y"))
+         "model specifications are named and renamed"))
+
 (defun run-registry-tests ()
-  "Run the registry tests."
+  "Run the registry and model list tests."
   (test-registry-layers)
   (test-registry-validation)
-  (test-registry-discovery-and-cache))
+  (test-registry-discovery-and-cache)
+  (test-model-lists))

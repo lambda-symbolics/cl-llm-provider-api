@@ -256,6 +256,10 @@ discovery endpoint still match, and =provider-registry-snapshot= and
 =*provider-registry-error-class*=, =provider-registry-error= unless a host names a
 subclass.
 
+=cl-llm-provider-api/wire= adds =model-list-decode=, which turns an
+OpenAI-compatible =/models= response into registry model specifications, reading
+the context window from whichever of the common field names a catalog uses.
+
 #+begin_src lisp
 (let ((registry (llm-provider-api:provider-registry-create)))
   (llm-provider-api:provider-registry-register

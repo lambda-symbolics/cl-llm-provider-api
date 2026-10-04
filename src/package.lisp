@@ -51,6 +51,13 @@
            #:provider-registry-refresh-models
            #:provider-registry-snapshot
            #:provider-registry-restore
+           #:*model-list-context-window-fields*
+           #:provider-model-list-error
+           #:model-list-token-count
+           #:model-list-entry-context-window
+           #:model-list-decode
+           #:model-spec-name
+           #:model-spec-rename
            #:*bounded-retry-delays*
            #:*bounded-retry-sleep-function*
            #:*character-read-sequence-window*

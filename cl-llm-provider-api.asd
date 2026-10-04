@@ -48,7 +48,7 @@
   t
   :components
   ((:module "src" :serial t :components
-    ((:file "wire-json") (:file "wire-conditions") (:file "wire-transport")
+    ((:file "wire-json") (:file "model-lists") (:file "wire-conditions") (:file "wire-transport")
      (:file "wire-items") (:file "wire-client") (:file "responses")
      (:file "tool-helpers") (:file "chat-policy") (:file "chat-completions")
      (:file "usage") (:file "request") (:file "anthropic")))))
