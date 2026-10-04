@@ -38,6 +38,7 @@
            #:provider-model-discovery-error-provider-name
            #:provider-model-discovery-error-cause
            #:provider-registry-create
+           #:provider-name-family
            #:provider-model-create
            #:provider-registry-register
            #:provider-registry-unregister

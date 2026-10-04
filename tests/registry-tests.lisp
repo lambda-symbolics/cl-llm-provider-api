@@ -47,6 +47,8 @@
            "lookups ignore case and find the effective layer")
     (check (eq (provider-family-for-registration (provider-registry-find registry "beta")) :beta)
            "families derive from names and answer the library hook")
+    (check (eq (provider-name-family "open router.ai") :open-router-ai)
+           "every non-alphanumeric name character becomes a hyphen")
     (check (null (provider-registry-for-model registry "a-1"))
            "a shadowed layer's models are not served")
     (check (equal (provider-registry-model-identifiers registry) '("a-2" "b-1"))

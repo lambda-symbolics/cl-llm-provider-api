@@ -231,6 +231,14 @@ Hosts may name a subclass carrying their own condition protocol.")
 
 ;;;; -- Registry Construction --
 
+(defun provider-name-family (name)
+  "Return the family keyword a registration named NAME takes when it declares none.
+
+Every character of NAME that is not alphanumeric becomes a hyphen."
+  (intern (string-upcase (substitute-if #\- (lambda (character) (not (alphanumericp character)))
+                                        name))
+          '#:keyword))
+
 (defun provider-registry-create (&key (sources '(:builtin :site :user :runtime))
                                       (default-context-window 128000)
                                       (default-reasoning-efforts '("low" "medium" "high"))
@@ -355,7 +363,7 @@ it already discovered."
            (make-instance 'provider-registration
                           :name name
                           :description (or description name)
-                          :family (or family (registry--family-keyword name))
+                          :family (or family (provider-name-family name))
                           :models (registry--merge-models registry declared-models retained-models)
                           :declared-models declared-models
                           :discovered-models retained-models
@@ -568,12 +576,6 @@ signals."
   "Return NAME's registration in REGISTRY's SOURCE layer, or NIL."
   (find-if (lambda (candidate) (registry--same-layer-p candidate name source))
            (provider-registry--registrations registry)))
-
-(defun registry--family-keyword (name)
-  "Derive a family keyword from provider NAME."
-  (intern (string-upcase (substitute-if #\- (lambda (character) (not (alphanumericp character)))
-                                        name))
-          '#:keyword))
 
 (defun registry--normalize-models (registry models &key allow-empty-p)
   "Normalize and validate the ordered model specifications MODELS."
