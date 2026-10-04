@@ -186,8 +186,60 @@
       (dolist (socket sockets)
         (ignore-errors (sb-bsd-sockets:socket-close socket))))))
 
+(defun test-event-stream-post ()
+  "Exercise posting an encoded body and receiving the event stream unbuffered."
+  (let ((listener (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp))
+        (received nil))
+    (setf (sb-bsd-sockets:sockopt-reuse-address listener) t)
+    (sb-bsd-sockets:socket-bind listener (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
+    (sb-bsd-sockets:socket-listen listener 1)
+    (let* ((port (nth-value 1 (sb-bsd-sockets:socket-name listener)))
+           (server
+             (bt:make-thread
+              (lambda ()
+                (let* ((socket (sb-bsd-sockets:socket-accept listener))
+                       (stream (sb-bsd-sockets:socket-make-stream
+                                socket :input t :output t :element-type :default
+                                        :external-format :latin-1)))
+                  (unwind-protect
+                       (let ((length 0))
+                         (loop for line = (string-right-trim '(#\Return) (read-line stream))
+                               until (zerop (length line))
+                               do (push line received)
+                                  (when (eql 0 (search "content-length:" (string-downcase line)))
+                                    (setf length (parse-integer line :start 15))))
+                         (let ((body (make-string length)))
+                           (read-sequence body stream)
+                           (push body received))
+                         (format stream "HTTP/1.1 200 OK~C~CContent-Type: text/event-stream~C~CConnection: close~C~C~C~Cdata: hello~%~%"
+                                 #\Return #\Newline #\Return #\Newline #\Return #\Newline
+                                 #\Return #\Newline)
+                         (finish-output stream))
+                    (ignore-errors (close stream))
+                    (ignore-errors (sb-bsd-sockets:socket-close socket)))))
+              :name "event stream test server")))
+      (unwind-protect
+           (multiple-value-bind (body status)
+               (provider-post-event-stream (format nil "http://127.0.0.1:~D/stream" port)
+                                           "{\"stream\":true}"
+                                           :headers '(("Accept" . "text/event-stream"))
+                                           :deadline-seconds 10)
+             (unwind-protect
+                  (progn
+                    (check (= status 200) "the post returns the response status")
+                    (check (string= (read-line body) "data: hello")
+                           "the response body is an unbuffered event stream"))
+               (ignore-errors (close body))))
+        (bt:join-thread server)
+        (ignore-errors (sb-bsd-sockets:socket-close listener))))
+    (check (and (string= (first received) "{\"stream\":true}")
+                (find-if (lambda (line) (eql 0 (search "POST /stream" line))) received)
+                (find "Accept: text/event-stream" received :test #'string-equal))
+           "the encoded body and headers reach the server")))
+
 (defun run-retry-tests ()
   "Run the streaming retry, credential refresh and inactivity tests."
   (test-streaming-retry-budget)
   (test-credential-refresh)
-  (test-sse-inactivity-deadline))
+  (test-sse-inactivity-deadline)
+  (test-event-stream-post))

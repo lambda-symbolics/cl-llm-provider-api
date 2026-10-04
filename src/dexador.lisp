@@ -27,6 +27,30 @@
          (provider--response-request-id headers) :response
          (and body (bounded-string body :limit 2000))))))
 
+(defun provider-post-event-stream
+    (url body &key headers keep-alive-p (deadline-seconds 300)
+                   (connect-timeout 30) (read-timeout 300))
+  "POST the encoded request BODY to URL and return Dexador's streaming response values.
+
+BODY is the request already encoded, as a string or octet vector, so the host
+keeps its own JSON encoder. The body stream, status, and headers come back as
+DEXADOR:POST returns them, for PROVIDER-OPEN-RESPONSE-STREAM methods. The
+response must begin within DEADLINE-SECONDS. KEEP-ALIVE-P keeps the connection
+in Dexador's pool, so the requests of one conversation reach the same backend;
+it is off by default."
+  (provider-call-with-response-deadline
+   deadline-seconds
+   (lambda ()
+     (dexador:post url
+                   :headers headers
+                   :content body
+                   :want-stream t
+                   :force-string t
+                   :keep-alive keep-alive-p
+                   :use-connection-pool keep-alive-p
+                   :connect-timeout connect-timeout
+                   :read-timeout read-timeout))))
+
 (defun provider--call-with-transport-normalization
     (attempt-function &key terminal-errors-p)
   "Normalize transport operations during ATTEMPT-FUNCTION, not its callbacks.

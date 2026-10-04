@@ -2,6 +2,7 @@
   (:nicknames #:llm-provider-api)
   (:use #:cl)
   (:export #:provider-account-label-for-registration
+           #:provider-post-event-stream
            #:gemini-generate-content-provider
            #:provider-gemini-stream-response
            #:*provider-tool-search-default-limit*
