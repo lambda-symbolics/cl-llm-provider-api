@@ -13,6 +13,7 @@
            #:*provider-maximum-streaming-retries*
            #:provider-jittered-retry-delay
            #:call-with-streaming-retries
+           #:call-with-credential-refresh
            #:*provider-model-cache-version*
            #:*provider-registry-error-class*
            #:provider-model

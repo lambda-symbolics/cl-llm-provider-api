@@ -115,6 +115,44 @@
                   '(1 2 3 4 5 6 7 8 20))
            "jittered delays stay within twenty percent of the doubling base")))
 
+(defun test-credential-refresh ()
+  "Exercise one forced refresh after a rejection and the exhausted hook."
+  (flet ((rejection ()
+           (make-condition 'provider-unauthorized :message "rejected" :status 401
+                                                  :request-id nil :response nil)))
+    (let ((refreshes nil))
+      (check (eq :ok (call-with-credential-refresh
+                      (lambda (force-refresh-p)
+                        (push force-refresh-p refreshes)
+                        (if force-refresh-p :ok (error (rejection))))
+                      :refreshable-p t))
+             "a refreshable rejection retries once with a forced refresh")
+      (check (equal refreshes '(t nil)) "the second attempt forces the refresh"))
+    (let ((attempts 0))
+      (check (eq :host (handler-case
+                           (call-with-credential-refresh
+                            (lambda (force-refresh-p)
+                              (declare (ignore force-refresh-p))
+                              (incf attempts)
+                              (error (rejection)))
+                            :refreshable-p t
+                            :exhausted-function (lambda (condition)
+                                                  (declare (ignore condition))
+                                                  (error "host authentication failure")))
+                         (simple-error () :host)))
+             "the exhausted hook signals the host's own condition")
+      (check (= attempts 2) "a refreshable request makes exactly two attempts"))
+    (let ((attempts 0))
+      (check (handler-case
+                 (call-with-credential-refresh (lambda (force-refresh-p)
+                                                 (declare (ignore force-refresh-p))
+                                                 (incf attempts)
+                                                 (error (rejection))))
+               (provider-unauthorized () t))
+             "without refresh the rejection is resignaled")
+      (check (= attempts 1) "a non-refreshable request makes one attempt"))))
+
 (defun run-retry-tests ()
   "Run the streaming retry, credential refresh and inactivity tests."
-  (test-streaming-retry-budget))
+  (test-streaming-retry-budget)
+  (test-credential-refresh))

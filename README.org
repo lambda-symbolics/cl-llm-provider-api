@@ -197,6 +197,11 @@ failed attempt is reported as a =PROVIDER-ATTEMPT-FAILED-EVENT= audit record,
 and waits come from =PROVIDER-JITTERED-RETRY-DELAY=: a doubling base capped at
 32 seconds with twenty percent jitter.
 
+=CALL-WITH-CREDENTIAL-REFRESH= retries an attempt once with a forced
+credential refresh after =PROVIDER-UNAUTHORIZED=, when the credentials are
+refreshable, and hands a final rejection to a host function that signals the
+host's own authentication condition.
+
 * Bounded inference
 
 ** Budgets

@@ -61,3 +61,27 @@ deadline, and octet vectors are decoded as UTF-8."
                                    :external-format ':utf-8))
          (t nil))
    (error nil nil)))
+
+
+;;;; -- Credential Refresh --
+
+(defun call-with-credential-refresh (attempt-function &key refreshable-p exhausted-function)
+  "Call ATTEMPT-FUNCTION, retrying once with refreshed credentials after a rejection.
+
+ATTEMPT-FUNCTION receives one argument, true when the attempt must force a
+credential refresh. A PROVIDER-UNAUTHORIZED rejection of the first attempt
+retries with a forced refresh when REFRESHABLE-P. When no attempt remains,
+EXHAUSTED-FUNCTION, if given, receives the rejection and may signal the host's
+own authentication condition; otherwise, or when it returns, the rejection is
+resignaled."
+  (let ((maximum-attempts (if refreshable-p 2 1)))
+    (loop for attempt-number from 1 to maximum-attempts
+          do (handler-case
+                 (return-from call-with-credential-refresh
+                   (funcall attempt-function (and refreshable-p (= attempt-number 2))))
+               (provider-unauthorized (condition)
+                 (when (= attempt-number maximum-attempts)
+                   (when exhausted-function
+                     (funcall exhausted-function condition))
+                   (error condition)))))))
+
