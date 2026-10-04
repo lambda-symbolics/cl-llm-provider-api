@@ -152,7 +152,42 @@
              "without refresh the rejection is resignaled")
       (check (= attempts 1) "a non-refreshable request makes one attempt"))))
 
+(defun retry-tests--connected-stream ()
+  "Return a loopback character stream and the sockets that hold it open."
+  (let ((listener (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
+    (setf (sb-bsd-sockets:sockopt-reuse-address listener) t)
+    (sb-bsd-sockets:socket-bind listener (sb-bsd-sockets:make-inet-address "127.0.0.1") 0)
+    (sb-bsd-sockets:socket-listen listener 1)
+    (multiple-value-bind (address port) (sb-bsd-sockets:socket-name listener)
+      (let ((client (make-instance 'sb-bsd-sockets:inet-socket :type :stream :protocol :tcp)))
+        (sb-bsd-sockets:socket-connect client address port)
+        (values (sb-bsd-sockets:socket-make-stream client :input t :output t
+                                                          :element-type 'character)
+                (list client (sb-bsd-sockets:socket-accept listener) listener))))))
+
+(defun test-sse-inactivity-deadline ()
+  "Exercise the per-line SSE stall deadline."
+  (multiple-value-bind (stream sockets) (retry-tests--connected-stream)
+    (unwind-protect
+         (let ((*sse-inactivity-seconds* 1)
+               (started (get-universal-time)))
+           (check (handler-case (progn (sse-read-line-within-inactivity-deadline stream) nil)
+                    (response-stream-error (condition)
+                      (search "delivered nothing" (provider-api-error-message condition))))
+                  "a stalled stream signals a retryable stream failure")
+           (check (< (- (get-universal-time) started) 30) "the stall ends on its own deadline")
+           (let ((peer (sb-bsd-sockets:socket-make-stream (second sockets) :input t :output t
+                                                                           :element-type 'character)))
+             (write-line "data: delivered" peer)
+             (finish-output peer)
+             (check (string= (sse-read-line-within-inactivity-deadline stream) "data: delivered")
+                    "a delivered line is returned within the deadline")))
+      (ignore-errors (close stream))
+      (dolist (socket sockets)
+        (ignore-errors (sb-bsd-sockets:socket-close socket))))))
+
 (defun run-retry-tests ()
   "Run the streaming retry, credential refresh and inactivity tests."
   (test-streaming-retry-budget)
-  (test-credential-refresh))
+  (test-credential-refresh)
+  (test-sse-inactivity-deadline))

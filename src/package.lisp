@@ -14,6 +14,8 @@
            #:provider-jittered-retry-delay
            #:call-with-streaming-retries
            #:call-with-credential-refresh
+           #:*sse-inactivity-seconds*
+           #:sse-read-line-within-inactivity-deadline
            #:*provider-model-cache-version*
            #:*provider-registry-error-class*
            #:provider-model

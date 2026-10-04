@@ -175,7 +175,11 @@ character stream. Lines and events are bounded by
 violations signal the class named by =*STREAM-LIMIT-ERROR-CLASS*=,
 =PROVIDER-STREAM-LIMIT-ERROR= by default. A drained stream returns
 =*SSE-END-OF-STREAM*=. Hosts needing runtime-specific inactivity deadlines
-install a wrapper as =*SSE-READ-LINE-FUNCTION*=.
+install a wrapper as =*SSE-READ-LINE-FUNCTION*=; =cl-llm-provider-api/dexador=
+provides =SSE-READ-LINE-WITHIN-INACTIVITY-DEADLINE=, which fails a line that
+stalls past =*SSE-INACTIVITY-SECONDS*= with a retryable
+=RESPONSE-STREAM-ERROR=, because Dexador's read timeout does not cover the
+blocking reads of a TLS stream.
 
 =READ-CHARACTER-SEQUENCE= fills a string like =READ-SEQUENCE= using requests
 no larger than =*CHARACTER-READ-SEQUENCE-WINDOW*=, staying on the portable

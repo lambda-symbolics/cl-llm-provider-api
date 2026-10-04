@@ -83,3 +83,34 @@ raw SIMPLE-ERROR failures at that boundary become terminal provider errors."
                         condition)
                        :retryable-p nil)
                       (error condition)))))
+
+
+;;;; -- SSE Inactivity Deadline --
+
+(defparameter *sse-inactivity-seconds* 300
+  "Seconds one provider stream line may stall before the read fails, or NIL for no bound.
+
+Dexador's :READ-TIMEOUT governs the response header exchange but not the
+blocking reads that follow on a TLS stream, so a connection lost mid-stream
+otherwise parks the request forever.")
+
+(defun sse-read-line-within-inactivity-deadline (stream)
+  "Read one bounded SSE line, failing when STREAM stalls past *SSE-INACTIVITY-SECONDS*.
+
+The deadline covers one line, so every delivered line renews it. A stall
+signals a retryable RESPONSE-STREAM-ERROR the bounded retries reconnect from.
+Install it as *SSE-READ-LINE-FUNCTION*."
+  (let ((seconds *sse-inactivity-seconds*))
+    (if (and seconds (plusp seconds))
+        (handler-case
+            (provider-call-with-response-deadline
+             seconds (lambda () (sse-read-line-characters stream)))
+          (sb-sys:deadline-timeout ()
+            (error 'response-stream-error
+                   :message (format nil "The provider stream delivered nothing for ~D seconds."
+                                    seconds)
+                   :status nil
+                   :request-id nil
+                   :response nil)))
+        (sse-read-line-characters stream))))
+
