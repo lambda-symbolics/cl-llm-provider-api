@@ -17,12 +17,32 @@
   (or (call-next-method)
       (= status 529)))
 
+(defun anthropic--input-schema (schema)
+  "Project SCHEMA without Anthropic's unsupported root composition keywords.
+
+Keep those constraints as a description annotation. The caller must validate
+arguments against the original schema; the wire projection is less restrictive.
+Nested composition and all other object constraints are preserved."
+  (let ((projection (json-object-copy schema))
+        (constraints (json-object)))
+    (dolist (keyword '("oneOf" "allOf" "anyOf"))
+      (multiple-value-bind (value present-p) (gethash keyword projection)
+        (when present-p
+          (setf (gethash keyword constraints) value)
+          (remhash keyword projection))))
+    (unless (zerop (hash-table-count constraints))
+      (setf (gethash "description" projection)
+            (format nil "~@[~A~%~]Argument constraints: ~A"
+                    (json-get schema "description")
+                    (json-encode constraints))))
+    projection))
+
 (defun anthropic--wire-tool (namespace tool)
   "Return one namespaced projected TOOL as an Anthropic tool declaration."
   (json-object
    "name" (openai-compatible--wire-tool-name namespace (json-get tool "name"))
    "description" (json-get tool "description")
-   "input_schema" (json-get tool "parameters")))
+   "input_schema" (anthropic--input-schema (json-get tool "parameters"))))
 
 (defun anthropic--wire-tools (tool-namespaces)
   "Flatten projected namespaces into Anthropic's flat tools array."

@@ -46,6 +46,12 @@ values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
 =:reasoning-effort=, and =:output-ceiling-field=. Messages accepts =:cache-p= and
 =:ephemeral-items= for separately projected volatile history.
 
+Messages projects root =oneOf=, =allOf=, and =anyOf= tool-schema constraints into
+an =input_schema.description= annotation because Anthropic rejects those keywords
+at the root. Nested composition, properties, and unconditional requirements are
+preserved. Validate returned arguments against the original schema in your tool
+dispatcher; the wire schema is a less restrictive projection.
+
 Call =PROVIDER-EXECUTE-REQUEST= with =:transport=, =:event-callback=, and optional
 =:secrets=, =:cleanup=, =:call-with-deadline=, and =:completion= hooks. The transport
 accepts the request object and returns a stream, HTTP status, and response headers.

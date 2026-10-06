@@ -720,11 +720,66 @@
          (format nil "~A cleans up without publishing completed items" (first case))))))
   nil)
 
+(defun anthropic-provider-test--tool-schema-projection ()
+  "Test unsupported root composition at the serialized Messages boundary."
+  (dolist (keywords '(nil ("oneOf") ("allOf") ("anyOf")
+                     ("oneOf" "allOf" "anyOf")))
+    (let* ((provider (make-instance 'anthropic-messages-provider))
+           (alternatives (json-array
+                          (json-object "type" "object" "required" #("query"))
+                          (json-object "type" "object" "required" #("patterns"))))
+           (schema (provider-object-schema
+                    (json-object
+                     "query" (provider-string-property "One query.")
+                     "patterns" (provider-array-schema
+                                 (provider-string-property "One literal pattern."))
+                     "payload" (json-object "anyOf"
+                                            (json-array
+                                             (json-object "type" "string")
+                                             (json-object "type" "integer"))))
+                    '("payload")))
+           (constraints (json-object)))
+      (setf (gethash "description" schema) "Search arguments.")
+      (dolist (keyword keywords)
+        (setf (gethash keyword schema) alternatives
+              (gethash keyword constraints) alternatives))
+      (let* ((original (json-encode schema))
+             (namespaces (json-array
+                          (json-object "type" "namespace" "name" "search" "tools"
+                                       (json-array
+                                        (json-object "name" "content"
+                                                     "description" "Search contents."
+                                                     "parameters" schema)))))
+             (request (provider-request-object
+                       provider (make-instance 'wire-request :model "claude-test")
+                       (provider-wire-tools provider namespaces)))
+             (wire (json-decode (json-encode request)))
+             (projected (json-get (aref (json-get wire "tools") 0) "input_schema")))
+        (test-assert
+         (notany (lambda (keyword) (nth-value 1 (gethash keyword projected)))
+                 '("oneOf" "allOf" "anyOf"))
+         "Messages tool schemas contain no unsupported root composition")
+        (test-assert
+         (and (json-string= (json-get projected "type") "object")
+              (equalp (json-get schema "properties") (json-get projected "properties"))
+              (equalp (json-get schema "required") (json-get projected "required"))
+              (eq (gethash "additionalProperties" projected) *json-decoded-false*))
+         "object requirements, nested composition, and closed properties are serialized")
+        (test-assert (string= original (json-encode schema))
+                     "wire projection leaves the canonical schema available for validation")
+        (test-assert
+         (let ((description (json-get projected "description")))
+           (and (search (json-get schema "description") description)
+                (or (null keywords) (search (json-encode constraints) description))))
+         "schema annotations include the original root constraints"))))
+  nil)
+
 (defun run-anthropic-tests ()
   "Run the standalone Anthropic wire checks and return their count."
   (let ((*wire-test-checks* 0))
     (anthropic-provider-test--request-conversion-failures)
     (anthropic-provider-test--request-encoding)
+    (anthropic-provider-test--tool-schema-projection)
     (anthropic-provider-test--portable-content)
     (anthropic-provider-test--cache-boundaries)
     (anthropic-provider-test--stream-decoding)
