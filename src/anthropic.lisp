@@ -108,6 +108,16 @@ Nested composition and all other object constraints are preserved."
        (let ((source (anthropic--image-source (json-get part "image_url"))))
          (when source
            (json-object "type" "image" "source" source))))
+      ((and (json-string= type "thinking")
+            (non-empty-string-p (json-get part "thinking"))
+            (non-empty-string-p (json-get part "signature")))
+       (json-object "type" "thinking"
+                    "thinking" (json-get part "thinking")
+                    "signature" (json-get part "signature")))
+      ((and (json-string= type "redacted_thinking")
+            (non-empty-string-p (json-get part "data")))
+       (json-object "type" "redacted_thinking"
+                    "data" (json-get part "data")))
       (t
        nil))))
 
@@ -373,7 +383,9 @@ system cache prefix when mid-conversation guidance changes."
   (id nil :type (option string))
   (name nil :type (option string))
   (initial-input nil :type t)
+  (initial-data nil :type (option string))
   (text-stream (make-string-output-stream) :type stream :read-only t)
+  (signature-stream (make-string-output-stream) :type stream :read-only t)
   (json-stream (make-string-output-stream) :type stream :read-only t))
 
 (defun anthropic--request-id (headers)
@@ -441,36 +453,41 @@ system cache prefix when mid-conversation guidance changes."
 
 (defun anthropic--block-item (state &key headers response-id data)
   "Return STATE's completed portable output item, or NIL for empty text."
-  (if (string= (anthropic--block-state-type state) "tool_use")
-      (let ((item
-              (json-object
-               "type" "function_call"
-               "call_id" (anthropic--block-state-id state)
-               "name" (anthropic--block-state-name state)
-               "arguments"
-               (anthropic--tool-arguments
-                state :headers headers :response-id response-id :data data)
-               "status" "completed")))
-        (multiple-value-bind (namespace name)
-            (openai-compatible--decode-wire-tool-name (json-get item "name"))
-          (when (and namespace name)
-            (setf (gethash "namespace" item) namespace
-                  (gethash "name" item) name)))
-        item)
-      (let ((text
-              (get-output-stream-string
-               (anthropic--block-state-text-stream state))))
-        (when (plusp (length text))
-          (json-object
-           "type" "message"
-           "status" "completed"
-           "role" "assistant"
-           "content"
-           (json-array
-            (json-object "type" "output_text"
-                         "text" text
-                         "annotations" (json-array))))))))
-
+  (cond
+    ((string= (anthropic--block-state-type state) "tool_use")
+     (let ((item (json-object "type" "function_call"
+                              "call_id" (anthropic--block-state-id state)
+                              "name" (anthropic--block-state-name state)
+                              "arguments" (anthropic--tool-arguments state :headers headers :response-id response-id :data data)
+                              "status" "completed")))
+       (multiple-value-bind (namespace name)
+           (openai-compatible--decode-wire-tool-name (json-get item "name"))
+         (when (and namespace name)
+           (setf (gethash "namespace" item) namespace
+                 (gethash "name" item) name)))
+       item))
+    ((string= (anthropic--block-state-type state) "redacted_thinking")
+     (json-object "type" "message" "status" "completed" "role" "assistant"
+                  "content" (json-array (json-object "type" "redacted_thinking"
+                                                       "data" (anthropic--block-state-initial-data state)))))
+    ((string= (anthropic--block-state-type state) "thinking")
+     (let ((thinking (get-output-stream-string (anthropic--block-state-text-stream state)))
+           (signature (get-output-stream-string (anthropic--block-state-signature-stream state))))
+       (unless (and (non-empty-string-p thinking) (non-empty-string-p signature))
+         (anthropic--signal-protocol-failure
+          "The provider returned an unsigned or empty thinking block."
+          :headers headers :response-id response-id :data data))
+       (json-object "type" "message" "status" "completed" "role" "assistant"
+                    "content" (json-array (json-object "type" "thinking"
+                                                         "thinking" thinking
+                                                         "signature" signature)))))
+    (t
+     (let ((text (get-output-stream-string (anthropic--block-state-text-stream state))))
+       (when (plusp (length text))
+         (json-object "type" "message" "status" "completed" "role" "assistant"
+                      "content" (json-array (json-object "type" "output_text"
+                                                           "text" text
+                                                           "annotations" (json-array)))))))))
 (defun anthropic--ordered-block-items
     (completed-blocks &key headers response-id data)
   "Return COMPLETED-BLOCKS in contiguous Anthropic content index order."
@@ -648,7 +665,7 @@ system cache prefix when mid-conversation guidance changes."
                            "The provider returned an invalid content block."
                            :headers headers :response-id response-id :data data))
                         (let ((block-type (json-get block "type")))
-                          (unless (json-string-member-p block-type '("text" "tool_use"))
+                          (unless (json-string-member-p block-type '("text" "thinking" "redacted_thinking" "tool_use"))
                             (anthropic--signal-protocol-failure
                              (format nil
                                      "The provider returned an unsupported content block: ~A."
@@ -672,6 +689,24 @@ system cache prefix when mid-conversation guidance changes."
                                     event-callback
                                     (make-instance 'assistant-delta-event
                                                    :text text)))))
+                              ((member block-type '("thinking" "redacted_thinking") :test #'string=)
+                               (cond
+                                 ((string= block-type "thinking")
+                                  (multiple-value-bind (thinking present-p)
+                                      (gethash "thinking" block)
+                                    (unless (and present-p (stringp thinking))
+                                      (anthropic--signal-protocol-failure
+                                       "The provider returned invalid initial thinking."
+                                       :headers headers :response-id response-id :data data))
+                                    (write-string thinking (anthropic--block-state-text-stream state))))
+                                 (t
+                                  (multiple-value-bind (redacted present-p)
+                                      (gethash "data" block)
+                                    (unless (and present-p (non-empty-string-p redacted))
+                                      (anthropic--signal-protocol-failure
+                                       "The provider returned invalid redacted thinking."
+                                       :headers headers :response-id response-id :data data))
+                                    (setf (anthropic--block-state-initial-data state) redacted)))))
                               ((string= block-type "tool_use")
                                (let ((id (json-get block "id"))
                                      (name (json-get block "name")))
@@ -716,6 +751,26 @@ system cache prefix when mid-conversation guidance changes."
                            :headers headers :response-id response-id :data data))
                         (let ((delta-type (json-get delta "type")))
                           (cond
+                            ((and (string= (anthropic--block-state-type state)
+                                          "thinking")
+                                  (json-string= delta-type "thinking_delta"))
+                             (let ((thinking (json-get delta "thinking")))
+                               (unless (stringp thinking)
+                                 (anthropic--signal-protocol-failure
+                                  "The provider returned invalid thinking delta content."
+                                  :headers headers :response-id response-id :data data))
+                               (write-string thinking (anthropic--block-state-text-stream state))
+                               (funcall event-callback (make-instance 'provider-progress-event))))
+                            ((and (string= (anthropic--block-state-type state)
+                                          "thinking")
+                                  (json-string= delta-type "signature_delta"))
+                             (let ((signature (json-get delta "signature")))
+                               (unless (stringp signature)
+                                 (anthropic--signal-protocol-failure
+                                  "The provider returned invalid thinking signature content."
+                                  :headers headers :response-id response-id :data data))
+                               (write-string signature (anthropic--block-state-signature-stream state))
+                               (funcall event-callback (make-instance 'provider-progress-event))))
                             ((and (string= (anthropic--block-state-type state) "text")
                                   (json-string= delta-type "text_delta"))
                              (let ((text (json-get delta "text")))

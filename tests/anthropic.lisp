@@ -307,7 +307,7 @@
           (list start
                 (json-object "type" "content_block_start" "index" 0
                              "content_block"
-                             (json-object "type" "thinking"
+                             (json-object "type" "future_thinking"
                                           "thinking" "hidden")))
           (list start text-start
                 (anthropic-provider-test--message-delta "end_turn"))))
@@ -774,6 +774,47 @@
          "schema annotations include the original root constraints"))))
   nil)
 
+(defun anthropic-provider-test--thinking-blocks ()
+  "Test streamed thinking and redacted-thinking blocks survive replay."
+  (let* ((provider (make-instance 'anthropic-messages-provider))
+         (result (anthropic-provider-test--consume
+                  provider
+                  (list (anthropic-provider-test--message-start)
+                        (json-object "type" "content_block_start" "index" 0
+                                     "content_block"
+                                     (json-object "type" "thinking" "thinking" ""))
+                        (json-object "type" "content_block_delta" "index" 0
+                                     "delta" (json-object "type" "thinking_delta"
+                                                                  "thinking" "reason"))
+                        (json-object "type" "content_block_delta" "index" 0
+                                     "delta" (json-object "type" "signature_delta"
+                                                                  "signature" "signed"))
+                        (json-object "type" "content_block_stop" "index" 0)
+                        (json-object "type" "content_block_start" "index" 1
+                                     "content_block"
+                                     (json-object "type" "redacted_thinking" "data" "cipher"))
+                        (json-object "type" "content_block_stop" "index" 1)
+                        (anthropic-provider-test--message-delta "end_turn")
+                        (json-object "type" "message_stop")))))
+    (let* ((items (provider-result-output-items result))
+           (thinking (aref (json-get (first items) "content") 0))
+           (redacted (aref (json-get (second items) "content") 0))
+           (messages (anthropic--input-messages items))
+           (content (json-get (first messages) "content")))
+      (test-assert (and (= (length items) 2)
+                        (json-string= (json-get thinking "type") "thinking")
+                        (string= (json-get thinking "thinking") "reason")
+                        (string= (json-get thinking "signature") "signed")
+                        (json-string= (json-get redacted "type") "redacted_thinking")
+                        (string= (json-get redacted "data") "cipher"))
+                   "thinking blocks retain signed and redacted content")
+      (test-assert (and (json-string= (json-get (aref content 0) "type") "thinking")
+                        (string= (json-get (aref content 0) "signature") "signed")
+                        (json-string= (json-get (aref content 1) "type") "redacted_thinking"))
+                   "thinking blocks replay unchanged across Anthropic continuations")))
+  nil)
+
+
 (defun run-anthropic-tests ()
   "Run the standalone Anthropic wire checks and return their count."
   (let ((*wire-test-checks* 0))
@@ -783,6 +824,7 @@
     (anthropic-provider-test--portable-content)
     (anthropic-provider-test--cache-boundaries)
     (anthropic-provider-test--stream-decoding)
+    (anthropic-provider-test--thinking-blocks)
     (anthropic-provider-test--stop-reasons)
     (anthropic-provider-test--stream-ordering)
     (anthropic-provider-test--stream-lifecycle)
