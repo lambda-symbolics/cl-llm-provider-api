@@ -18,24 +18,24 @@
   "Return the supported Copilot wire protocol for catalog ENTRY."
   (unless (json-object-p entry)
     (copilot--error "Copilot model entry must be a JSON object."))
-  (let ((endpoints (json-get entry "supported_endpoints"))
-        (id (json-get entry "id")))
-    (when (and endpoints
-               (not (and (vectorp endpoints) (not (stringp endpoints))
-                         (every #'stringp endpoints))))
-      (copilot--error "Copilot supported_endpoints must be an array of strings."))
-    (when (and id (not (stringp id)))
-      (copilot--error "Copilot model id must be a string."))
-    (cond
-      ((find "/v1/messages" endpoints :test #'equal) :messages)
-      ((find "/messages" endpoints :test #'equal) :messages)
-      ((find "/responses" endpoints :test #'equal) :responses)
-      ((find "/chat/completions" endpoints :test #'equal) :chat-completions)
-      (endpoints :unsupported)
-      ((and id (uiop:string-prefix-p "claude-" id)) :messages)
-      ((and id (some (lambda (prefix) (uiop:string-prefix-p prefix id))
-                     (list "gpt-5" "gpt-6" "grok-" "mai-"))) :responses)
-      (t :chat-completions))))
+  (multiple-value-bind (endpoints endpoints-p) (gethash "supported_endpoints" entry)
+    (let ((id (json-get entry "id")))
+      (when (and endpoints-p
+                 (not (and (vectorp endpoints) (not (stringp endpoints))
+                           (every #'stringp endpoints))))
+        (copilot--error "Copilot supported_endpoints must be an array of strings."))
+      (when (and id (not (stringp id)))
+        (copilot--error "Copilot model id must be a string."))
+      (cond
+        ((find "/v1/messages" endpoints :test #'equal) :messages)
+        ((find "/messages" endpoints :test #'equal) :messages)
+        ((find "/responses" endpoints :test #'equal) :responses)
+        ((find "/chat/completions" endpoints :test #'equal) :chat-completions)
+        (endpoints-p :unsupported)
+        ((and id (uiop:string-prefix-p "claude-" id)) :messages)
+        ((and id (some (lambda (prefix) (uiop:string-prefix-p prefix id))
+                       (list "gpt-5" "gpt-6" "grok-" "mai-"))) :responses)
+        (t :chat-completions)))))
 
 (defun copilot-model-catalog (document &key (model-prefix "") personal-account-p
                                           enable-model-function)

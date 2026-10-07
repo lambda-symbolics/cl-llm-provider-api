@@ -35,7 +35,7 @@
     (check (handler-case (progn (copilot-model-catalog document) nil)
              (provider-error () t))
            "Malformed Copilot catalogs must signal a typed error"))
-  (dolist (endpoints (list "/responses" (vector 3)))
+  (dolist (endpoints (list "/responses" (vector 3) :json-false yason:false nil))
     (check (handler-case
                (progn (copilot-model-protocol
                        (cl-llm-provider-api::json-object "id" "m" "supported_endpoints" endpoints)) nil)
