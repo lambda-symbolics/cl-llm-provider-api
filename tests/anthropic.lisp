@@ -346,6 +346,17 @@
                  (list
                   (json-object "type" "message" "role" "assistant" "content"
                                (json-array (json-object "type" "future_content" "value" 1)))))
+           (list "thinking without payload"
+                 (list
+                  (json-object "type" "message" "role" "assistant" "content"
+                               (json-array (json-object "type" "thinking"
+                                                        "signature" "signed")))))
+           (list "non-string thinking payload"
+                 (list
+                  (json-object "type" "message" "role" "assistant" "content"
+                               (json-array (json-object "type" "thinking"
+                                                        "thinking" 7
+                                                        "signature" "signed")))))
            (list "mismatched tool result"
                  (list
                   (json-object "type" "function_call" "call_id" "expected" "name" "read"
@@ -785,7 +796,7 @@
                                      (json-object "type" "thinking" "thinking" ""))
                         (json-object "type" "content_block_delta" "index" 0
                                      "delta" (json-object "type" "thinking_delta"
-                                                                  "thinking" "reason"))
+                                                                  "thinking" ""))
                         (json-object "type" "content_block_delta" "index" 0
                                      "delta" (json-object "type" "signature_delta"
                                                                   "signature" "signed"))
@@ -803,7 +814,7 @@
            (content (json-get (first messages) "content")))
       (test-assert (and (= (length items) 2)
                         (json-string= (json-get thinking "type") "thinking")
-                        (string= (json-get thinking "thinking") "reason")
+                        (string= (json-get thinking "thinking") "")
                         (string= (json-get thinking "signature") "signed")
                         (json-string= (json-get redacted "type") "redacted_thinking")
                         (string= (json-get redacted "data") "cipher"))

@@ -108,12 +108,18 @@ Nested composition and all other object constraints are preserved."
        (let ((source (anthropic--image-source (json-get part "image_url"))))
          (when source
            (json-object "type" "image" "source" source))))
-      ((and (json-string= type "thinking")
-            (non-empty-string-p (json-get part "thinking"))
-            (non-empty-string-p (json-get part "signature")))
-       (json-object "type" "thinking"
-                    "thinking" (json-get part "thinking")
-                    "signature" (json-get part "signature")))
+      ((json-string= type "thinking")
+       (multiple-value-bind (thinking thinking-present-p)
+           (gethash "thinking" part)
+         (multiple-value-bind (signature signature-present-p)
+             (gethash "signature" part)
+           (when (and thinking-present-p
+                      (stringp thinking)
+                      signature-present-p
+                      (non-empty-string-p signature))
+             (json-object "type" "thinking"
+                          "thinking" thinking
+                          "signature" signature)))))
       ((and (json-string= type "redacted_thinking")
             (non-empty-string-p (json-get part "data")))
        (json-object "type" "redacted_thinking"
@@ -473,7 +479,7 @@ system cache prefix when mid-conversation guidance changes."
     ((string= (anthropic--block-state-type state) "thinking")
      (let ((thinking (get-output-stream-string (anthropic--block-state-text-stream state)))
            (signature (get-output-stream-string (anthropic--block-state-signature-stream state))))
-       (unless (and (non-empty-string-p thinking) (non-empty-string-p signature))
+       (unless (and (stringp thinking) (non-empty-string-p signature))
          (anthropic--signal-protocol-failure
           "The provider returned an unsigned or empty thinking block."
           :headers headers :response-id response-id :data data))
