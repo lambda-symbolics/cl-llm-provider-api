@@ -787,42 +787,109 @@
 
 (defun anthropic-provider-test--thinking-blocks ()
   "Test streamed thinking and redacted-thinking blocks survive replay."
-  (let* ((provider (make-instance 'anthropic-messages-provider))
-         (result (anthropic-provider-test--consume
-                  provider
-                  (list (anthropic-provider-test--message-start)
-                        (json-object "type" "content_block_start" "index" 0
-                                     "content_block"
-                                     (json-object "type" "thinking" "thinking" ""))
-                        (json-object "type" "content_block_delta" "index" 0
-                                     "delta" (json-object "type" "thinking_delta"
-                                                                  "thinking" ""))
-                        (json-object "type" "content_block_delta" "index" 0
-                                     "delta" (json-object "type" "signature_delta"
-                                                                  "signature" "signed"))
-                        (json-object "type" "content_block_stop" "index" 0)
-                        (json-object "type" "content_block_start" "index" 1
-                                     "content_block"
-                                     (json-object "type" "redacted_thinking" "data" "cipher"))
-                        (json-object "type" "content_block_stop" "index" 1)
-                        (anthropic-provider-test--message-delta "end_turn")
-                        (json-object "type" "message_stop")))))
-    (let* ((items (provider-result-output-items result))
-           (thinking (aref (json-get (first items) "content") 0))
-           (redacted (aref (json-get (second items) "content") 0))
-           (messages (anthropic--input-messages items))
-           (content (json-get (first messages) "content")))
-      (test-assert (and (= (length items) 2)
-                        (json-string= (json-get thinking "type") "thinking")
-                        (string= (json-get thinking "thinking") "")
-                        (string= (json-get thinking "signature") "signed")
-                        (json-string= (json-get redacted "type") "redacted_thinking")
-                        (string= (json-get redacted "data") "cipher"))
-                   "thinking blocks retain signed and redacted content")
-      (test-assert (and (json-string= (json-get (aref content 0) "type") "thinking")
-                        (string= (json-get (aref content 0) "signature") "signed")
-                        (json-string= (json-get (aref content 1) "type") "redacted_thinking"))
-                   "thinking blocks replay unchanged across Anthropic continuations")))
+  (dolist (case
+           (list (list "nonempty" "reason" "signed-reason" "opaque-cipher")
+                 (list "empty" "" "signed-empty" "opaque-empty")))
+    (destructuring-bind (label thinking signature redacted-data) case
+      (let* ((provider (make-instance 'anthropic-messages-provider))
+             (result
+               (anthropic-provider-test--consume
+                provider
+                (list (anthropic-provider-test--message-start)
+                      (json-object
+                       "type" "content_block_start"
+                       "index" 0
+                       "content_block"
+                       (json-object
+                        "type" "thinking"
+                        "thinking" thinking))
+                      (json-object
+                       "type" "content_block_delta"
+                       "index" 0
+                       "delta"
+                       (json-object "type" "thinking_delta"
+                                    "thinking" ""))
+                      (json-object
+                       "type" "content_block_delta"
+                       "index" 0
+                       "delta"
+                       (json-object "type" "signature_delta"
+                                    "signature" signature))
+                      (json-object "type" "content_block_stop" "index" 0)
+                      (json-object
+                       "type" "content_block_start"
+                       "index" 1
+                       "content_block"
+                       (json-object
+                        "type" "redacted_thinking"
+                        "data" redacted-data))
+                      (json-object "type" "content_block_stop" "index" 1)
+                      (anthropic-provider-test--message-delta "end_turn")
+                      (json-object "type" "message_stop")))))
+        (let* ((items (provider-result-output-items result))
+               (thinking-item (aref (json-get (first items) "content") 0))
+               (redacted-item (aref (json-get (second items) "content") 0))
+               (messages (anthropic--input-messages items))
+               (content (json-get (first messages) "content")))
+          (test-assert
+           (and (= (length items) 2)
+                (json-string= (json-get thinking-item "type") "thinking")
+                (string= (json-get thinking-item "thinking") thinking)
+                (string= (json-get thinking-item "signature") signature)
+                (json-string= (json-get redacted-item "type") "redacted_thinking")
+                (string= (json-get redacted-item "data") redacted-data))
+           (format nil "~A thinking blocks retain signed and redacted content" label))
+          (test-assert
+           (and (json-string= (json-get (aref content 0) "type") "thinking")
+                (string= (json-get (aref content 0) "thinking") thinking)
+                (string= (json-get (aref content 0) "signature") signature)
+                (json-string= (json-get (aref content 1) "type") "redacted_thinking")
+                (string= (json-get (aref content 1) "data") redacted-data))
+           (format nil "~A thinking blocks replay byte-for-byte" label))))))
+
+  (dolist (case
+           (list
+            (list "missing initial thinking"
+                  (json-object "type" "thinking" "signature" "signed"))
+            (list "non-string initial thinking"
+                  (json-object "type" "thinking" "thinking" 7 "signature" "signed"))
+            (list "missing initial redacted data"
+                  (json-object "type" "redacted_thinking"))
+            (list "non-string initial redacted data"
+                  (json-object "type" "redacted_thinking" "data" 7))))
+    (destructuring-bind (label block) case
+      (test-assert
+       (anthropic-provider-test--consume-condition
+        (make-instance 'anthropic-messages-provider)
+        (list (anthropic-provider-test--message-start)
+              (json-object "type" "content_block_start"
+                           "index" 0
+                           "content_block" block)))
+       label)))
+
+  (dolist (case
+           (list
+            (list "missing thinking delta"
+                  (json-object "type" "thinking_delta"))
+            (list "non-string thinking delta"
+                  (json-object "type" "thinking_delta" "thinking" 7))
+            (list "missing signature delta"
+                  (json-object "type" "signature_delta"))
+            (list "non-string signature delta"
+                  (json-object "type" "signature_delta" "signature" 7))))
+    (destructuring-bind (label delta) case
+      (test-assert
+       (anthropic-provider-test--consume-condition
+        (make-instance 'anthropic-messages-provider)
+        (list (anthropic-provider-test--message-start)
+              (json-object "type" "content_block_start"
+                           "index" 0
+                           "content_block"
+                           (json-object "type" "thinking" "thinking" ""))
+              (json-object "type" "content_block_delta"
+                           "index" 0
+                           "delta" delta)))
+       label)))
   nil)
 
 

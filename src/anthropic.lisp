@@ -117,9 +117,10 @@ Nested composition and all other object constraints are preserved."
                       (stringp thinking)
                       signature-present-p
                       (non-empty-string-p signature))
-             (json-object "type" "thinking"
-                          "thinking" thinking
-                          "signature" signature)))))
+             (json-object
+              "type" "thinking"
+              "thinking" thinking
+              "signature" signature)))))
       ((and (json-string= type "redacted_thinking")
             (non-empty-string-p (json-get part "data")))
        (json-object "type" "redacted_thinking"
@@ -481,7 +482,7 @@ system cache prefix when mid-conversation guidance changes."
            (signature (get-output-stream-string (anthropic--block-state-signature-stream state))))
        (unless (and (stringp thinking) (non-empty-string-p signature))
          (anthropic--signal-protocol-failure
-          "The provider returned an unsigned or empty thinking block."
+          "The provider returned an unsigned thinking block."
           :headers headers :response-id response-id :data data))
        (json-object "type" "message" "status" "completed" "role" "assistant"
                     "content" (json-array (json-object "type" "thinking"
