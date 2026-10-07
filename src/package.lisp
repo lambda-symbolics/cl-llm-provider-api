@@ -182,6 +182,12 @@
            #:provider-call-canonical-name
            #:provider-group-tool-schemas
            #:provider-wire-tools
+           #:copilot-model-protocol
+           #:copilot-model-catalog
+           #:copilot-base-url
+           #:copilot-protocol-endpoint
+           #:copilot-http-headers
+           #:copilot-stream-headers
            #:provider-with-configuration
            #:provider-configuration
            #:provider-credential-manager

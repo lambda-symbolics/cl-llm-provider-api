@@ -34,7 +34,7 @@
     ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
      (:file "registry-tests") (:file "retry-tests")
-     (:file "tool-search-tests") (:file "gemini-tests"))))
+     (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))
@@ -52,7 +52,7 @@
     ((:file "wire-json") (:file "model-lists") (:file "wire-conditions") (:file "wire-transport")
      (:file "wire-items") (:file "wire-client") (:file "responses") (:file "tool-search")
      (:file "tool-helpers") (:file "chat-policy") (:file "chat-completions")
-     (:file "usage") (:file "request") (:file "anthropic") (:file "gemini")))))
+     (:file "usage") (:file "request") (:file "anthropic") (:file "gemini") (:file "copilot")))))
 
 (asdf/parse-defsystem:defsystem #:cl-llm-provider-api/registry
   :description

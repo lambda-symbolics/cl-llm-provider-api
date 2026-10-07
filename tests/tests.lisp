@@ -443,6 +443,7 @@
   (cl-llm-provider-api::run-anthropic-tests)
   (cl-llm-provider-api::run-tool-search-tests)
   (cl-llm-provider-api::run-gemini-tests)
+  (test-copilot-wire)
   (test-context-assembly)
   (test-output-contracts)
   (run-registry-tests)

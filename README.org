@@ -205,6 +205,24 @@ thought and answer text, decodes namespaced calls, maps usage, completes on
 =STOP=, and signals an incomplete response for =MAX_TOKENS=. A host that wraps
 each response in an envelope specializes =PROVIDER-GEMINI-STREAM-RESPONSE=.
 
+** GitHub Copilot wire helpers
+
+Use =COPILOT-MODEL-CATALOG= to decode tool-capable account models into plists
+with =:NAME=, =:PROTOCOL=, =:DESCRIPTION=, =:REASONING-EFFORTS=, and optional
+=:CONTEXT-WINDOW=. Supply =:MODEL-PREFIX= for a host namespace and
+=:PERSONAL-ACCOUNT-P= for the individual-account policy fallback. During
+explicit login, an optional =:ENABLE-MODEL-FUNCTION= receives each eligible
+unconfigured model ID and returns true after enabling it.
+
+=COPILOT-MODEL-PROTOCOL= selects Chat Completions, Responses, or Messages.
+Use =COPILOT-PROTOCOL-ENDPOINT= for the corresponding path,
+=COPILOT-BASE-URL= for the token's trusted proxy host, and
+=COPILOT-HTTP-HEADERS= for catalog requests. For streaming, pass the selected
+=:PROTOCOL= and =:INITIATOR= to =COPILOT-STREAM-HEADERS=; image blocks require
+an additional vision header. Malformed catalogs, untrusted hosts, and unknown
+protocols signal =PROVIDER-ERROR=. Implement device login, credential storage,
+and account policy HTTP requests in the host application.
+
 * Stream engine
 
 =READ-SSE-DATA= decodes one server-sent event's joined data field from a
