@@ -100,6 +100,13 @@
                 (equal (response-header headers "anthropic-version") "2023-06-01")
                 (equal (response-header headers "Accept") "text/event-stream"))
            "Copilot stream headers are incomplete")
+    (dolist (protocol '(:chat-completions :responses :messages))
+      (check (equal (response-header
+                     (copilot-stream-headers "secret" (cl-llm-provider-api::json-object)
+                                             :protocol protocol)
+                     "X-GitHub-Api-Version")
+                    "2026-06-01")
+             "Copilot inference must use the Auto control API version"))
     (check (null (response-header
                   (copilot-stream-headers "secret"
                                           (cl-llm-provider-api::json-object "max_tokens" 3)

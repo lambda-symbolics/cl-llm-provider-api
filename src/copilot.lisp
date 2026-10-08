@@ -172,6 +172,9 @@ routes authorize Auto selection only when a session explicitly offers them."
          ((consp value) (some #'copilot--vision-p value))
         (t nil)))
 
+;; Auto stream profile: https://github.com/mentalfl0w/copilot-auto at
+;; 7141d8ee9a2b5041a9d2e2f316a06cea30da30f9, src/capi-client.ts and
+;; src/provider-registrar.ts.
 (defun copilot-stream-headers
     (token request &key protocol (initiator "user")
                        (user-agent "cl-llm-provider-api")
@@ -183,6 +186,7 @@ routes authorize Auto selection only when a session explicitly offers them."
                   :key #'first :test #'string-equal)
           (list (cons "Accept" "text/event-stream")
                 (cons "Content-Type" "application/json")
+                (cons "X-GitHub-Api-Version" "2026-06-01")
                 (cons "X-Initiator" initiator)
                 (cons "Openai-Intent" "conversation-edits"))
           (when (copilot--vision-p request)
