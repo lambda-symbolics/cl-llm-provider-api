@@ -37,57 +37,77 @@
                        (list "gpt-5" "gpt-6" "grok-" "mai-"))) :responses)
         (t :chat-completions)))))
 
-(defun copilot-model-catalog (document &key (model-prefix "") personal-account-p
-                                          enable-model-function)
-  "Decode tool-capable Copilot models, optionally enabling eligible picker entries.
-An enable callback receives one model ID. It is called only for an otherwise
-eligible unconfigured model, never for a disabled, unsupported, or duplicate entry."
-  (unless (and (json-object-p document) (stringp model-prefix))
-    (copilot--error "Copilot model catalog or namespace is invalid."))
+(defun copilot--catalog-entries (document)
+  "Validate DOCUMENT and return concrete tool-capable routes, including hidden models."
+  (unless (json-object-p document)
+    (copilot--error "Copilot model catalog must be a JSON object."))
   (let ((data (json-get document "data")))
     (unless (and (vectorp data) (not (stringp data)))
       (copilot--error "Copilot model catalog data must be an array."))
-    (let* ((entries
-             (loop for entry across data
-                   do (unless (and (json-object-p entry)
-                                   (non-empty-string-p (json-get entry "id")))
-                        (copilot--error "Copilot catalog entries require a model ID."))
-                   unless (or (member (copilot--field entry "capabilities" "supports" "tool_calls")
-                                      (list *json-decoded-false* yason:false))
-                              (eq (copilot-model-protocol entry) :unsupported))
-                     collect entry))
-           (picker-p
-             (some (lambda (entry)
-                     (and (eq (json-get entry "model_picker_enabled") t)
-                          (not (equal (copilot--field entry "policy" "state") "disabled"))))
-                   entries))
-           (fallback-p (and personal-account-p (not picker-p)))
-           (seen nil)
-           (models nil))
-      (dolist (entry entries)
-        (let* ((id (json-get entry "id"))
-               (policy (copilot--field entry "policy" "state"))
-               (eligible-p (or (eq (json-get entry "model_picker_enabled") t) fallback-p)))
-          (when (and eligible-p (not (member id seen :test #'string=)))
-            (push id seen)
-            (when (or (equal policy "enabled")
-                      (and (null policy) (not fallback-p))
-                      (and (equal policy "unconfigured") enable-model-function
-                           (funcall enable-model-function id)))
-              (let ((name (json-get entry "name"))
-                    (window (copilot--field entry "capabilities" "limits" "max_prompt_tokens")))
-                (when (and name (not (stringp name)))
-                  (copilot--error "Copilot model descriptions must be strings."))
-                (push (append
-                       (list :name (concatenate 'string model-prefix id)
-                             :protocol (copilot-model-protocol entry)
-                             :description (or name id)
-                             :reasoning-efforts
-                             (if (eq (copilot--field entry "capabilities" "supports" "reasoning_effort") t)
-                                 '("low" "medium" "high") '("none")))
-                       (when (typep window '(integer 1)) (list :context-window window)))
-                      models))))))
-      (nreverse models))))
+    (loop for entry across data
+          do (unless (and (json-object-p entry)
+                          (non-empty-string-p (json-get entry "id")))
+               (copilot--error "Copilot catalog entries require a model ID."))
+          unless (or (string= (json-get entry "id") "auto")
+                     (member (copilot--field entry "capabilities" "supports" "tool_calls")
+                             (list *json-decoded-false* yason:false))
+                     (eq (copilot-model-protocol entry) :unsupported))
+            collect entry)))
+
+(defun copilot--model-spec (entry model-prefix &key automatic-p)
+  "Decode a validated concrete ENTRY for manual or automatic selection."
+  (let ((id (json-get entry "id"))
+        (name (json-get entry "name"))
+        (window (copilot--field entry "capabilities" "limits" "max_prompt_tokens")))
+    (when (and name (not (stringp name)))
+      (copilot--error "Copilot model descriptions must be strings."))
+    (append (list :name (concatenate 'string model-prefix id)
+                  :protocol (copilot-model-protocol entry)
+                  :description (or name id)
+                  :reasoning-efforts
+                  (if (and (not automatic-p)
+                           (eq (copilot--field entry "capabilities" "supports" "reasoning_effort") t))
+                      '("low" "medium" "high") '("none")))
+            (when (typep window '(integer 1)) (list :context-window window)))))
+
+(defun copilot-model-catalog (document &key (model-prefix "") personal-account-p
+                                          enable-model-function include-auto-p)
+  "Decode picker models, optionally enabling eligible entries and including Auto.
+The enable callback receives one unique eligible unconfigured model ID. Hidden
+routes authorize Auto selection only when a session explicitly offers them."
+  (unless (stringp model-prefix)
+    (copilot--error "Copilot model namespace must be a string."))
+  (let* ((entries (copilot--catalog-entries document))
+         (picker-p (some (lambda (entry)
+                           (and (eq (json-get entry "model_picker_enabled") t)
+                                (not (equal (copilot--field entry "policy" "state") "disabled"))))
+                         entries))
+         (fallback-p (and personal-account-p (not picker-p)))
+         (seen nil)
+         (models nil))
+    (dolist (entry entries)
+      (let* ((id (json-get entry "id"))
+             (policy (copilot--field entry "policy" "state"))
+             (eligible-p (or (eq (json-get entry "model_picker_enabled") t) fallback-p)))
+        (when (and eligible-p (not (member id seen :test #'string=)))
+          (push id seen)
+          (when (or (equal policy "enabled")
+                    (and (null policy) (not fallback-p))
+                    (and (equal policy "unconfigured") enable-model-function
+                         (funcall enable-model-function id)))
+            (push (copilot--model-spec entry model-prefix) models)))))
+    (let ((result (nreverse models)))
+      (if (and include-auto-p entries)
+          (let* ((windows (loop for entry in entries
+                                for limit = (copilot--field entry "capabilities" "limits" "max_prompt_tokens")
+                                when (typep limit '(integer 1)) collect limit))
+                 (window (and windows (reduce #'min windows))))
+            (cons (append (list :name (concatenate 'string model-prefix "auto")
+                                :protocol :auto :description "Auto"
+                                :reasoning-efforts '("none"))
+                          (when window (list :context-window window)))
+                  result))
+          result))))
 
 (defun copilot--valid-host-p (host)
   "Return true for a plain DNS host without URL syntax or credentials."
@@ -169,3 +189,63 @@ eligible unconfigured model, never for a disabled, unsupported, or duplicate ent
             (list (cons "Copilot-Vision-Request" "true")))
           (when (eq protocol :messages)
             (list (cons "anthropic-version" anthropic-version)))))
+
+
+(defun copilot-auto-session-request ()
+  "Return the JSON object requesting an automatic-model session."
+  (json-object "auto_mode" (json-object "model_hints" (vector "auto"))))
+
+(defun copilot-vision-request-p (request)
+  "Return exactly true or false when REQUEST contains an image content block."
+  (not (null (copilot--vision-p request))))
+
+(defun copilot-auto-session-model (session catalog &key (model-prefix "")
+                                                       preferred-model vision-p)
+  "Return the concrete model spec and token explicitly authorized by SESSION.
+CATALOG is raw /models JSON, including models hidden from manual selection.
+PREFERRED-MODEL is an unprefixed ID. Otherwise use the offered model order."
+  (unless (and (json-object-p session) (stringp model-prefix)
+               (or (null preferred-model) (stringp preferred-model)))
+    (copilot--error "Copilot automatic-session response or namespace is invalid."))
+  (let* ((selected (json-get session "selected_model"))
+         (selected-p (nth-value 1 (gethash "selected_model" session)))
+         (offered (json-get session "available_models"))
+         (offered-p (nth-value 1 (gethash "available_models" session)))
+         (token (json-get session "session_token"))
+         (expires (json-get session "expires_at")))
+    (when (and (nth-value 1 (gethash "expires_at" session))
+               (not (typep expires '(integer 1))))
+      (copilot--error "Copilot automatic-session expiry is invalid."))
+    (unless (and (non-empty-string-p token)
+                 (every (lambda (character) (<= 33 (char-code character) 126)) token))
+      (copilot--error "Copilot automatic-session token is invalid."))
+    (when (and offered-p
+               (not (and (vectorp offered) (not (stringp offered))
+                         (plusp (length offered)) (every #'non-empty-string-p offered))))
+      (copilot--error "Copilot available models must be a nonempty array of IDs."))
+    (when (and selected-p (not (non-empty-string-p selected)))
+      (copilot--error "Copilot selected model must be a nonempty ID."))
+    (unless (or selected-p offered-p)
+      (copilot--error "Copilot automatic-session response authorizes no models."))
+    (when (and selected-p offered-p (not (find selected offered :test #'string=)))
+      (copilot--error "Copilot selected model is unavailable."))
+    (let* ((known (remove-if-not
+                   (lambda (entry)
+                     (or (not vision-p)
+                         (eq (copilot--field entry "capabilities" "supports" "vision") t)))
+                   (copilot--catalog-entries catalog)))
+           (candidate
+             (labels ((find-model (id)
+                        (find id known :key (lambda (entry) (json-get entry "id"))
+                                       :test #'string=)))
+               (if selected-p
+                   (find-model selected)
+                   (or (and preferred-model
+                            (find preferred-model offered :test #'string=)
+                            (find-model preferred-model))
+                       (loop for id across offered
+                             for entry = (find-model id)
+                             when entry return entry))))))
+      (unless candidate
+        (copilot--error "Copilot automatic-session has no eligible known model."))
+      (values (copilot--model-spec candidate model-prefix :automatic-p t) token))))

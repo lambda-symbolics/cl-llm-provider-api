@@ -367,3 +367,16 @@ FNV-1a suffix within the 23-character Chat Completions budget.  It signals
 specific duplicate, limit, and collision conditions.  Use
 =PROVIDER-ARRAY-SCHEMA= and =PROVIDER-ENUM-SCHEMA= for reusable schema shapes;
 their optional descriptions are omitted when =NIL=.
+
+* Automatic Copilot model selection
+
+Encode =COPILOT-AUTO-SESSION-REQUEST='s JSON object and POST it to
+=/models/session=. Pass the session response and raw =/models= catalog to
+=COPILOT-AUTO-SESSION-MODEL=; it returns a concrete model spec and session token.
+Send =Copilot-Session-Token= with the concrete request using that model's protocol.
+Keep the token within the request's credential scope and include it in redaction.
+Use =:include-auto-p t= with =COPILOT-MODEL-CATALOG= to expose =auto= in a picker.
+
+Sources inspected: [[https://github.com/microsoft/vscode-copilot-chat/tree/5863f5a7088958050792b5dccbe8b46c6e13eccc][VS Code Copilot Chat]],
+=src/platform/endpoint/node/automodeService.ts= and =autoChatEndpoint.ts=;
+[[https://github.com/CopilotC-Nvim/CopilotChat.nvim/tree/004ced055d8db59561cfcddc5f141ccd8d5a033b][CopilotChat.nvim]], =lua/CopilotChat/config/providers.lua=.

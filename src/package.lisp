@@ -184,6 +184,9 @@
            #:provider-wire-tools
            #:copilot-model-protocol
            #:copilot-model-catalog
+           #:copilot-auto-session-request
+           #:copilot-auto-session-model
+           #:copilot-vision-request-p
            #:copilot-base-url
            #:copilot-protocol-endpoint
            #:copilot-http-headers
