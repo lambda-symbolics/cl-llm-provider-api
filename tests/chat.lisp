@@ -117,6 +117,34 @@
        "thinking items stay private to their producing family")
       (test-assert (string= (json-get (second messages) "role") "tool")
        "Chat Completions tool results follow the grouped assistant message"))
+    (let* ((user-1
+            (json-object "type" "message" "role" "user"
+             "content" (json-array
+                        (json-object "type" "input_text" "text" "do the thing"))))
+           (thinking
+            (json-object "type" "reasoning_content" "content" "let me think about it"))
+           (answer
+            (json-object "type" "message" "role" "assistant"
+             "content" (json-array
+                        (json-object "type" "output_text" "text" "done"))))
+           (user-2
+            (json-object "type" "message" "role" "user"
+             "content" (json-array
+                        (json-object "type" "input_text" "text" "next thing"))))
+           (messages
+            (openai-compatible--chat-input-messages
+             (list user-1 thinking answer user-2))))
+      (test-assert
+       (and (= (length messages) 3)
+            (string= (json-get (first messages) "role") "user")
+            (string= (json-get (second messages) "role") "assistant")
+            (string= (json-get (second messages) "reasoning_content")
+                     "let me think about it")
+            (string= (json-get (third messages) "role") "user"))
+       "thinking rides on a text-answer assistant message, not only on tool calls")
+      (test-assert
+       (null (json-get (third messages) "reasoning_content"))
+       "stale thinking does not leak onto the next user turn"))
     (openai-compatible-provider-tests--terminal-semantics provider)
     (let* ((text-event
             (openai-compatible-provider-tests--stream-event
