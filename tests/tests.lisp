@@ -1,5 +1,6 @@
 (defpackage #:cl-llm-provider-api/tests
   (:use #:cl #:cl-llm-provider-api)
+  (:import-from #:cl-llm-provider-api #:json-object #:json-array #:json-get #:json-encode)
   (:export #:run-tests))
 
 (in-package #:cl-llm-provider-api/tests)
@@ -449,5 +450,6 @@
   (test-output-contracts)
   (run-registry-tests)
   (run-retry-tests)
+  (run-metadata-tests)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)

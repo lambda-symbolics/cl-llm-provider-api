@@ -88,6 +88,7 @@ signal an incomplete response, any other finish reason a protocol error, and an
 error object the typed failure it describes. A stream that ends before a finish
 reason is a retryable interruption."
   (let ((response-id nil)
+        (metadata (make-instance 'provider-response-metadata))
         (usage nil)
         (text-stream (make-string-output-stream))
         (reasoning-stream (make-string-output-stream))
@@ -115,14 +116,22 @@ reason is a retryable interruption."
                       (when (non-empty-string-p event-response-id)
                         (setf response-id event-response-id))
                       (when (json-object-p response)
-                        (let ((metadata (json-get response "usageMetadata")))
-                          (when (json-object-p metadata)
-                            (setf usage (gemini--usage metadata))))
+                        (let ((event-usage (json-get response "usageMetadata")))
+                          (setf metadata
+                                (provider--observe-response-metadata
+                                 provider metadata event-callback
+                                 :model (json-get response "modelVersion") :usage event-usage))
+                          (when (json-object-p event-usage)
+                            (setf usage (gemini--usage event-usage))))
                         (let ((candidates (json-get response "candidates")))
                           (when (vectorp candidates)
                             (loop for candidate across candidates
                                   when (json-object-p candidate)
-                                    do (when (gemini--candidate-finished-p
+                                  do (setf metadata
+                                           (provider--observe-response-metadata
+                                            provider metadata event-callback
+                                            :finish-reason (json-get candidate "finishReason")))
+                                     (when (gemini--candidate-finished-p
                                               (json-get candidate "finishReason")
                                               headers response-id)
                                          (setf completed-p t))
@@ -149,6 +158,7 @@ reason is a retryable interruption."
     (gemini--finish-result
      :response-id response-id
      :usage usage
+     :metadata metadata
      :reasoning (get-output-stream-string reasoning-stream)
      :text (get-output-stream-string text-stream)
      :calls (nreverse calls)
@@ -373,7 +383,7 @@ Function responses carry the name of the call they answer, found by call_id."
             do (setf (gethash name usage) value))
     usage))
 
-(defun gemini--finish-result (&key response-id usage reasoning text calls event-callback)
+(defun gemini--finish-result (&key response-id usage metadata reasoning text calls event-callback)
   "Emit the completed items and return the provider result of one Gemini response.
 
 REASONING and TEXT become one reasoning and one assistant message item ahead
@@ -393,11 +403,13 @@ of the CALLS; a response with calls continues the turn."
     (funcall event-callback (make-instance 'provider-completed-event
                                            :response-id response-id
                                            :usage usage
+                                           :metadata metadata
                                            :turn-completion turn-completion))
     (make-instance 'provider-result
                    :response-id response-id
                    :output-items items
                    :tool-calls calls
                    :usage usage
+                   :metadata metadata
                    :turn-state nil
                    :turn-completion turn-completion)))

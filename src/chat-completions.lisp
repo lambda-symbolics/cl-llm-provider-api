@@ -288,6 +288,7 @@ the registry's unique-name dispatch."
            ((provider chat-completions-provider) stream headers event-callback)
   "Consume a Chat Completions SSE stream into a provider result."
   (let ((response-id nil)
+        (metadata (make-instance 'provider-response-metadata))
         (usage nil)
         (finish-reason nil)
         (text-stream (make-string-output-stream))
@@ -310,6 +311,11 @@ the registry's unique-name dispatch."
                       (error-object
                        (and (json-object-p event)
                             (provider--event-error-object event))))
+                 (when (json-object-p event)
+                   (setf metadata
+                         (provider--observe-response-metadata
+                          provider metadata event-callback :model (json-get event "model")
+                          :usage (json-get event "usage"))))
                  (when error-object
                    (provider--signal-event-failure event :type "error" :data data
                     :headers headers :response-id response-id))
@@ -335,6 +341,9 @@ the registry's unique-name dispatch."
                                                    (json-get delta "reasoning")
                                                    (json-get delta "thinking"))))
                                          (finish (json-get choice "finish_reason")))
+                                    (setf metadata
+                                          (provider--observe-response-metadata
+                                           provider metadata event-callback :finish-reason finish))
                                     (when text
                                       (write-string text text-stream)
                                       (funcall event-callback
@@ -407,12 +416,12 @@ the registry's unique-name dispatch."
                    ':end)))
           (funcall event-callback
                    (make-instance 'provider-completed-event :response-id response-id
-                                  :usage usage :turn-completion turn-completion))
+                                  :usage usage :metadata metadata :turn-completion turn-completion))
           (make-instance 'provider-result :response-id response-id :output-items
                          output-items :tool-calls
                          (remove-if-not #'clinker-transcript:function-call-item-p
                                         output-items)
-                         :usage usage :turn-state nil :turn-completion
+                         :usage usage :metadata metadata :turn-state nil :turn-completion
                          turn-completion))))))
 
 (defmethod provider-wire-tools ((provider chat-completions-provider) (tools vector))

@@ -390,6 +390,7 @@ abandon the looping stream; the default reaction ignores the report."))
            ((provider model-provider) stream headers event-callback)
   "Consume a Responses protocol STREAM into a provider result."
   (let ((output-items nil)
+        (metadata (make-instance 'provider-response-metadata))
         (response-id nil)
         (usage nil)
         (turn-completion :unspecified)
@@ -407,6 +408,23 @@ abandon the looping stream; the default reaction ignores the report."))
               (t
                (let* ((event (provider--decode-sse-data data headers))
                       (type (and (json-object-p event) (json-get event "type"))))
+                 (when (json-string-member-p type
+                         '("response.created" "response.in_progress" "response.completed"
+                           "response.incomplete" "response.failed"))
+                   (let* ((value (json-get event "response"))
+                          (response (and (json-object-p value) value))
+                          (details (and response (json-get response "incomplete_details"))))
+                     (setf metadata
+                           (provider--observe-response-metadata
+                            provider metadata event-callback
+                            :model (and response (json-get response "model"))
+                            :usage (and response (json-get response "usage"))
+                            :finish-reason
+                            (cond ((json-string= type "response.completed") "completed")
+                                  ((json-string= type "response.failed") "failed")
+                                  ((and (json-string= type "response.incomplete")
+                                        (json-object-p details))
+                                   (json-get details "reason")))))))
                  (cond
                   ((json-string= type "response.created")
                    (let ((response (json-get event "response")))
@@ -461,7 +479,7 @@ abandon the looping stream; the default reaction ignores the report."))
                      (setf completed-p t)
                      (funcall event-callback
                               (make-instance 'provider-completed-event :response-id
-                                             response-id :usage usage :turn-completion
+                                             response-id :usage usage :metadata metadata :turn-completion
                                              turn-completion))))
                   ((json-string= type "response.doom_loop_check")
                    (provider-note-doom-loop-event provider event)
@@ -479,6 +497,6 @@ abandon the looping stream; the default reaction ignores the report."))
            (tool-calls
             (remove-if-not #'clinker-transcript:function-call-item-p ordered-items)))
       (make-instance 'provider-result :response-id response-id :output-items
-                     ordered-items :tool-calls tool-calls :usage usage :turn-state
+                     ordered-items :tool-calls tool-calls :usage usage :metadata metadata :turn-state
                      (response-header headers "x-codex-turn-state") :turn-completion
                      turn-completion))))

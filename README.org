@@ -121,6 +121,31 @@ All values are ordinary CLOS instances created with =MAKE-INSTANCE=.
 Output items and usage metadata deliberately have type =T=. A provider may use
 hash tables, association lists, structures, or application-specific objects.
 
+** Response metadata
+
+The wire clients emit =PROVIDER-RESPONSE-METADATA-EVENT= when observed response
+metadata changes. Read its immutable accumulated snapshot with
+=PROVIDER-RESPONSE-METADATA-EVENT-METADATA=. The same final snapshot is available
+through =PROVIDER-COMPLETED-EVENT-METADATA= and =PROVIDER-RESULT-METADATA=.
+
+=PROVIDER-RESPONSE-METADATA= has readers ending in =-MODEL=, =-FINISH-REASON=,
+=-CACHE-WRITE-TOKENS=, and =-USAGE-OBSERVED-P=. The model comes only from the
+response envelope, with its original spelling. Finish reasons retain protocol
+spelling, including unsuccessful terminal reasons. An absent model or reason is
+=NIL=. Cache-write tokens are =NIL= when unreported and =0= when explicitly
+reported as zero. Usage observation is independent of cache-write presence.
+Omitted fields in later chunks do not erase earlier observations.
+
+Metadata events precede terminal validation, so keep the last snapshot in an
+attempt-local callback when collecting metadata from failed streams. Each
+=PROVIDER-CONSUME-STREAM= starts fresh. Metadata events do not count as streamed
+assistant output for retry budgets. Gemini envelope adapters use
+=PROVIDER-GEMINI-STREAM-RESPONSE= before metadata extraction, including Code Assist.
+
+Specialize =PROVIDER-CACHE-WRITE-TOKENS= on a service adapter when wire counters
+are synthetic. Its default method preserves explicit zero; an adapter can call
+=CALL-NEXT-METHOD= and return =NIL= for an unsupported structural zero.
+
 * Provider protocol
 
 Subclass =MODEL-PROVIDER= and implement =PROVIDER-STREAM-TURN=. The callback

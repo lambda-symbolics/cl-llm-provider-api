@@ -572,11 +572,11 @@ system cache prefix when mid-conversation guidance changes."
 (defmethod provider-consume-stream
     ((provider anthropic-messages-provider) stream headers event-callback)
   "Consume PROVIDER's Anthropic SSE stream into a provider result."
-  (declare (ignore provider))
   (let ((open-blocks (make-hash-table))
         (seen-blocks (make-hash-table))
         (completed-blocks (make-hash-table))
         (output-items nil)
+        (metadata (make-instance 'provider-response-metadata))
         (response-id nil)
         (start-usage (json-object))
         (delta-usage (json-object))
@@ -614,6 +614,23 @@ system cache prefix when mid-conversation guidance changes."
                      (anthropic--signal-protocol-failure
                       "The provider returned a stream event without a type."
                       :headers headers :response-id response-id :data data))
+                   (cond
+                     ((string= type "message_start")
+                      (let ((message (json-get event "message")))
+                        (when (json-object-p message)
+                          (setf metadata
+                                (provider--observe-response-metadata
+                                 provider metadata event-callback
+                                 :model (json-get message "model")
+                                 :usage (json-get message "usage"))))))
+                     ((string= type "message_delta")
+                      (let ((delta (json-get event "delta")))
+                        (setf metadata
+                              (provider--observe-response-metadata
+                               provider metadata event-callback
+                               :finish-reason (and (json-object-p delta)
+                                                   (json-get delta "stop_reason"))
+                               :usage (json-get event "usage"))))))
                    (cond
                      ((string= type "error")
                       (provider--signal-event-failure
@@ -916,6 +933,7 @@ system cache prefix when mid-conversation guidance changes."
                           'provider-completed-event
                           :response-id response-id
                           :usage (anthropic--portable-usage start-usage delta-usage)
+                          :metadata metadata
                           :turn-completion turn-completion))))
                      (t
                       ;; Anthropic may add top-level event types. Ignore their
@@ -928,6 +946,7 @@ system cache prefix when mid-conversation guidance changes."
                    :tool-calls (remove-if-not
                                 #'clinker-transcript:function-call-item-p output-items)
                    :usage (anthropic--portable-usage start-usage delta-usage)
+                   :metadata metadata
                    :turn-state nil
                    :turn-completion turn-completion)))
 

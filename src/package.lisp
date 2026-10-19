@@ -2,6 +2,16 @@
   (:nicknames #:llm-provider-api)
   (:use #:cl)
   (:export #:output-text-json
+           #:provider-response-metadata
+           #:provider-response-metadata-model
+           #:provider-response-metadata-finish-reason
+           #:provider-response-metadata-cache-write-tokens
+           #:provider-response-metadata-usage-observed-p
+           #:provider-response-metadata-event
+           #:provider-response-metadata-event-metadata
+           #:provider-result-metadata
+           #:provider-completed-event-metadata
+           #:provider-cache-write-tokens
            #:output-text-answer
            #:output-json-schema->schema
            #:rlm-usage-billable-tokens

@@ -10,6 +10,30 @@
   ()
   (:documentation "A semantic event emitted while consuming a provider stream."))
 
+(defclass provider-response-metadata ()
+  ((model :initarg :model :initform nil :reader provider-response-metadata-model
+          :type (or null string)
+          :documentation "The model identified by the response, never the requested model.")
+   (finish-reason :initarg :finish-reason :initform nil
+                  :reader provider-response-metadata-finish-reason
+                  :type (or null string)
+                  :documentation "The terminal protocol reason, including unsuccessful endings.")
+   (cache-write-tokens :initarg :cache-write-tokens :initform nil
+                       :reader provider-response-metadata-cache-write-tokens
+                       :type (or null (integer 0))
+                       :documentation "Observed cache creation tokens; NIL means unreported.")
+   (usage-observed-p :initarg :usage-observed-p :initform nil
+                     :reader provider-response-metadata-usage-observed-p
+                     :type boolean
+                     :documentation "Whether a wire usage object has been received."))
+  (:documentation "An immutable snapshot of metadata observed in one response stream."))
+
+(defclass provider-response-metadata-event (provider-event)
+  ((metadata :initarg :metadata :reader provider-response-metadata-event-metadata
+             :type provider-response-metadata
+             :documentation "The accumulated response metadata at this stream boundary."))
+  (:documentation "Changed response metadata, emitted before terminal validation or failure."))
+
 (defclass provider-progress-event (provider-event)
   ()
   (:documentation
@@ -52,6 +76,10 @@
     :reader provider-completed-event-usage
     :type t
     :documentation "Portable provider usage metadata, if supplied.")
+   (metadata :initarg :metadata :initform nil
+             :reader provider-completed-event-metadata
+             :type (or null provider-response-metadata)
+             :documentation "The final observed response metadata, if supplied.")
    (turn-completion
     :initarg :turn-completion
     :initform :unspecified
@@ -130,6 +158,9 @@
     :reader provider-result-usage
     :type t
     :documentation "Portable provider usage metadata, if supplied.")
+   (metadata :initarg :metadata :initform nil :reader provider-result-metadata
+             :type (or null provider-response-metadata)
+             :documentation "The final observed response metadata, if supplied.")
    (turn-state
     :initarg :turn-state
     :initform nil

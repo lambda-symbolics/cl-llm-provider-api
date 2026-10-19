@@ -11,6 +11,26 @@
   (provider-usage--field (and (json-object-p usage) (json-get usage object-name))
    field-name))
 
+(defun provider-usage--cache-write-field (usage)
+  "Return an explicitly reported cache-creation counter, including zero."
+  (or (provider-usage--field usage "cache_creation_input_tokens")
+      (provider-usage--field usage "cache_write_tokens")
+      (provider-usage--field usage "cache_write_input_tokens")
+      (provider-usage--field usage "cacheWriteInputTokens")
+      (provider-usage--nested-field usage "input_tokens_details" "cache_write_tokens")
+      (provider-usage--nested-field usage "prompt_tokens_details" "cache_write_tokens")))
+
+(defgeneric provider-cache-write-tokens (provider usage)
+  (:documentation
+   "Return the observed nonnegative cache-write count from wire USAGE, or NIL.
+An explicit zero is distinct from an omitted counter. Specialize for hosts that
+supply synthetic counters rather than measured usage."))
+
+(defmethod provider-cache-write-tokens ((provider model-provider) usage)
+  "Read explicitly reported cache-write counters, including zero."
+  (declare (ignore provider))
+  (provider-usage--cache-write-field usage))
+
 (defun provider-usage-normalize (usage)
   "Return USAGE with portable token and prompt-cache counters when available."
   (if (not (json-object-p usage))
@@ -33,12 +53,7 @@
                    "cached_tokens")
                   (provider-usage--field usage "prompt_cache_hit_tokens")
                   (provider-usage--field usage "cache_read_input_tokens")))
-             (created
-              (or (provider-usage--field usage "cache_creation_input_tokens")
-                  (provider-usage--nested-field usage "input_tokens_details"
-                   "cache_write_tokens")
-                  (provider-usage--nested-field usage "prompt_tokens_details"
-                   "cache_write_tokens"))))
+             (created (provider-usage--cache-write-field usage)))
         (maphash (lambda (key value) (setf (gethash key normalized) value)) usage)
         (when input (setf (gethash "input_tokens" normalized) input))
         (when output (setf (gethash "output_tokens" normalized) output))

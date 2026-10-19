@@ -166,8 +166,9 @@
     (test-assert
      (= (count-if (lambda (event) (typep event 'provider-progress-event)) events) 3)
      "non-presentational stream events still report provider progress")
-    (test-assert (= (length events) 10)
-     "the stream emits safe deltas, items, and completion events"))
+    (test-assert
+     (= (count-if (lambda (event) (typep event 'provider-completed-event)) events) 1)
+     "the stream emits one successful completion event"))
   nil)
 
 (defun test-provider-stream-failures ()
