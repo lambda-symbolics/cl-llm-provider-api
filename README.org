@@ -210,6 +210,8 @@ projection collects alternative properties and omits composition, literal and
 negation constraints from the root, which the API rejects there. Nested argument
 schemas are preserved. Validate tool calls against the original host schema;
 the wire projection is a model-facing hint, not an execution validator.
+Use =OPENAI-COMPATIBLE--WIRE-PARAMETERS= when projecting function parameters
+for another endpoint with the same object-root restriction.
 
 ** Deferred namespaces and tool search
 

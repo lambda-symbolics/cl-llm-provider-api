@@ -287,6 +287,7 @@
            #:openai-compatible--standalone-wire-tool
            #:openai-compatible--wire-tool
            #:openai-compatible--wire-function
+           #:openai-compatible--wire-parameters
            #:openai-compatible--decode-wire-tool-name
            #:openai-compatible--wire-tool-name
            #:provider--signal-event-failure
