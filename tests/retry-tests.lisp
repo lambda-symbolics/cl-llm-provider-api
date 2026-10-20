@@ -115,6 +115,73 @@
                   '(1 2 3 4 5 6 7 8 20))
            "jittered delays stay within twenty percent of the doubling base")))
 
+(defun test-incomplete-response-retries ()
+  "Retry token exhaustion within the generation budget, including hidden output."
+  (dolist (reason '("length" "max_output_tokens" "max_tokens" "MAX_TOKENS"))
+    (dolist (visible-output-p '(nil t))
+      (dolist (budget '(0 2))
+        (let ((attempts 0)
+              (failures nil)
+              (sleeps nil)
+              (outcome nil))
+          (handler-case
+              (call-with-streaming-retries
+               (lambda (callback)
+                 (incf attempts)
+                 (when visible-output-p
+                   (funcall callback (make-instance 'assistant-delta-event :text "partial")))
+                 (cl-llm-provider-api::provider--signal-incomplete-terminal
+                  reason nil :request-id "truncated-request" :response-id "truncated-response"))
+               (lambda (event)
+                 (when (typep event 'provider-attempt-failed-event)
+                   (push event failures)))
+               :maximum-retries 6 :maximum-streaming-retries budget
+               :sleep-function (lambda (delay) (push delay sleeps)))
+            (provider-stream-abandoned (condition)
+              (setf outcome condition)))
+          (check (and outcome (= attempts (1+ budget))
+                      (= (length sleeps) budget)
+                      (= (provider-stream-abandoned-attempts outcome) attempts))
+                 "token exhaustion uses the generation budget even without visible output")
+          (check (and (= (length failures) attempts)
+                      (every #'provider-attempt-failed-event-retryable-p failures)
+                      (every (lambda (event)
+                               (eql visible-output-p
+                                    (provider-attempt-failed-event-output-received-p event)))
+                             failures)
+                      (string= (provider-error-request-id outcome) "truncated-request")
+                      (string= (provider-error-response-id outcome) "truncated-response"))
+                 "attempt events distinguish visible output and preserve terminal identifiers")
+          (check (every (lambda (delay) (<= 1 delay 60)) sleeps)
+                 "truncation retries use the bounded jittered backoff")))))
+  (let ((attempts 0))
+    (check (eq :complete
+               (call-with-streaming-retries
+                (lambda (callback)
+                  (declare (ignore callback))
+                  (if (= (incf attempts) 1)
+                      (cl-llm-provider-api::provider--signal-incomplete-terminal "length" nil)
+                      :complete))
+                #'identity :sleep-function #'retry-tests--no-sleep))
+           "a successful retry completes the request")
+    (check (= attempts 2) "successful recovery stops further attempts"))
+  (dolist (reason '("content_filter" "safety" "future_reason"))
+    (let ((attempts 0)
+          (outcome nil))
+      (handler-case
+          (call-with-streaming-retries
+           (lambda (callback)
+             (declare (ignore callback))
+             (incf attempts)
+             (cl-llm-provider-api::provider--signal-incomplete-terminal reason nil))
+           #'identity :sleep-function #'retry-tests--no-sleep)
+        (provider-incomplete-response (condition)
+          (setf outcome condition)))
+      (check (and outcome (= attempts 1)
+                  (not (typep outcome 'provider-retryable-error))
+                  (string= (provider-incomplete-response-reason outcome) reason))
+             "filter and unknown incomplete reasons are terminal"))))
+
 (defun test-credential-refresh ()
   "Exercise one forced refresh after a rejection and the exhausted hook."
   (flet ((rejection ()
@@ -240,6 +307,7 @@
 (defun run-retry-tests ()
   "Run the streaming retry, credential refresh and inactivity tests."
   (test-streaming-retry-budget)
+  (test-incomplete-response-retries)
   (test-credential-refresh)
   (test-sse-inactivity-deadline)
   (test-event-stream-post))

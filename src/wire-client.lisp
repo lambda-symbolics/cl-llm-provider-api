@@ -300,9 +300,14 @@ abandon the looping stream; the default reaction ignores the report."))
 (defun provider--signal-incomplete-terminal
        (reason headers
         &key request-id response-id response (code "response_incomplete"))
-  "Signal a terminal incomplete response with sanitized provider identifiers."
+  "Signal a sanitized incomplete response, retrying only known token exhaustion."
   (let ((sanitized-reason (or (provider--condition-string reason) "unknown")))
-    (error 'provider-incomplete-response :message
+    (error (if (member sanitized-reason
+                       '("length" "max_output_tokens" "max_tokens")
+                       :test #'string-equal)
+               'provider-truncated-response
+               'provider-incomplete-response)
+           :message
            (format nil "The provider returned an incomplete response (~A)."
                    sanitized-reason)
            :reason sanitized-reason :status nil :code code :request-id

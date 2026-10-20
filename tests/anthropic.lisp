@@ -197,11 +197,12 @@
              :headers '(("request-id" . "request-incomplete")))))
       (test-assert
        (and (typep condition 'provider-incomplete-response)
+            (typep condition 'provider-retryable-error)
             (string= (provider-incomplete-response-reason condition)
                      "max_tokens")
             (string= (provider-error-request-id condition)
                      "request-incomplete"))
-       "max_tokens preserves Anthropic incomplete-response semantics"))
+       "max_tokens retains its metadata and permits bounded retry"))
     (let ((condition
             (anthropic-provider-test--consume-condition
              provider

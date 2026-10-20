@@ -312,12 +312,12 @@
             nil)
            (provider-incomplete-response (error) error))))
     (test-assert
-     (and condition (not (typep condition 'provider-retryable-error))
+     (and condition (typep condition 'provider-retryable-error)
           (string= (provider-error-code condition) "response_incomplete")
           (string= (provider-incomplete-response-reason condition) "max_output_tokens")
           (string= (provider-error-response-id condition) "incomplete-response")
           (search "max_output_tokens" (format nil "~A" condition)))
-     "response.incomplete retains its reason as a typed terminal failure"))
+     "response.incomplete retains its reason and permits bounded retry"))
   (dolist (code '("server_is_overloaded" "slow_down" "rate_limit_exceeded"))
     (let* ((source
             (test-sse-event-string

@@ -274,13 +274,17 @@ bridge their own condition types by inheriting from these classes.
 
 =CALL-WITH-STREAMING-RETRIES= builds on it for streamed requests. Each attempt
 streams through the callback it is handed, so the engine sees whether reasoning,
-text or an item arrived before a failure. Failures before any output retry up to
-=*PROVIDER-MAXIMUM-TRANSIENT-RETRIES*= times; once output has streamed, every
-retry bills a fresh generation, so only =*PROVIDER-MAXIMUM-STREAMING-RETRIES*=
-are allowed before the request ends with =PROVIDER-STREAM-ABANDONED=. Every
-failed attempt is reported as a =PROVIDER-ATTEMPT-FAILED-EVENT= audit record,
-and waits come from =PROVIDER-JITTERED-RETRY-DELAY=: a doubling base capped at
-32 seconds with twenty percent jitter.
+text or an item arrived before a failure. Failures before generation retry up to
+=*PROVIDER-MAXIMUM-TRANSIENT-RETRIES*= times. Once output has streamed or the
+provider reports token exhaustion, only =*PROVIDER-MAXIMUM-STREAMING-RETRIES*=
+retries are allowed, two by default: three attempts including the original.
+This also covers exhaustion before visible text, such as a reasoning-only
+response. Known token-limit reasons are retryable; filter and unknown reasons
+are terminal. Exhaustion of the generation retry budget signals
+=PROVIDER-STREAM-ABANDONED=. Every failed attempt is reported as a
+=PROVIDER-ATTEMPT-FAILED-EVENT= audit record, and waits use jittered exponential
+backoff. Hosts can mark other costly failures with =:GENERATION-STARTED-P T=
+on =PROVIDER-RETRYABLE-ERROR=.
 
 =CALL-WITH-CREDENTIAL-REFRESH= retries an attempt once with a forced
 credential refresh after =PROVIDER-UNAUTHORIZED=, when the credentials are

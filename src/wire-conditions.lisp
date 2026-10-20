@@ -10,7 +10,13 @@
     (provider-error)
     ((reason :initarg :reason :reader provider-incomplete-response-reason :type string
       :documentation "The provider's incomplete response reason, or unknown."))
-  (:documentation "A terminal provider response that ended incomplete."))
+  (:documentation "A provider response ended incomplete, with a structured reason."))
+
+(define-condition provider-truncated-response
+    (provider-incomplete-response provider-retryable-error)
+  ()
+  (:default-initargs :generation-started-p t)
+  (:documentation "Token exhaustion eligible for the bounded generation retry budget."))
 
 (define-condition provider-transport-error
     (provider-retryable-error)

@@ -414,18 +414,10 @@ system cache prefix when mid-conversation guidance changes."
 
 (defun anthropic--signal-incomplete-response
     (reason &key headers response-id data)
-  "Signal Anthropic's terminal incomplete response REASON."
-  (error 'provider-incomplete-response
-         :message
-         (format nil "The provider returned an incomplete response (~A)." reason)
-         :reason reason
-         :status nil
-         :code "response_incomplete"
-         :request-id (anthropic--request-id headers)
-         :response-id response-id
-         :response
-         (and data
-              (bounded-string (provider--sanitize-wire-string data) :limit 2000))))
+  "Signal Anthropic's incomplete response using the shared retry classification."
+  (provider--signal-incomplete-terminal reason headers
+                                        :response-id response-id
+                                        :response data))
 
 (defun anthropic--event-index (event &key headers response-id data)
   "Return EVENT's validated nonnegative content block index."

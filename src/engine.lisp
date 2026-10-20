@@ -32,7 +32,12 @@
   (:documentation "A model-provider request failed."))
 
 (define-condition provider-retryable-error (provider-error)
-  ()
+  ((generation-started-p
+    :initarg :generation-started-p
+    :initform nil
+    :reader provider-retryable-error-generation-started-p
+    :type boolean
+    :documentation "Whether generation began even without visible streamed output."))
   (:documentation "A transient provider failure eligible for bounded retry."))
 
 (define-condition provider-resample-requested (provider-retryable-error)
@@ -64,9 +69,9 @@
     :initarg :attempts
     :reader provider-stream-abandoned-attempts
     :type (integer 1)
-    :documentation "How many attempts had streamed output before giving up."))
+    :documentation "How many attempts began model generation before giving up."))
   (:documentation
-   "A request kept failing after streaming output, past the streaming retry budget."))
+   "A request kept failing after generation began, past the streaming retry budget."))
 
 (defparameter *stream-limit-error-class* 'provider-stream-limit-error
   "The condition class signaled for provider stream size violations.
@@ -244,11 +249,11 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
   "Maximum retryable failures allowed after the initial attempt.")
 
 (defparameter *provider-maximum-streaming-retries* 2
-  "Maximum retries of one request after an attempt already streamed model output.
+  "Maximum retries after an attempt streamed output or confirmed model generation.
 
-A failure before any output costs only the wait, so the full transient ladder
-applies. Once reasoning or output has streamed, every retry bills a fresh
-generation of the same prompt, so the budget is deliberately tighter.")
+Failures before generation use the full transient ladder. Once generation has
+begun, retrying bills a fresh generation of the same prompt, so the budget is
+deliberately tighter, including token exhaustion without visible output.")
 
 (defun provider-jittered-retry-delay (retry-number &key (random-state *random-state*))
   "Return the seconds to wait before one-based retry RETRY-NUMBER.
@@ -272,9 +277,9 @@ spreads simultaneous clients apart. The result is a whole number of seconds from
 ATTEMPT-FUNCTION receives the event callback each attempt must stream through,
 so streamed reasoning, text and items are observed. Every failed attempt is
 reported to EVENT-CALLBACK as a PROVIDER-ATTEMPT-FAILED-EVENT before the
-ladder decides. Failures before any output may retry MAXIMUM-RETRIES times;
-retryable failures after output streamed are capped at
-MAXIMUM-STREAMING-RETRIES, after which the request ends with
+ladder decides. Failures before generation may retry MAXIMUM-RETRIES times;
+retryable failures after output streamed or generation was confirmed are capped
+at MAXIMUM-STREAMING-RETRIES, after which the request ends with
 PROVIDER-STREAM-ABANDONED. DELAY-FUNCTION defaults to
 PROVIDER-JITTERED-RETRY-DELAY drawing from RANDOM-STATE; SLEEP-FUNCTION and
 CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
@@ -305,13 +310,15 @@ CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
                                          :output-received-p output-received-p
                                          :retryable-p retryable-p
                                          :condition condition))
-                 (when (and retryable-p output-received-p)
+                 (when (and retryable-p
+                            (or output-received-p
+                                (provider-retryable-error-generation-started-p condition)))
                    (incf streaming-failures)
                    (when (> streaming-failures maximum-streaming-retries)
                      (error 'provider-stream-abandoned
                             :message
                             (format nil
-                                    "The provider stream failed after model output began on ~D attempts; giving up instead of billing another generation. Last failure: ~A"
+                                    "The provider failed after model generation began on ~D attempts; giving up instead of billing another generation. Last failure: ~A"
                                     streaming-failures condition)
                             :status (provider-error-status condition)
                             :code (provider-error-code condition)
