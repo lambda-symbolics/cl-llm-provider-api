@@ -88,8 +88,56 @@
              "permanent Chat stream errors do not retry"))))))
   nil)
 
+(defun openai-compatible-provider-tests--object-parameters ()
+  "Project composed tool schemas at the wire boundary without changing validation."
+  (let* ((nested (json-object "oneOf"
+                             (vector (json-object "type" "string")
+                                     (json-object "type" "integer"))))
+         (properties (json-object "id" (json-object "type" "string") "value" nested)))
+    (dolist (keyword '("oneOf" "anyOf" "allOf" "not" "enum" "const"))
+      (let* ((schema
+               (json-object "type" "object" "properties" properties
+                            "required" #("id") "additionalProperties" yason:false
+                            keyword
+                            (cond ((string= keyword "const") (json-object "id" "fixed"))
+                                  ((string= keyword "enum") (vector (json-object "id" "fixed")))
+                                  ((string= keyword "not") (json-object "required" #("excluded")))
+                                  (t (vector
+                                      (json-object "properties"
+                                                   (json-object "query" (json-object "type" "string"))
+                                                   "required" #("query"))
+                                      (json-object "properties"
+                                                   (json-object "query" (json-object "type" "integer")
+                                                                "patterns" (json-object "type" "array"))
+                                                   "required" #("patterns")))))))
+             (before (json-encode schema))
+             (tool (json-object "name" "content" "description" "Choose a query or patterns."
+                                "parameters" schema))
+             (wire (json-get (openai-compatible--wire-tool "search" tool) "function"))
+             (parameters (json-get wire "parameters"))
+             (wire-properties (json-get parameters "properties")))
+        (test-assert
+         (and (json-string= (json-get parameters "type") "object")
+              (every (lambda (key) (not (nth-value 1 (gethash key parameters))))
+                     '("oneOf" "anyOf" "allOf" "not" "enum" "const"))
+              (equalp (json-get parameters "required") #("id"))
+              (eq (json-get parameters "additionalProperties") yason:false)
+              (eq (json-get wire "strict") yason:false))
+         "Chat tool parameters have an acceptable non-strict object root")
+        (test-assert
+         (and (string= before (json-encode schema))
+              (eq (json-get wire-properties "value") nested)
+              (json-string= (json-get (json-get wire-properties "id") "type") "string"))
+         "wire projection preserves the original schema and nested argument constraints")
+        (when (member keyword '("oneOf" "anyOf" "allOf") :test #'string=)
+          (test-assert
+           (and (json-get wire-properties "patterns")
+                (= (length (json-get (json-get wire-properties "query") "anyOf")) 2))
+           "branch properties and alternative property types are advertised"))))))
+
 (defun run-chat-tests ()
   "Run Chat Completions encoding and streamed terminal fixtures."
+  (openai-compatible-provider-tests--object-parameters)
   (let ((provider (make-instance 'chat-completions-provider)))
     (let* ((call-a
             (json-object "type" "function_call" "call_id" "call-a" "namespace" "fs"

@@ -205,6 +205,12 @@ default. Providers may return =:TOP-LEVEL= from
 =PROVIDER-RESPONSES-INSTRUCTIONS-PLACEMENT= to use a top-level =instructions=
 request field instead.
 
+Chat Completions function parameters use non-strict object schemas. The wire
+projection collects alternative properties and omits composition, literal and
+negation constraints from the root, which the API rejects there. Nested argument
+schemas are preserved. Validate tool calls against the original host schema;
+the wire projection is a model-facing hint, not an execution validator.
+
 ** Deferred namespaces and tool search
 
 =PROVIDER-DEFERRED-WIRE-TOOLS= declares every namespace with

@@ -13,10 +13,62 @@
          *openai-compatible-wire-tool-name-maximum-length*))
     (provider-wire-function-name--decode wire-name)))
 
+(defun openai-compatible--wire-parameters (schema)
+  "Project SCHEMA to a non-strict object hint accepted by Chat Completions.
+
+Root composition constraints are enforced by the host against the original
+schema, not by this wire hint. Keep nested schemas and collect the properties
+of positive alternatives without mutating the host's validation schema."
+  (let ((forbidden '("oneOf" "anyOf" "allOf" "enum" "const" "not")))
+    (if (and (json-object-p schema)
+             (json-string= (json-get schema "type") "object")
+             (notany (lambda (key) (nth-value 1 (gethash key schema))) forbidden))
+        schema
+        (let ((projected (json-object))
+              (properties (json-object)))
+          (labels ((add-property (name value)
+                     "Keep every alternative for one named property."
+                     (multiple-value-bind (previous present-p) (gethash name properties)
+                       (setf (gethash name properties)
+                             (if (and present-p (not (equalp previous value)))
+                                 (json-object "anyOf" (vector previous value))
+                                 value))))
+
+                   (collect-properties (node)
+                     "Collect object properties from positive compositions and literals."
+                     (when (json-object-p node)
+                       (let ((declared (json-get node "properties")))
+                         (when (json-object-p declared)
+                           (maphash #'add-property declared)))
+                       (dolist (key '("oneOf" "anyOf" "allOf"))
+                         (let ((alternatives (json-get node key)))
+                           (when (and (vectorp alternatives) (not (stringp alternatives)))
+                             (map nil #'collect-properties alternatives))))
+                       (dolist (literal
+                                (cons (json-get node "const")
+                                      (let ((values (json-get node "enum")))
+                                        (when (and (vectorp values) (not (stringp values)))
+                                          (coerce values 'list)))))
+                         (when (json-object-p literal)
+                           (maphash (lambda (name value)
+                                      (declare (ignore value))
+                                      (unless (nth-value 1 (gethash name properties))
+                                        (add-property name (json-object))))
+                                    literal))))))
+            (when (json-object-p schema)
+              (maphash (lambda (key value)
+                         (unless (member key forbidden :test #'string=)
+                           (setf (gethash key projected) value)))
+                       schema)
+              (collect-properties schema))
+            (setf (gethash "type" projected) "object"
+                  (gethash "properties" projected) properties)
+            projected)))))
+
 (defun openai-compatible--wire-function (name tool)
   "Return one Chat Completions function declaration for TOOL NAME."
   (json-object "name" name "description" (json-get tool "description") "parameters"
-   (json-get tool "parameters") "strict" yason:false))
+   (openai-compatible--wire-parameters (json-get tool "parameters")) "strict" yason:false))
 
 (defun openai-compatible--wire-tool (namespace tool)
   "Return one namespaced Autolith TOOL as a Chat Completions function tool."
