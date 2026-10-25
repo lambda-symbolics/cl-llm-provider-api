@@ -212,6 +212,25 @@ message, which thinking-mode providers require passed back."
   (json-object "role" "system" "content"
    (format nil "~{~A~^~%~%~}" (remove-if-not #'non-empty-string-p texts))))
 
+(defun openai-compatible--chat-cache-breakpoint (message fields)
+  "Add FIELDS, a property list of names and values, to MESSAGE's last text part.
+
+String content becomes one text part so the fields have a place. Return true
+when MESSAGE had text content to mark, and NIL, leaving MESSAGE unchanged, when
+it had none, such as an assistant message carrying only tool calls."
+  (let ((content (json-get message "content")))
+    (cond ((and (stringp content) (plusp (length content)))
+           (setf (gethash "content" message)
+                 (json-array (apply #'json-object "type" "text" "text" content fields)))
+           t)
+          ((and (vectorp content) (plusp (length content))
+                (json-object-p (aref content (1- (length content)))))
+           (let ((part (aref content (1- (length content)))))
+             (loop for (name value) on fields by #'cddr
+                   do (setf (gethash name part) value)))
+           t)
+          (t nil))))
+
 (defun openai-compatible--chat-context-message (texts)
   "Return volatile nonempty TEXTS as one trailing Chat Completions user message."
   (let ((content

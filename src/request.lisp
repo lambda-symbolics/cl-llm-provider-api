@@ -70,14 +70,21 @@
   (let* ((options (wire-request-options projection))
          (context (openai-compatible--chat-context-message
                    (wire-request-suffix projection)))
-         (messages (append
-                    (list (openai-compatible--chat-system-message
-                           (wire-request-prefix projection)))
-                    (openai-compatible--chat-input-messages
-                     (wire-request-items projection))
-                    (when context (list context))))
+         (system (openai-compatible--chat-system-message
+                  (wire-request-prefix projection)))
+         (history (openai-compatible--chat-input-messages
+                   (wire-request-items projection)))
+         (fields (getf options :cache-breakpoint-fields))
+         (messages (append (list system) history (when context (list context))))
          (request (json-object "model" (wire-request-model projection)
                                "messages" (coerce messages 'vector) "stream" t)))
+    ;; The temporary context message changes on every request, so a provider's
+    ;; cache breakpoint belongs on the stable system message and at the end of
+    ;; durable history, where the next request's prefix still matches.
+    (when fields
+      (openai-compatible--chat-cache-breakpoint system fields)
+      (loop for message in (reverse history)
+            thereis (openai-compatible--chat-cache-breakpoint message fields)))
     (when (getf options :stream-usage-p t)
       (setf (gethash "stream_options" request)
             (json-object "include_usage" t)))

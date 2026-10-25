@@ -165,6 +165,44 @@
        "thinking items stay private to their producing family")
       (test-assert (string= (json-get (second messages) "role") "tool")
        "Chat Completions tool results follow the grouped assistant message"))
+    (let* ((user (json-object "type" "message" "role" "user" "content" "start"))
+           (call (json-object "type" "function_call" "call_id" "call-c" "name" "read"
+                  "arguments" "{}"))
+           (output (json-object "type" "function_call_output" "call_id" "call-c"
+                    "output" "done"))
+           (breakpoint (json-object "type" "ephemeral")))
+      (flet ((request-messages (options)
+               "Return the encoded messages of a fixed projection with OPTIONS."
+               (json-get (provider-request-object
+                          provider
+                          (make-instance 'wire-request :model "m"
+                                         :items (list user call output)
+                                         :prefix (list "stable")
+                                         :suffix (list "temporary")
+                                         :options options)
+                          #())
+                         "messages")))
+        (let ((marked (request-messages
+                       (list :cache-breakpoint-fields
+                             (list "cache_control" breakpoint))))
+              (plain (request-messages nil)))
+          (test-assert
+           (and (eq (json-get (aref (json-get (aref marked 0) "content") 0) "cache_control")
+                    breakpoint)
+                (eq (json-get (aref (json-get (aref marked 3) "content") 0) "cache_control")
+                    breakpoint)
+                (equal (json-get (aref (json-get (aref marked 3) "content") 0) "text") "done"))
+           "the system message and the final durable history message carry the breakpoint")
+          (test-assert
+           (and (equal (json-get (aref marked 1) "content") "start")
+                (equal (json-get (aref marked 4) "content") "temporary"))
+           "earlier history and the trailing context stay unmarked")
+          (test-assert
+           (every (lambda (message)
+                    (let ((content (json-get message "content")))
+                      (or (null content) (stringp content))))
+                  plain)
+           "without breakpoint fields the request is unchanged"))))
     (openai-compatible-provider-tests--terminal-semantics provider)
     (let* ((text-event
             (openai-compatible-provider-tests--stream-event
