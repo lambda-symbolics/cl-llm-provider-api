@@ -35,7 +35,7 @@
      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
      (:file "registry-tests") (:file "retry-tests")
      (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")
-     (:file "metadata-tests"))))
+     (:file "metadata-tests") (:file "dexador-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))

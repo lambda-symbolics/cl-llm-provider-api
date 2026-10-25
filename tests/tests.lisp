@@ -451,5 +451,6 @@
   (run-registry-tests)
   (run-retry-tests)
   (run-metadata-tests)
+  (run-dexador-tests)
   (format t "~&~D cl-llm-provider-api tests passed.~%" *assertions*)
   t)

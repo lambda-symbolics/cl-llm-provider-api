@@ -63,50 +63,71 @@ raw SIMPLE-ERROR failures at that boundary become terminal provider errors."
               #'provider--normalize-transport-operation))
         (funcall attempt-function))))
 
+(defun provider--unexpected-tls-eof-p (condition)
+  "Recognize OpenSSL 3+ unexpected EOF without retrying other TLS failures."
+  (and (typep condition 'cl+ssl::ssl-error-ssl)
+       (null (cl+ssl::ssl-error-ssl-verify-error condition))
+       (let ((queue (cl+ssl::ssl-error-queue condition))
+             (printed (cl+ssl::printed-queue condition)))
+         (if queue
+             (every (lambda (code) (= code #x0a000126)) queue)
+             ;; cl+ssl drains the numeric queue while saving ERR_print_errors.
+             (and printed
+                  (let ((lines (remove "" (uiop:split-string
+                                           printed :separator '(#\Newline #\Return))
+                                       :test #'string=)))
+                    (and lines
+                         (every (lambda (line)
+                                  (search ":error:0A000126:SSL routines:" line
+                                          :test #'char-equal))
+                                lines))))))
+       t))
+
 (defun provider--normalize-transport-operation (function &key terminal-errors-p)
   "Normalize dependency conditions from one transport FUNCTION."
   (handler-case (funcall function)
-                (sb-sys:deadline-timeout (condition)
-                 (provider--signal-transport-failure
-                  (provider--transport-failure-message
-                   "The provider response exceeded its deadline." condition)
-                  :retryable-p t))
-                (cl+ssl::ssl-error-syscall (condition)
-                 (provider--signal-transport-failure
-                  (provider--transport-failure-message
-                   "The provider connection failed before the request completed."
-                   condition)
-                  :retryable-p t))
-                (usocket:socket-error (condition)
-                 (provider--signal-transport-failure
-                  (provider--transport-failure-message
-                   "The provider connection failed before the request completed."
-                   condition)
-                  :retryable-p t))
-                (sb-bsd-sockets:name-service-error (condition)
-                                                   (provider--signal-transport-failure
-                                                    (provider--transport-failure-message
-                                                     "The provider address could not be resolved."
-                                                     condition)
-                                                    :retryable-p t))
-                (usocket:ns-error (condition)
-                 (provider--signal-transport-failure
-                  (provider--transport-failure-message
-                   "The provider address could not be resolved." condition)
-                  :retryable-p t))
-                (cl+ssl::cl+ssl-error (condition)
-                 (provider--signal-transport-failure
-                  (provider--transport-failure-message
-                   "The provider TLS connection could not be established." condition)
-                  :retryable-p nil))
-                (simple-error (condition)
-                  (if terminal-errors-p
-                      (provider--signal-transport-failure
-                       (provider--transport-failure-message
-                        "The provider transport failed before a response was received."
-                        condition)
-                       :retryable-p nil)
-                      (error condition)))))
+    (sb-sys:deadline-timeout (condition)
+      (provider--signal-transport-failure
+       (provider--transport-failure-message
+        "The provider response exceeded its deadline." condition)
+       :retryable-p t))
+    (cl+ssl::ssl-error-syscall (condition)
+      (provider--signal-transport-failure
+       (provider--transport-failure-message
+        "The provider connection failed before the request completed." condition)
+       :retryable-p t))
+    (usocket:socket-error (condition)
+      (provider--signal-transport-failure
+       (provider--transport-failure-message
+        "The provider connection failed before the request completed." condition)
+       :retryable-p t))
+    (sb-bsd-sockets:name-service-error (condition)
+      (provider--signal-transport-failure
+       (provider--transport-failure-message
+        "The provider address could not be resolved." condition)
+       :retryable-p t))
+    (usocket:ns-error (condition)
+      (provider--signal-transport-failure
+       (provider--transport-failure-message
+        "The provider address could not be resolved." condition)
+       :retryable-p t))
+    (cl+ssl::cl+ssl-error (condition)
+      (let ((unexpected-eof-p (provider--unexpected-tls-eof-p condition)))
+        (provider--signal-transport-failure
+         (provider--transport-failure-message
+          (if unexpected-eof-p
+              "The provider closed the TLS connection during the request."
+              "The provider TLS connection could not be established.")
+          condition)
+         :retryable-p unexpected-eof-p)))
+    (simple-error (condition)
+      (if terminal-errors-p
+          (provider--signal-transport-failure
+           (provider--transport-failure-message
+            "The provider transport failed before a response was received."
+            condition)
+           :retryable-p nil)
+          (error condition)))))
 
 
 ;;;; -- SSE Inactivity Deadline --
