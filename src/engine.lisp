@@ -291,6 +291,7 @@ CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
                "Note streamed output before forwarding EVENT."
                (when (typep event '(or assistant-delta-event
                                        reasoning-delta-event
+                                       generation-progress-event
                                        provider-item-event))
                  (setf output-received-p t))
                (funcall event-callback event))

@@ -139,6 +139,7 @@
            #:provider-normalize-output-item
            #:provider-output-ceiling-p
            #:provider-progress-event
+           #:generation-progress-event
            #:provider-request-object
            #:provider-responses-hosted-tools
            #:provider-responses-instructions-placement

@@ -167,6 +167,20 @@ abandon the looping stream; the default reaction ignores the report."))
   (declare (ignore provider event))
   nil)
 
+(defparameter *provider-generation-event-prefixes*
+  '("response.output_item." "response.content_part." "response.function_call_arguments."
+    "response.custom_tool_call_input." "response.reasoning")
+  "Responses event type prefixes that carry or announce generated model output.")
+
+(defun provider--generation-event-type-p (type)
+  "Return true when Responses event TYPE shows the model has begun generating."
+  (and (stringp type)
+       (some (lambda (prefix)
+               (and (<= (length prefix) (length type))
+                    (string= prefix type :end2 (length prefix))))
+             *provider-generation-event-prefixes*)
+       t))
+
 (defun provider--reasoning-summary-key (event)
   "Return EVENT's stable reasoning summary part identity, when available."
   (let ((item-id (json-get event "item_id"))
@@ -497,7 +511,9 @@ abandon the looping stream; the default reaction ignores the report."))
                     headers :response-id response-id))
                   (t
                    (funcall event-callback
-                            (make-instance 'provider-progress-event))))))))
+                            (make-instance (if (provider--generation-event-type-p type)
+                                               'generation-progress-event
+                                               'provider-progress-event)))))))))
     (let* ((ordered-items (nreverse output-items))
            (tool-calls
             (remove-if-not #'clinker-transcript:function-call-item-p ordered-items)))

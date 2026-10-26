@@ -39,6 +39,13 @@
   (:documentation
    "Provider activity with no assistant text or completed item to present."))
 
+(defclass generation-progress-event (provider-progress-event)
+  ()
+  (:documentation
+   "Generated model output that is not presented, such as tool arguments or thinking.
+
+The model has begun generating, so retrying the request bills a fresh generation."))
+
 (defclass assistant-delta-event (provider-event)
   ((text
     :initarg :text

@@ -746,8 +746,9 @@ system cache prefix when mid-conversation guidance changes."
                                          input)))))
                             (setf (gethash index seen-blocks) t
                                   (gethash index open-blocks) state)))
+                      ;; A content block opens only once the model generates.
                       (funcall event-callback
-                               (make-instance 'provider-progress-event))))
+                               (make-instance 'generation-progress-event))))
                      ((string= type "content_block_delta")
                       (require-started data)
                       (reject-late-block-event data)
@@ -776,7 +777,7 @@ system cache prefix when mid-conversation guidance changes."
                                   "The provider returned invalid thinking delta content."
                                   :headers headers :response-id response-id :data data))
                                (write-string thinking (anthropic--block-state-text-stream state))
-                               (funcall event-callback (make-instance 'provider-progress-event))))
+                               (funcall event-callback (make-instance 'generation-progress-event))))
                             ((and (string= (anthropic--block-state-type state)
                                           "thinking")
                                   (json-string= delta-type "signature_delta"))
@@ -786,7 +787,7 @@ system cache prefix when mid-conversation guidance changes."
                                   "The provider returned invalid thinking signature content."
                                   :headers headers :response-id response-id :data data))
                                (write-string signature (anthropic--block-state-signature-stream state))
-                               (funcall event-callback (make-instance 'provider-progress-event))))
+                               (funcall event-callback (make-instance 'generation-progress-event))))
                             ((and (string= (anthropic--block-state-type state) "text")
                                   (json-string= delta-type "text_delta"))
                              (let ((text (json-get delta "text")))
@@ -813,7 +814,7 @@ system cache prefix when mid-conversation guidance changes."
                                 partial-json
                                 (anthropic--block-state-json-stream state))
                                (funcall event-callback
-                                        (make-instance 'provider-progress-event))))
+                                        (make-instance 'generation-progress-event))))
                             (t
                              (anthropic--signal-protocol-failure
                               (format nil

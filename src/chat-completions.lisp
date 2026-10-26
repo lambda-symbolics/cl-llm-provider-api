@@ -426,13 +426,15 @@ the registry's unique-name dispatch."
                                                (make-instance 'reasoning-delta-event
                                                               :text reasoning)))
                                     (when (json-object-p delta)
-                                      (dolist
-                                          (tool-delta
-                                           (openai-compatible--choice-tool-deltas
-                                            delta))
-                                        (openai-compatible--append-tool-delta
-                                         tool-states (first tool-delta)
-                                         (second tool-delta))))
+                                      (let ((tool-deltas
+                                              (openai-compatible--choice-tool-deltas delta)))
+                                        (dolist (tool-delta tool-deltas)
+                                          (openai-compatible--append-tool-delta
+                                           tool-states (first tool-delta)
+                                           (second tool-delta)))
+                                        (when tool-deltas
+                                          (funcall event-callback
+                                                   (make-instance 'generation-progress-event)))))
                                     (when finish
                                       (unless (non-empty-string-p finish)
                                         (provider--signal-invalid-terminal-reason

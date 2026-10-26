@@ -115,6 +115,60 @@
                   '(1 2 3 4 5 6 7 8 20))
            "jittered delays stay within twenty percent of the doubling base")))
 
+(defun retry-tests--decoder-attempts (provider events)
+  "Return how many attempts a request makes when each stream sends EVENTS, then ends early."
+  (let ((attempts 0))
+    (handler-case
+        (call-with-streaming-retries
+         (lambda (event-callback)
+           (incf attempts)
+           (provider-consume-stream
+            provider
+            (make-string-input-stream
+             (with-output-to-string (stream)
+               (dolist (event events)
+                 (format stream "data: ~A~2%" (json-encode event)))))
+            nil
+            event-callback))
+         (lambda (event) (declare (ignore event)) nil)
+         :maximum-retries 6 :maximum-streaming-retries 2
+         :sleep-function #'retry-tests--no-sleep)
+      (provider-error ()
+        nil))
+    attempts))
+
+(defun test-generation-progress-retries ()
+  "Count streamed tool arguments and thinking as generation for the retry budget."
+  (let ((start (cl-llm-provider-api::anthropic-provider-test--message-start)))
+    (flet ((block-start (type &rest fields)
+             (json-object "type" "content_block_start" "index" 0
+                          "content_block" (apply #'json-object "type" type fields)))
+           (block-delta (&rest fields)
+             (json-object "type" "content_block_delta" "index" 0
+                          "delta" (apply #'json-object fields))))
+      (dolist (case (list (list (make-instance 'model-provider)
+                                (list (json-object "type" "response.created"
+                                                   "response" (json-object "id" "r"))
+                                      (json-object "type" "response.function_call_arguments.delta"
+                                                   "item_id" "c" "delta" "{\"path\":")))
+                          (list (make-instance 'anthropic-messages-provider)
+                                (list start
+                                      (block-start "tool_use" "id" "toolu_1" "name" "sample"
+                                                   "input" (json-object))
+                                      (block-delta "type" "input_json_delta"
+                                                   "partial_json" "{\"path\":")))
+                          (list (make-instance 'anthropic-messages-provider)
+                                (list start
+                                      (block-start "thinking" "thinking" "")
+                                      (block-delta "type" "thinking_delta" "thinking" "Considering")))))
+        (check (= 3 (retry-tests--decoder-attempts (first case) (second case)))
+               "generated tool arguments or thinking cap ~A retries at the generation budget"
+               (type-of (first case))))
+      (check (= 7 (retry-tests--decoder-attempts
+                   (make-instance 'model-provider)
+                   (list (json-object "type" "response.created" "response" (json-object "id" "r")))))
+             "a stream without generated output keeps the full transient ladder"))))
+
 (defun test-incomplete-response-retries ()
   "Retry token exhaustion within the generation budget, including hidden output."
   (dolist (reason '("length" "max_output_tokens" "max_tokens" "MAX_TOKENS"))
@@ -307,6 +361,7 @@
 (defun run-retry-tests ()
   "Run the streaming retry, credential refresh and inactivity tests."
   (test-streaming-retry-budget)
+  (test-generation-progress-retries)
   (test-incomplete-response-retries)
   (test-credential-refresh)
   (test-sse-inactivity-deadline)
