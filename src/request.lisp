@@ -54,7 +54,9 @@
             (apply #'json-object
                    (append (list "effort" (getf options :reasoning-effort))
                            (when (getf options :reasoning-summary)
-                             (list "summary" (getf options :reasoning-summary)))))))
+                             (list "summary" (getf options :reasoning-summary)))
+                           (when (getf options :reasoning-context)
+                             (list "context" (getf options :reasoning-context)))))))
     (when (getf options :maximum-output-tokens)
       (setf (gethash "max_output_tokens" request)
             (getf options :maximum-output-tokens)))

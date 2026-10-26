@@ -125,6 +125,37 @@
                                   (:gemini-generate-content (if (eq outcome ':success) "STOP" "MAX_TOKENS")))))
                        "~S/~S lost the terminal reason before validation" class outcome)))))))))
 
+(defun test-response-reasoning-context ()
+  "Request an explicit reasoning retention mode and record the mode a response reports."
+  (flet ((reasoning (options)
+           (json-get (provider-request-object
+                      (make-instance 'responses-api-provider)
+                      (make-instance 'wire-request :model "model" :items nil :prefix nil
+                                                   :suffix nil :options options)
+                      #())
+                     "reasoning")))
+    (check (equal "all_turns"
+                  (json-get (reasoning (list :reasoning-effort "high"
+                                             :reasoning-context "all_turns"))
+                            "context"))
+           "a requested reasoning context reaches the wire")
+    (check (not (nth-value 1 (gethash "context" (reasoning (list :reasoning-effort "high")))))
+           "an unrequested reasoning context stays the service default"))
+  (let ((result (metadata-test--consume
+                 (make-instance 'responses-api-provider)
+                 (list (json-object "type" "response.created"
+                                    "response" (json-object "id" "r" "model" "model"))
+                       (json-object "type" "response.completed"
+                                    "response" (json-object "id" "r" "model" "model"
+                                                            "reasoning" (json-object
+                                                                         "context" "current_turn")
+                                                            "usage" (json-object
+                                                                     "input_tokens" 3
+                                                                     "output_tokens" 0)))))))
+    (check (equal "current_turn"
+                  (provider-response-metadata-reasoning-context (provider-result-metadata result)))
+           "the effective reasoning context is recorded from the response")))
+
 (defun test-response-metadata-cache-counters ()
   "Distinguish omitted and invalid counters, explicit zero, and Codex placeholders."
   (let ((provider (make-instance 'model-provider))
@@ -262,6 +293,7 @@
 (defun run-metadata-tests ()
   "Run response metadata contracts at the semantic stream boundary."
   (test-response-metadata-streams)
+  (test-response-reasoning-context)
   (test-response-metadata-cache-counters)
   (test-response-metadata-envelope-boundaries)
   (test-response-metadata-model-spelling)

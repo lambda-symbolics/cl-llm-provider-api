@@ -25,7 +25,12 @@
    (usage-observed-p :initarg :usage-observed-p :initform nil
                      :reader provider-response-metadata-usage-observed-p
                      :type boolean
-                     :documentation "Whether a wire usage object has been received."))
+                     :documentation "Whether a wire usage object has been received.")
+   (reasoning-context :initarg :reasoning-context :initform nil
+                      :reader provider-response-metadata-reasoning-context
+                      :type (or null string)
+                      :documentation
+                      "The reasoning retention mode the response reports, such as \"all_turns\"."))
   (:documentation "An immutable snapshot of metadata observed in one response stream."))
 
 (defclass provider-response-metadata-event (provider-event)

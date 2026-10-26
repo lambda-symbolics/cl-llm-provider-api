@@ -5,6 +5,7 @@
            #:provider-response-metadata
            #:provider-response-metadata-model
            #:provider-response-metadata-finish-reason
+           #:provider-response-metadata-reasoning-context
            #:provider-response-metadata-cache-write-tokens
            #:provider-response-metadata-usage-observed-p
            #:provider-response-metadata-event

@@ -438,6 +438,9 @@ abandon the looping stream; the default reaction ignores the report."))
                             provider metadata event-callback
                             :model (and response (json-get response "model"))
                             :usage (and response (json-get response "usage"))
+                            :reasoning-context
+                            (let ((reasoning (and response (json-get response "reasoning"))))
+                              (and (json-object-p reasoning) (json-get reasoning "context")))
                             :finish-reason
                             (cond ((json-string= type "response.completed") "completed")
                                   ((json-string= type "response.failed") "failed")
