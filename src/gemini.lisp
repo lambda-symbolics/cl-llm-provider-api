@@ -152,8 +152,9 @@ reason is a retryable interruption."
                                                                          :text text)))))
                                          (when (json-object-p function-call)
                                            (push (gemini--normalize-call
-                                                  provider function-call (incf call-index)
-                                                  headers)
+                                                  provider function-call
+                                                  :index   (incf call-index)
+                                                  :headers headers)
                                                  calls))))))))))))))
     (gemini--finish-result
      :response-id    response-id
@@ -353,8 +354,11 @@ Function responses carry the name of the call they answer, found by call_id."
   "Return a fresh call identifier for the INDEXth call of a response that named none."
   (format nil "gemini-call-~D-~36R" index (random (expt 2 64) (make-random-state t))))
 
-(defun gemini--normalize-call (provider function-call index headers)
-  "Return the portable function_call item for Gemini FUNCTION-CALL."
+(defun gemini--normalize-call (provider function-call &key index headers)
+  "Return the portable function_call item for Gemini FUNCTION-CALL.
+
+INDEX numbers the call within its response for a generated identifier, and
+HEADERS supply the request identifier."
   (let* ((wire-name (json-get function-call "name"))
          (item      (json-object "type" "function_call"
                                  "call_id" (or (json-get function-call "id")
