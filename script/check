@@ -10,8 +10,22 @@ if [ ! -r "$root/.qlot/setup.lisp" ]; then
   exit 1
 fi
 
-exec sbcl --noinform --non-interactive \
-  --load "$root/.qlot/setup.lisp" \
-  --eval '(require :asdf)' \
-  --eval '(asdf:load-asd (truename "cl-llm-provider-api.asd"))' \
-  --eval '(asdf:test-system "cl-llm-provider-api")'
+tests=0
+case " $* " in
+  *" --fix "*) ;;
+  *)
+    sbcl --noinform --non-interactive \
+      --load "$root/.qlot/setup.lisp" \
+      --eval '(require :asdf)' \
+      --eval '(asdf:load-asd (truename "cl-llm-provider-api.asd"))' \
+      --eval '(asdf:test-system "cl-llm-provider-api")' || tests=$?
+    ;;
+esac
+
+source=0
+sbcl --script "$root/script/check-source.lisp" "$@" || source=$?
+
+if [ "$tests" -ne 0 ]; then
+  exit "$tests"
+fi
+exit "$source"
