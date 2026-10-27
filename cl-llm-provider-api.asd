@@ -31,7 +31,7 @@
   t
   :components
   ((:module "tests" :serial t :components
-    ((:file "tests") (:file "request") (:file "wire") (:file "context-tests")
+    ((:file "package") (:file "tests") (:file "request") (:file "wire") (:file "context-tests")
      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
      (:file "registry-tests") (:file "retry-tests")
      (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")

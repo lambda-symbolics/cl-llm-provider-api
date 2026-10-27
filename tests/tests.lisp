@@ -1,8 +1,3 @@
-(defpackage #:cl-llm-provider-api/tests
-  (:use #:cl #:cl-llm-provider-api)
-  (:import-from #:cl-llm-provider-api #:json-object #:json-array #:json-get #:json-encode)
-  (:export #:run-tests))
-
 (in-package #:cl-llm-provider-api/tests)
 
 (defvar *assertions* 0)
