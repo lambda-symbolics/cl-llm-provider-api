@@ -5,10 +5,10 @@
   (dolist (phase '(:delta :terminal :completion))
     (dolist (class '(usocket:socket-error usocket:ns-try-again-error
                      sb-sys:deadline-timeout simple-error))
-      (let* ((failure (make-condition class))
-             (attempts 0)
-             (cleanups 0)
-             (completions 0)
+      (let* ((failure      (make-condition class))
+             (attempts     0)
+             (cleanups     0)
+             (completions  0)
              (retry-events nil)
              (result
                (handler-case
@@ -67,7 +67,7 @@
                     (cl+ssl::cl+ssl-error nil)))
       (destructuring-bind (class retryable-p) case
         (let* ((failure (make-condition class))
-               (stream (make-string-input-stream ""))
+               (stream  (make-string-input-stream ""))
                (*sse-read-line-function*
                  (lambda (stream) (declare (ignore stream)) (error failure)))
                (result
@@ -76,10 +76,10 @@
                       (lambda ()
                         (provider-execute-request
                          (make-instance 'responses-api-provider) nil
-                         :transport (lambda (request)
-                                      (declare (ignore request))
-                                      (when (eq phase ':open) (error failure))
-                                      (values stream 200 nil))
+                         :transport      (lambda (request)
+                                           (declare (ignore request))
+                                           (when (eq phase ':open) (error failure))
+                                           (values stream 200 nil))
                          :event-callback #'identity)))
                    (condition (condition) condition))))
           (unwind-protect
@@ -96,8 +96,8 @@
   "Preserve request results and nonlocal exits when best-effort cleanup fails."
   (dolist (phase '(:callback-error :cancel :http-error :interrupted :complete))
     (dolist (class '(simple-error usocket:socket-error sb-sys:deadline-timeout))
-      (let* ((failure (make-condition 'simple-error :format-control "callback failed"))
-             (cleanup-failure (make-condition class))
+      (let* ((failure             (make-condition 'simple-error :format-control "callback failed"))
+             (cleanup-failure     (make-condition class))
              (cancellation-marker (list :cancelled))
              (stream
                (make-string-input-stream
@@ -106,41 +106,48 @@
                     (test-sse-event-string
                      (json-object "type" "response.completed"
                                   "response" (json-object "id" "done"))))))
-             (cleanups 0)
-             (completions 0)
+             (cleanups            0)
+             (completions         0)
              (result
                (handler-case
                    (multiple-value-list
                     (catch 'request-cancel
                       (provider-execute-request
                        (make-instance 'responses-api-provider) nil
-                       :transport (lambda (request)
-                                    (declare (ignore request))
-                                    (values stream (if (eq phase ':http-error) 429 200)
-                                            nil))
+                       :transport  (lambda (request)
+                                     (declare (ignore request))
+                                     (values stream (if (eq phase ':http-error) 429 200)
+                                             nil))
                        :event-callback
                        (lambda (event)
                          (declare (ignore event))
                          (case phase
-                           (:callback-error (error failure))
-                           (:cancel (throw 'request-cancel
-                                      (values :cancelled cancellation-marker)))))
-                       :cleanup (lambda (stream)
-                                  (incf cleanups)
-                                  (close stream)
-                                  (error cleanup-failure))
+                           (:callback-error
+                            (error failure))
+                           (:cancel
+                            (throw 'request-cancel
+                              (values :cancelled cancellation-marker)))))
+                       :cleanup    (lambda (stream)
+                                     (incf cleanups)
+                                     (close stream)
+                                     (error cleanup-failure))
                        :completion (lambda () (incf completions)))))
                  (condition (condition) condition))))
         (test-assert (case phase
-                       (:callback-error (eq result failure))
-                       (:cancel (equal result (list :cancelled cancellation-marker)))
-                       (:http-error (and (typep result 'provider-retryable-error)
-                                         (= (provider-error-status result) 429)))
-                       (:interrupted (typep result 'response-stream-error))
-                       (:complete (and (listp result)
-                                       (typep (first result) 'provider-result)
-                                       (string= (provider-result-response-id (first result))
-                                                "done"))))
+                       (:callback-error
+                        (eq result failure))
+                       (:cancel
+                        (equal result (list :cancelled cancellation-marker)))
+                       (:http-error
+                        (and (typep result 'provider-retryable-error)
+                             (= (provider-error-status result) 429)))
+                       (:interrupted
+                        (typep result 'response-stream-error))
+                       (:complete
+                        (and (listp result)
+                             (typep (first result) 'provider-result)
+                             (string= (provider-result-response-id (first result))
+                                      "done"))))
                      "cleanup failures preserve the original outcome")
         (test-assert (and (= cleanups 1) (not (open-stream-p stream)))
                      "cleanup runs once on every acquired stream")
@@ -154,33 +161,33 @@
   (test-request-cleanup-failure-precedence)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case
-      (let* ((secret (make-string 19 :initial-element #\k))
+      (let* ((secret      (make-string 19 :initial-element #\k))
              (raw-headers (list (cons "x-request-id" secret)))
-             (source (test-sse-event-string
-                      (json-object "type" "response.completed"
-                                   "response" (json-object "id" secret))))
-             (stream (make-string-input-stream
-                      (if (eq terminal ':complete) source "")))
-             (order nil)
-             (events nil)
-             (request (json-object "model" "test"))
+             (source      (test-sse-event-string
+                           (json-object "type" "response.completed"
+                                        "response" (json-object "id" secret))))
+             (stream      (make-string-input-stream
+                           (if (eq terminal ':complete) source "")))
+             (order       nil)
+             (events      nil)
+             (request     (json-object "model" "test"))
              (outcome
                (handler-case
                    (provider-execute-request
                     (make-instance 'responses-api-provider) request
-                    :secrets (list secret)
-                    :transport (lambda (received)
-                                 (test-assert (eq request received)
-                                              "transport receives the request object")
-                                 (values stream status raw-headers))
-                    :event-callback (lambda (event) (push event events))
+                    :secrets            (list secret)
+                    :transport          (lambda (received)
+                                          (test-assert (eq request received)
+                                                       "transport receives the request object")
+                                          (values stream status raw-headers))
+                    :event-callback     (lambda (event) (push event events))
                     :call-with-deadline (lambda (function)
                                           (push :deadline order)
                                           (funcall function))
-                    :cleanup (lambda (stream)
-                               (push :cleanup order)
-                               (provider--close-response-stream stream))
-                    :completion (lambda () (push :completion order)))
+                    :cleanup            (lambda (stream)
+                                          (push :cleanup order)
+                                          (provider--close-response-stream stream))
+                    :completion         (lambda () (push :completion order)))
                  (provider-error (condition) condition))))
         (test-assert (not (open-stream-p stream)) "every response is closed")
         (test-assert (string= (cdar raw-headers) secret)
@@ -224,17 +231,20 @@
          (call-with-bounded-retries
           (lambda ()
             (case (incf attempts)
-              (1 (error 'provider-resample-requested :message "resample"
-                                                   :attempt 1 :maximum-attempts 2))
-              (2 (error 'provider-retryable-error :message "transient"))
-              (otherwise :complete)))
+              (1
+               (error 'provider-resample-requested :message "resample"
+                                                 :attempt 1 :maximum-attempts 2))
+              (2
+               (error 'provider-retryable-error :message "transient"))
+              (otherwise
+               :complete)))
           (lambda (event) (push event events))
-          :maximum-retries 1
-          :delay-function (lambda (number condition)
-                            (test-assert (typep condition 'provider-retryable-error)
-                                         "delay policy receives the failure")
-                            (* number 3))
-          :sleep-function (lambda (delay) (push delay delays))
+          :maximum-retries   1
+          :delay-function    (lambda (number condition)
+                               (test-assert (typep condition 'provider-retryable-error)
+                                            "delay policy receives the failure")
+                               (* number 3))
+          :sleep-function    (lambda (delay) (push delay delays))
           :call-with-attempt (lambda (function) (incf wrappers) (funcall function))))
      "retry and resampling succeed within separate limits")
     (test-assert (and (= attempts 3) (= wrappers 3) (equal delays '(3))

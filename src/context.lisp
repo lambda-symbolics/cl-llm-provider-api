@@ -163,7 +163,8 @@
       (let* ((key (context--contribution-key contribution))
              (existing
               (find key selected :test #'string= :key #'context--contribution-key)))
-        (cond ((null existing) (setf selected (append selected (list contribution))))
+        (cond ((null existing)
+               (setf selected (append selected (list contribution))))
               ((context--importance-greater-p contribution existing)
                (setf selected (substitute contribution existing selected))))))
     selected))
@@ -200,7 +201,8 @@
                              (context-contribution-conflict-group candidate)))
                         (and candidate-group (string= group candidate-group))))
                     selected))))
-        (cond ((null existing) (setf selected (append selected (list contribution))))
+        (cond ((null existing)
+               (setf selected (append selected (list contribution))))
               ((context--importance-greater-p contribution existing)
                (setf selected (substitute contribution existing selected))))))
     selected))
@@ -211,18 +213,17 @@
               (length (or (context-contribution-evidence contribution) "")))
            4))
 
-
 ;;;; -- Explicit Resolution and Delivery State --
 
 (defclass context-resolver ()
-  ((lock :initform (bordeaux-threads:make-lock "Request context receipts")
-         :reader context-resolver--lock
+  ((lock :initform      (bordeaux-threads:make-lock "Request context receipts")
+         :reader        context-resolver--lock
          :documentation "Serializes activation and receipt updates.")
-   (activations :initform (make-hash-table :test #'equal)
-                :reader context-resolver--activations
+   (activations :initform      (make-hash-table :test #'equal)
+                :reader        context-resolver--activations
                 :documentation "Session and semantic keys mapped to activation tokens.")
-   (delivered :initform (make-hash-table :test #'equal)
-              :reader context-resolver--delivered
+   (delivered :initform      (make-hash-table :test #'equal)
+              :reader        context-resolver--delivered
               :documentation "Successfully delivered activation tokens by key."))
   (:documentation "Explicit session-isolated next-request receipt state."))
 
@@ -264,15 +265,15 @@
                     (lambda (value)
                       (eq (context-contribution-class value) ':mandatory))
                     contributions))
-        (advice (stable-sort
-                 (remove-if-not
-                  (lambda (value)
-                    (eq (context-contribution-class value) ':advice))
-                  contributions)
-                 #'> :key #'context-contribution-priority))
-        (selected nil)
-        (omitted nil)
-        (spent 0))
+        (advice    (stable-sort
+                    (remove-if-not
+                     (lambda (value)
+                       (eq (context-contribution-class value) ':advice))
+                     contributions)
+                    #'> :key #'context-contribution-priority))
+        (selected  nil)
+        (omitted   nil)
+        (spent     0))
     (dolist (value advice)
       (let ((cost (funcall cost-function value)))
         (unless (and (realp cost) (<= 0 cost))
@@ -288,11 +289,11 @@
 (defun context--eligible (resolver session-key contributions)
   "Return eligible values and detached activation receipts under RESOLVER's lock."
   (let* ((activations (context-resolver--activations resolver))
-         (delivered (context-resolver--delivered resolver))
-         (keys (loop for value in contributions
-                     when (eq (context-contribution-lifetime value) ':next-request)
-                       collect (list session-key (context--contribution-key value))))
-         (inactive nil))
+         (delivered   (context-resolver--delivered resolver))
+         (keys        (loop for value in contributions
+                            when (eq (context-contribution-lifetime value) ':next-request)
+                              collect (list session-key (context--contribution-key value))))
+         (inactive    nil))
     (maphash (lambda (key token)
                (declare (ignore token))
                (when (and (equal session-key (first key))
@@ -349,7 +350,7 @@ Other lifetimes follow caller relevance; only :NEXT-REQUEST creates receipts."
          :receipts (remove-if-not
                     (lambda (receipt)
                       (find (second (first receipt)) selected :test #'equal
-                            :key #'context--contribution-key))
+                            :key                                    #'context--contribution-key))
                     receipts))))))
 
 (defun context-selection-complete (selection)
@@ -365,4 +366,3 @@ activation, a reset session, or another resolver's state."
           (setf (gethash (first receipt) (context-resolver--delivered resolver))
                 (rest receipt))))))
   nil)
-

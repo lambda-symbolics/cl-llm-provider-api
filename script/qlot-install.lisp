@@ -1,10 +1,10 @@
 (require :asdf)
 
-(let* ((script-path (truename *load-truename*))
+(let* ((script-path      (truename *load-truename*))
        (script-directory (uiop:pathname-directory-pathname script-path))
-       (source-root (uiop:pathname-parent-directory-pathname script-directory))
-       (quicklisp-setup (merge-pathnames "quicklisp/setup.lisp"
-                                         (user-homedir-pathname))))
+       (source-root      (uiop:pathname-parent-directory-pathname script-directory))
+       (quicklisp-setup  (merge-pathnames "quicklisp/setup.lisp"
+                                          (user-homedir-pathname))))
   (unless (probe-file quicklisp-setup)
     (error "cl-llm-provider-api bootstrap needs Quicklisp at ~A"
            quicklisp-setup))

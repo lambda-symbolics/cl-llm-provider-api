@@ -47,7 +47,7 @@
     (output-contract--error :message "The value must be a proper list."))
   (unless (evenp (length value))
     (output-contract--error :message "The property list has a key without a value."))
-  (let ((seen (make-hash-table :test #'eq))
+  (let ((seen  (make-hash-table :test #'eq))
         (pairs nil))
     (loop for (key child) on value by #'cddr
           do (unless (keywordp key)
@@ -93,12 +93,18 @@
 (defun output--value-has-type-p (value type)
   "Return true when native enum VALUE has schema TYPE."
   (case type
-    (:string (stringp value))
-    (:integer (integerp value))
-    (:number (output--json-number-p value))
-    (:boolean (or (eq value t) (null value)))
-    (:null (eq value :null))
-    (otherwise nil)))
+    (:string
+     (stringp value))
+    (:integer
+     (integerp value))
+    (:number
+     (output--json-number-p value))
+    (:boolean
+     (or (eq value t) (null value)))
+    (:null
+     (eq value :null))
+    (otherwise
+     nil)))
 
 (defun output--native-value-equal-p (left right)
   "Return true when native scalar values are equal under JSON semantics."
@@ -159,9 +165,9 @@ inside enum value positions."
           (output--plist-alist schema
            '(:type :enum :properties :required :additional-properties :items :min-items
              :max-items)))
-         (type nil)
+         (type           nil)
          (type-present-p nil)
-         (enum nil)
+         (enum           nil)
          (enum-present-p nil))
     (multiple-value-setq (type type-present-p) (output--alist-value :type pairs))
     (multiple-value-setq (enum enum-present-p) (output--alist-value :enum pairs))
@@ -173,10 +179,14 @@ inside enum value positions."
        (format nil "Unsupported output type ~S." type)))
     (let* ((allowed
             (case type
-              (:object '(:type :enum :properties :required :additional-properties))
-              (:array '(:type :enum :items :min-items :max-items))
-              ((:string :number :integer :boolean :null) '(:type :enum))
-              (otherwise '(:enum))))
+              (:object
+               '(:type :enum :properties :required :additional-properties))
+              (:array
+               '(:type :enum :items :min-items :max-items))
+              ((:string :number :integer :boolean :null)
+               '(:type :enum))
+              (otherwise
+               '(:enum))))
            (unknown
             (find-if-not (lambda (pair) (member (first pair) allowed :test #'eq))
                          pairs)))
@@ -259,7 +269,12 @@ inside enum value positions."
 
 (defun output--native-json-value (value)
   "Convert one native enum value to its JSON representation."
-  (cond ((null value) yason:false) ((eq value :null) :null) (t value)))
+  (cond ((null value)
+         yason:false)
+        ((eq value :null)
+         :null)
+        (t
+         value)))
 
 (defun output-schema->json (schema)
   "Convert validated native output SCHEMA to provider JSON Schema."
@@ -267,45 +282,66 @@ inside enum value positions."
     (loop for (key value) on schema by #'cddr
           do (setf (gethash
                     (case key
-                      (:additional-properties "additionalProperties")
-                      (:min-items "minItems")
-                      (:max-items "maxItems")
-                      (otherwise (string-downcase (symbol-name key))))
+                      (:additional-properties
+                       "additionalProperties")
+                      (:min-items
+                       "minItems")
+                      (:max-items
+                       "maxItems")
+                      (otherwise
+                       (string-downcase (symbol-name key))))
                     object)
-                     (case key
-                       (:type (string-downcase (symbol-name value)))
-                       (:enum
-                        (coerce (mapcar #'output--native-json-value value) 'vector))
-                       (:properties
-                        (let ((properties (output--json-object)))
-                          (dolist (entry value)
-                            (setf (gethash (first entry) properties)
-                                    (output-schema->json (second entry))))
-                          properties))
-                       (:required (coerce value 'vector))
-                       (:additional-properties
-                        (if value
-                            t
-                            yason:false))
-                       (:items (output-schema->json value))
-                       (otherwise value))))
+                   (case key
+                     (:type
+                      (string-downcase (symbol-name value)))
+                     (:enum
+                      (coerce (mapcar #'output--native-json-value value) 'vector))
+                     (:properties
+                      (let ((properties (output--json-object)))
+                        (dolist (entry value)
+                          (setf (gethash (first entry) properties)
+                                (output-schema->json (second entry))))
+                        properties))
+                     (:required
+                      (coerce value 'vector))
+                     (:additional-properties
+                      (if value
+                          t
+                          yason:false))
+                     (:items
+                      (output-schema->json value))
+                     (otherwise
+                      value))))
     object))
 
 (defun output--candidate-matches-type-p (value type)
   "Return true when provider JSON VALUE has native schema TYPE."
   (case type
-    (:object (hash-table-p value))
-    (:array (and (vectorp value) (not (stringp value))))
-    (:string (stringp value))
-    (:integer (integerp value))
-    (:number (output--json-number-p value))
-    (:boolean (or (eq value t) (eq value yason:false)))
-    (:null (eq value :null))
-    (otherwise nil)))
+    (:object
+     (hash-table-p value))
+    (:array
+     (and (vectorp value) (not (stringp value))))
+    (:string
+     (stringp value))
+    (:integer
+     (integerp value))
+    (:number
+     (output--json-number-p value))
+    (:boolean
+     (or (eq value t) (eq value yason:false)))
+    (:null
+     (eq value :null))
+    (otherwise
+     nil)))
 
 (defun output--candidate-enum-value (value)
   "Convert provider JSON VALUE to the corresponding native enum value."
-  (cond ((eq value yason:false) nil) ((eq value :null) :null) (t value)))
+  (cond ((eq value yason:false)
+         nil)
+        ((eq value :null)
+         :null)
+        (t
+         value)))
 
 (defun output-schema-valid-p (value schema)
   "Return true when provider JSON VALUE satisfies validated native SCHEMA."
@@ -317,7 +353,7 @@ inside enum value positions."
          (case type
            (:object
             (let ((properties (getf schema :properties))
-                  (required (getf schema :required))
+                  (required   (getf schema :required))
                   (additional
                    (if (output--plist-key-present-p schema :additional-properties)
                        (getf schema :additional-properties)
@@ -331,12 +367,13 @@ inside enum value positions."
            (:array
             (let ((minimum (getf schema :min-items))
                   (maximum (getf schema :max-items))
-                  (items (getf schema :items)))
+                  (items   (getf schema :items)))
               (and (or (null minimum) (>= (length value) minimum))
                    (or (null maximum) (<= (length value) maximum))
                    (loop for child across value
                          always (output-schema-valid-p child items)))))
-           (otherwise t)))))
+           (otherwise
+            t)))))
 
 (defun output-json->sexp (value)
   "Convert validated provider JSON VALUE to a portable tagged native tree."
@@ -347,13 +384,18 @@ inside enum value positions."
            (loop for key being the hash-keys of value using (hash-value child)
                  collect (list key (output-json->sexp child)))
            #'string< :key #'first)))
-   ((stringp value) value)
+   ((stringp value)
+    value)
    ((vectorp value)
     (cons :array
           (loop for child across value
                 collect (output-json->sexp child))))
-   ((eq value yason:false) nil) ((eq value :null) :null)
-   ((or (output--json-number-p value) (eq value t)) value)
+   ((eq value yason:false)
+    nil)
+   ((eq value :null)
+    :null)
+   ((or (output--json-number-p value) (eq value t))
+    value)
    (t
      (error 'output-value-error :message
             "The output contains an unsupported JSON value."))))
@@ -376,12 +418,15 @@ inside enum value positions."
       object))
    ((and (output--proper-list-p value) (consp value) (eq (first value) :array))
     (coerce (mapcar #'output-sexp->json (rest value)) 'vector))
-   ((null value) yason:false) ((eq value :null) :null)
-   ((or (stringp value) (output--json-number-p value) (eq value t)) value)
+   ((null value)
+    yason:false)
+   ((eq value :null)
+    :null)
+   ((or (stringp value) (output--json-number-p value) (eq value t))
+    value)
    (t
     (error 'output-value-error :message
             "A tagged output tree contains an unsupported value."))))
-
 
 (defun output-schema-normalize (schema &key (maximum-nodes 8192) (maximum-depth 128)
                                           (property-name-limit 32768))
@@ -391,7 +436,7 @@ Support :TYPE, scalar :ENUM, object :PROPERTIES/:REQUIRED and boolean
 :ADDITIONAL-PROPERTIES, and array :ITEMS/:MIN-ITEMS/:MAX-ITEMS. Native enum
 NIL denotes false and :NULL denotes null. Reject unknown fields, malformed
 lists, cycles, excessive nesting, and inconsistent bounds."
-  (let ((nodes 0)
+  (let ((nodes                                 0)
         (*output-contract-property-name-limit* property-name-limit))
     (labels ((visit (value depth)
                (when (or (> (incf nodes) maximum-nodes) (> depth maximum-depth))
@@ -408,11 +453,11 @@ lists, cycles, excessive nesting, and inconsistent bounds."
   "Decode exactly one JSON value, distinguishing false from null and empty arrays."
   (handler-case
       (with-input-from-string (stream source)
-        (let ((yason:*parse-json-arrays-as-vectors* t)
+        (let ((yason:*parse-json-arrays-as-vectors*   t)
               (yason:*parse-json-booleans-as-symbols* t)
-              (yason:*parse-json-null-as-keyword* t)
-              (yason:true t)
-              (end (gensym "END")))
+              (yason:*parse-json-null-as-keyword*     t)
+              (yason:true                             t)
+              (end                                    (gensym "END")))
           (let ((value (yason:parse stream)))
             (unless (eq (peek-char t stream nil end) end)
               (error 'output-value-error :message "Trailing data follows the JSON value."))
@@ -422,8 +467,6 @@ lists, cycles, excessive nesting, and inconsistent bounds."
     (error ()
       ;; Parser diagnostics may include input payloads. Do not retain them.
       (error 'output-value-error :message "Could not decode the JSON value."))))
-
-
 
 ;;;; -- Answers in Model Text --
 
@@ -443,13 +486,13 @@ null distinct."
         (if found-p
             (values value t)
             (let* ((object-start (position #\{ trimmed))
-                   (array-start (position #\[ trimmed))
-                   (start (if (and object-start array-start)
-                              (min object-start array-start)
-                              (or object-start array-start)))
-                   (end (and start
-                             (position (if (eql start array-start) #\] #\})
-                                       trimmed :from-end t))))
+                   (array-start  (position #\[ trimmed))
+                   (start        (if (and object-start array-start)
+                                     (min object-start array-start)
+                                     (or object-start array-start)))
+                   (end          (and start
+                                      (position (if (eql start array-start) #\] #\})
+                                                trimmed :from-end t))))
               (if (and start end (< start end))
                   (decode (subseq trimmed start (1+ end)))
                   (values nil nil))))))))
@@ -514,13 +557,13 @@ OUTPUT-SCHEMA-NORMALIZE; malformed input signals OUTPUT-CONTRACT-ERROR."
     (let ((required (gethash "required" schema)))
       (when required
         (unless (or (listp required) (and (vectorp required) (not (stringp required))))
-          (output-contract--error :field :required
+          (output-contract--error :field   :required
                                   :message "Contract required names must be one JSON array."))
         (setf contract (list* :required (coerce required 'list) contract))))
     (let ((properties (gethash "properties" schema)))
       (when properties
         (unless (hash-table-p properties)
-          (output-contract--error :field :properties
+          (output-contract--error :field   :properties
                                   :message "Contract properties must be one JSON object."))
         (setf contract
               (list* :properties
@@ -532,7 +575,7 @@ OUTPUT-SCHEMA-NORMALIZE; malformed input signals OUTPUT-CONTRACT-ERROR."
     (let ((enum (gethash "enum" schema)))
       (when enum
         (unless (and (vectorp enum) (not (stringp enum)))
-          (output-contract--error :field :enum
+          (output-contract--error :field   :enum
                                   :message "A contract enum must be one JSON array."))
         (setf contract
               (list* :enum
@@ -542,7 +585,7 @@ OUTPUT-SCHEMA-NORMALIZE; malformed input signals OUTPUT-CONTRACT-ERROR."
     (let ((type (gethash "type" schema)))
       (when type
         (unless (stringp type)
-          (output-contract--error :field :type
+          (output-contract--error :field   :type
                                   :message "A contract type must be a JSON Schema type string."))
         (setf contract (list* :type (intern (string-upcase type) :keyword) contract))))
     (unless contract

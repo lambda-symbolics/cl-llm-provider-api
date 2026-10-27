@@ -11,7 +11,7 @@
 
 (defclass google-cloud-credentials (cl-rfc8628:oauth-credentials)
   ((quota-project :initarg :quota-project :initform nil
-                  :reader google-cloud-credentials-quota-project
+                  :reader        google-cloud-credentials-quota-project
                   :documentation "The optional billing and quota project from ADC."))
   (:documentation "Request-scoped Google Cloud access credentials."))
 
@@ -20,9 +20,12 @@
   (error 'google-cloud-authentication-error
          :stage stage :status status
          :message (case stage
-                    (:discovery "No local Google Cloud ADC file was found. Run gcloud auth application-default login.")
-                    (:credentials "Expected local user ADC credentials. Run gcloud auth application-default login.")
-                    (otherwise "Google Cloud token refresh failed. Run gcloud auth application-default login."))))
+                    (:discovery
+                     "No local Google Cloud ADC file was found. Run gcloud auth application-default login.")
+                    (:credentials
+                     "Expected local user ADC credentials. Run gcloud auth application-default login.")
+                    (otherwise
+                     "Google Cloud token refresh failed. Run gcloud auth application-default login."))))
 
 (defun google-cloud-default-credentials-path
     (&key (getenv #'uiop:getenv) (home (user-homedir-pathname))
@@ -33,17 +36,20 @@ Only local authorized_user credentials are supported by GOOGLE-CLOUD-USER-CREDEN
            (let ((value (funcall getenv name)))
              (and (non-empty-string-p value) value))))
     (let ((explicit (environment "GOOGLE_APPLICATION_CREDENTIALS"))
-          (config (environment "CLOUDSDK_CONFIG")))
+          (config   (environment "CLOUDSDK_CONFIG")))
       (cond
-        (explicit (pathname explicit))
-        (config (merge-pathnames "application_default_credentials.json"
-                                 (uiop:ensure-directory-pathname config)))
+        (explicit
+         (pathname explicit))
+        (config
+         (merge-pathnames "application_default_credentials.json"
+                          (uiop:ensure-directory-pathname config)))
         (windows-p
          (let ((appdata (environment "APPDATA")))
            (unless appdata (google-cloud--authentication-failure ':discovery))
            (merge-pathnames "gcloud/application_default_credentials.json"
                             (uiop:ensure-directory-pathname appdata))))
-        (t (merge-pathnames ".config/gcloud/application_default_credentials.json" home))))))
+        (t
+         (merge-pathnames ".config/gcloud/application_default_credentials.json" home))))))
 
 (defun google-cloud--read-user-credentials (pathname)
   "Read a bounded local ADC file and reject unsupported credential types."
@@ -75,7 +81,7 @@ Only local authorized_user credentials are supported by GOOGLE-CLOUD-USER-CREDEN
 REQUEST-FUNCTION accepts URL and :HEADERS and :CONTENT, where CONTENT is a form
 parameter alist. It returns a JSON string and HTTP status. No credential file
 is written and no tokens are cached. The caller owns the returned credentials."
-  (let* ((document (google-cloud--read-user-credentials pathname))
+  (let* ((document      (google-cloud--read-user-credentials pathname))
          (quota-project (json-get document "quota_project_id")))
     (handler-case
         (multiple-value-bind (body status)
@@ -87,8 +93,8 @@ is written and no tokens are cached. The caller owns the returned credentials."
                                     (cons "refresh_token" (json-get document "refresh_token"))))
           (unless (and (integerp status) (<= 200 status 299))
             (google-cloud--authentication-failure ':token status))
-          (let* ((response (json-decode body))
-                 (token (json-get response "access_token"))
+          (let* ((response   (json-decode body))
+                 (token      (json-get response "access_token"))
                  (expires-in (json-get response "expires_in")))
             (unless (and (google-cloud--header-value-p token)
                          (string-equal (or (json-get response "token_type") "") "Bearer")

@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defun provider-usage--field (usage name)
   "Return USAGE's nonnegative integer field NAME, or NIL."
   (let ((value (and (json-object-p usage) (json-get usage name))))
@@ -57,7 +56,7 @@ rather than measured usage."))
                    "cached_tokens")
                   (provider-usage--field usage "prompt_cache_hit_tokens")
                   (provider-usage--field usage "cache_read_input_tokens")))
-             (created (provider-usage--cache-write-field usage)))
+             (created    (provider-usage--cache-write-field usage)))
         (maphash (lambda (key value) (setf (gethash key normalized) value)) usage)
         (when input (setf (gethash "input_tokens" normalized) input))
         (when output (setf (gethash "output_tokens" normalized) output))

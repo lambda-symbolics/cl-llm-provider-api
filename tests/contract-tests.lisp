@@ -8,22 +8,22 @@
               :properties
               (("enabled" (:type :boolean))
                ("nothing" (:type :null))
-               ("items" (:type :array
-                         :items (:type :object
+               ("items" (:type  :array
+                         :items (:type       :object
                                  :properties (("name" (:type :string))
                                               ("score" (:type :number)))
                                  :required ("name") :additional-properties nil)
                          :min-items 1 :max-items 2)))
               :required ("enabled" "nothing" "items") :additional-properties nil)))
          (provider-schema (output-schema->json schema))
-         (candidate (output-json-decode
-                     "{\"enabled\":false,\"nothing\":null,\"items\":[{\"name\":\"one\",\"score\":1.5}]}")))
+         (candidate       (output-json-decode
+                           "{\"enabled\":false,\"nothing\":null,\"items\":[{\"name\":\"one\",\"score\":1.5}]}")))
     (check (output-schema-valid-p candidate schema) "recursive output validation failed")
     (check (and (string= (gethash "type" provider-schema) "object")
                 (eq (gethash "additionalProperties" provider-schema) yason:false)
                 (vectorp (gethash "required" provider-schema))
                 (string= (gethash "type" (gethash "items" (gethash "items"
-                          (gethash "properties" provider-schema)))) "object"))
+                                                           (gethash "properties" provider-schema)))) "object"))
            "native schemas did not project to recursive JSON Schema")
     (dolist (invalid '("{\"enabled\":null,\"nothing\":false,\"items\":[{\"name\":\"one\"}]}"
                        "{\"enabled\":false,\"nothing\":null,\"items\":[{\"name\":\"one\",\"extra\":1}]}"
@@ -33,17 +33,17 @@
       (check (not (output-schema-valid-p (output-json-decode invalid) schema))
              "invalid nested candidate was accepted")))
   (let* ((schema (output-schema-normalize '(:enum (nil :null t))))
-         (enum (gethash "enum" (output-schema->json schema))))
+         (enum   (gethash "enum" (output-schema->json schema))))
     (check (and (= (length enum) 3) (eq (aref enum 0) yason:false)
                 (eq (aref enum 1) :null) (eq (aref enum 2) t))
            "enum conversion conflated false and null")
     (dolist (text '("false" "null" "true"))
       (check (eq t (output-schema-valid-p (output-json-decode text) schema))
              "enum validation must return a boolean")))
-  (let* ((json (output-json-decode
-               "{\"z\":null,\"a\":[false,true,{\"quote\":\"a\\\"b\\n\"}],\"n\":2.5}"))
+  (let* ((json   (output-json-decode
+                  "{\"z\":null,\"a\":[false,true,{\"quote\":\"a\\\"b\\n\"}],\"n\":2.5}"))
          (native (output-json->sexp json))
-         (array (second (assoc "a" (rest native) :test #'string=))))
+         (array  (second (assoc "a" (rest native) :test #'string=))))
     (check (and (eq (first native) :object)
                 (equal (mapcar #'first (rest native)) '("a" "n" "z"))
                 (eq (first array) :array) (null (second array)) (eq (third array) t)
@@ -165,8 +165,8 @@
 
 (defun test-output-json-schema-import ()
   "Test converting JSON Schema objects into native output schemas."
-  (let* ((json (output-json-decode
-                "{\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"on\"], \"properties\": {\"on\": {\"type\": \"boolean\", \"enum\": [true, false]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"maxItems\": 3}}}"))
+  (let* ((json   (output-json-decode
+                  "{\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"on\"], \"properties\": {\"on\": {\"type\": \"boolean\", \"enum\": [true, false]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"maxItems\": 3}}}"))
          (schema (output-json-schema->schema json)))
     (check (equal (output-schema-normalize schema)
                   (output-schema-normalize

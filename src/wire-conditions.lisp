@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (define-condition provider-protocol-error
     (provider-error)
     nil

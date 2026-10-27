@@ -54,7 +54,7 @@
                     (json-object "type" "tool_search_call" "call_id" "search-7"
                                  "execution" "client" "arguments" "{\"query\":\"shell\"}")
                     namespaces))
-           (child (aref (json-get (aref (json-get output "tools") 0) "tools") 0)))
+           (child  (aref (json-get (aref (json-get output "tools") 0) "tools") 0)))
       (test-assert (and (json-string= (json-get output "type") "tool_search_output")
                         (json-string= (json-get output "call_id") "search-7")
                         (json-string= (json-get output "status") "completed")
@@ -85,11 +85,11 @@
 
 (defun tool-search-test--wire-forms ()
   "Test the deferred declarations, call recognition, and replay shapes."
-  (let* ((tools (provider-deferred-wire-tools
-                 (concatenate 'vector (tool-search-test--namespaces)
-                              (vector (json-object "type" "web_search")))
-                 :description "Find tools."))
-         (child (aref (json-get (aref tools 0) "tools") 0))
+  (let* ((tools       (provider-deferred-wire-tools
+                       (concatenate 'vector (tool-search-test--namespaces)
+                                    (vector (json-object "type" "web_search")))
+                       :description "Find tools."))
+         (child       (aref (json-get (aref tools 0) "tools") 0))
          (search-tool (aref tools 3)))
     (test-assert (and (= (length tools) 4)
                       (eq (json-get child "defer_loading") t)
@@ -110,23 +110,23 @@
                     (not (provider-tool-search-call-p
                           (json-object "type" "tool_search_call" "execution" "server"))))
                "only client-executed tool search calls need an answer")
-  (let* ((output (json-object
-                  "type" "tool_search_output" "status" "completed" "call_id" "search-1"
-                  "execution" "client"
-                  "tools" (json-array
-                           (json-object
-                            "type" "namespace" "name" "plan" "description" "Plans."
-                            "tools" (json-array
-                                     (json-object "type" "function" "name" "update"
-                                                  "description" "Update the plan."
-                                                  "defer_loading" t
-                                                  "parameters" (json-object "type" "object")
-                                                  "output_schema" nil)
-                                     (json-object "type" "function" "name" "broken"
-                                                  "defer_loading" t "parameters" nil))))))
-         (replayed (provider-tool-search-output-replay output))
+  (let* ((output    (json-object
+                     "type" "tool_search_output" "status" "completed" "call_id" "search-1"
+                     "execution" "client"
+                     "tools" (json-array
+                              (json-object
+                               "type" "namespace" "name" "plan" "description" "Plans."
+                               "tools" (json-array
+                                        (json-object "type" "function" "name" "update"
+                                                     "description" "Update the plan."
+                                                     "defer_loading" t
+                                                     "parameters" (json-object "type" "object")
+                                                     "output_schema" nil)
+                                        (json-object "type" "function" "name" "broken"
+                                                     "defer_loading" t "parameters" nil))))))
+         (replayed  (provider-tool-search-output-replay output))
          (namespace (aref (json-get replayed "tools") 0))
-         (child (aref (json-get namespace "tools") 0)))
+         (child     (aref (json-get namespace "tools") 0)))
     (test-assert (and (= (length (json-get namespace "tools")) 1)
                       (json-string= (json-get child "name") "update")
                       (eq (json-get child "defer_loading") t)

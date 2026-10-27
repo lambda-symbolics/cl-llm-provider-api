@@ -19,15 +19,15 @@
 
 (define-condition rlm-budget-exhausted (error)
   ((dimension
-    :initarg :dimension
-    :reader rlm-budget-exhausted-dimension
-    :type keyword
+    :initarg       :dimension
+    :reader        rlm-budget-exhausted-dimension
+    :type          keyword
     :documentation "The exhausted allowance: :calls, :tokens, or :depth.")
    (task
-    :initarg :task
-    :initform nil
-    :reader rlm-budget-exhausted-task
-    :type (or null string)
+    :initarg       :task
+    :initform      nil
+    :reader        rlm-budget-exhausted-task
+    :type          (or null string)
     :documentation "The inference task requesting the exceeded allowance."))
   (:documentation "An inference subtree spent its shared budget.")
   (:report
@@ -39,31 +39,31 @@
 
 (defclass rlm-budget-pool ()
   ((lock
-    :initform (bordeaux-threads:make-lock "Inference budget")
-    :reader rlm-budget-pool--lock
+    :initform      (bordeaux-threads:make-lock "Inference budget")
+    :reader        rlm-budget-pool--lock
     :documentation "The lock serializing charges from concurrent frames.")
    (calls-remaining
-    :initarg :calls-remaining
-    :accessor rlm-budget-pool--calls-remaining
-    :type (integer 0)
+    :initarg       :calls-remaining
+    :accessor      rlm-budget-pool--calls-remaining
+    :type          (integer 0)
     :documentation "The provider calls the subtree may still spend.")
    (tokens-remaining
-    :initarg :tokens-remaining
-    :accessor rlm-budget-pool--tokens-remaining
-    :type integer
+    :initarg       :tokens-remaining
+    :accessor      rlm-budget-pool--tokens-remaining
+    :type          integer
     :documentation "The combined tokens the subtree may still spend."))
   (:documentation "Call and token counters shared by one inference subtree."))
 
 (defclass rlm-budget ()
   ((pool
-    :initarg :pool
-    :reader rlm-budget--pool
-    :type rlm-budget-pool
+    :initarg       :pool
+    :reader        rlm-budget--pool
+    :type          rlm-budget-pool
     :documentation "The subtree-shared call and token counters.")
    (depth-remaining
-    :initarg :depth-remaining
-    :reader rlm-budget-remaining-depth
-    :type (integer 0)
+    :initarg       :depth-remaining
+    :reader        rlm-budget-remaining-depth
+    :type          (integer 0)
     :documentation "The recursion levels still allowed below this budget."))
   (:documentation "One inference frame's view of a shared subtree budget."))
 
@@ -76,9 +76,9 @@
   (check-type tokens (integer 1))
   (check-type depth (integer 0))
   (make-instance 'rlm-budget
-                 :pool (make-instance 'rlm-budget-pool
-                                      :calls-remaining calls
-                                      :tokens-remaining tokens)
+                 :pool            (make-instance 'rlm-budget-pool
+                                                 :calls-remaining  calls
+                                                 :tokens-remaining tokens)
                  :depth-remaining depth))
 
 (defun rlm-budget-remaining-calls (budget)
@@ -155,5 +155,5 @@ debt below zero so later refunds cannot erase an earlier overdraft."
   (when (zerop (rlm-budget-remaining-depth budget))
     (error 'rlm-budget-exhausted :dimension :depth :task task))
   (make-instance 'rlm-budget
-                 :pool (rlm-budget--pool budget)
+                 :pool            (rlm-budget--pool budget)
                  :depth-remaining (1- (rlm-budget-remaining-depth budget))))

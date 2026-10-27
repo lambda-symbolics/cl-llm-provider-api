@@ -5,10 +5,10 @@
 (defun vertex-test--routing ()
   "Exercise native model routing, body adaptation, and quota headers."
   (dolist (location '("global" "us-east5"))
-    (let* ((gemini (make-instance 'vertex-gemini-provider :project "test-project" :location location))
-           (claude (make-instance 'vertex-anthropic-provider :project "test-project" :location location))
-           (host (if (string= location "global") "aiplatform.googleapis.com"
-                     "us-east5-aiplatform.googleapis.com"))
+    (let* ((gemini      (make-instance 'vertex-gemini-provider :project "test-project" :location location))
+           (claude      (make-instance 'vertex-anthropic-provider :project "test-project" :location location))
+           (host        (if (string= location "global") "aiplatform.googleapis.com"
+                            "us-east5-aiplatform.googleapis.com"))
            (credentials (make-instance 'google-cloud-credentials
                                        :access-token "test-access" :quota-project "quota-project")))
       (dolist (entry (list (list gemini "gemini-3.5-flash" "google" "streamGenerateContent?alt=sse")
@@ -16,10 +16,10 @@
         (destructuring-bind (provider model publisher operation) entry
           (let* ((request (provider-request-object
                            provider (make-instance 'wire-request :model model
-                                                   :items (list (json-object "type" "message"
-                                                                             "role" "user" "content" "hi")))
+                                                   :items               (list (json-object "type" "message"
+                                                                                           "role" "user" "content" "hi")))
                            #()))
-                 (body (vertex-request-body provider request)))
+                 (body    (vertex-request-body provider request)))
             (test-assert (string= (vertex-request-url provider model)
                                   (format nil "https://~A/v1/projects/test-project/locations/~A/publishers/~A/models/~A:~A"
                                           host location publisher model operation))
@@ -64,7 +64,7 @@
                                               "client_secret" "test-client-secret" "refresh_token" "test-refresh"
                                               "quota_project_id" "quota-project"
                                               "token_uri" "https://untrusted.invalid/token")))
-           (calls 0))
+           (calls    0))
       (write-string original stream)
       (finish-output stream)
       (flet ((request (url &key headers content)
@@ -76,7 +76,7 @@
                             "refresh uses Google's fixed endpoint and the ADC grant")
                (values (json-encode (json-object "access_token" (format nil "access-~D" calls)
                                                   "expires_in" 3600 "token_type" "Bearer")) 200)))
-        (let ((first (google-cloud-user-credentials path #'request))
+        (let ((first  (google-cloud-user-credentials path #'request))
               (second (google-cloud-user-credentials path #'request)))
           (test-assert (and (= calls 2)
                             (equal (cl-rfc8628:oauth-credentials-access-token first) "access-1")
@@ -92,9 +92,12 @@
                      path (lambda (&rest arguments)
                             (declare (ignore arguments))
                             (case mode
-                              (:rejected (values "test-refresh test-client-secret" 400))
-                              (:exception (error "test-refresh test-client-secret"))
-                              (:malformed (values "not JSON test-refresh" 200))
+                              (:rejected
+                               (values "test-refresh test-client-secret" 400))
+                              (:exception
+                               (error "test-refresh test-client-secret"))
+                              (:malformed
+                               (values "not JSON test-refresh" 200))
                               (:header-injection
                                (values (json-encode
                                         (json-object "access_token" (format nil "access~%injected")
@@ -112,7 +115,7 @@
     (uiop:with-temporary-file (:pathname path :stream stream :direction ':output)
       (write-string document stream)
       (finish-output stream)
-      (let* ((called nil)
+      (let* ((called    nil)
              (condition (handler-case
                             (google-cloud-user-credentials
                              path (lambda (&rest arguments)

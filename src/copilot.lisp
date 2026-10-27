@@ -27,15 +27,23 @@
       (when (and id (not (stringp id)))
         (copilot--error "Copilot model id must be a string."))
       (cond
-        ((find "/v1/messages" endpoints :test #'equal) :messages)
-        ((find "/messages" endpoints :test #'equal) :messages)
-        ((find "/responses" endpoints :test #'equal) :responses)
-        ((find "/chat/completions" endpoints :test #'equal) :chat-completions)
-        (endpoints-p :unsupported)
-        ((and id (uiop:string-prefix-p "claude-" id)) :messages)
+        ((find "/v1/messages" endpoints :test #'equal)
+         :messages)
+        ((find "/messages" endpoints :test #'equal)
+         :messages)
+        ((find "/responses" endpoints :test #'equal)
+         :responses)
+        ((find "/chat/completions" endpoints :test #'equal)
+         :chat-completions)
+        (endpoints-p
+         :unsupported)
+        ((and id (uiop:string-prefix-p "claude-" id))
+         :messages)
         ((and id (some (lambda (prefix) (uiop:string-prefix-p prefix id))
-                       (list "gpt-5" "gpt-6" "grok-" "mai-"))) :responses)
-        (t :chat-completions)))))
+                       (list "gpt-5" "gpt-6" "grok-" "mai-")))
+         :responses)
+        (t
+         :chat-completions)))))
 
 (defun copilot--catalog-entries (document)
   "Validate DOCUMENT and return concrete tool-capable routes, including hidden models."
@@ -56,13 +64,13 @@
 
 (defun copilot--model-spec (entry model-prefix &key automatic-p)
   "Decode a validated concrete ENTRY for manual or automatic selection."
-  (let ((id (json-get entry "id"))
-        (name (json-get entry "name"))
+  (let ((id     (json-get entry "id"))
+        (name   (json-get entry "name"))
         (window (copilot--field entry "capabilities" "limits" "max_prompt_tokens")))
     (when (and name (not (stringp name)))
       (copilot--error "Copilot model descriptions must be strings."))
-    (append (list :name (concatenate 'string model-prefix id)
-                  :protocol (copilot-model-protocol entry)
+    (append (list :name        (concatenate 'string model-prefix id)
+                  :protocol    (copilot-model-protocol entry)
                   :description (or name id)
                   :reasoning-efforts
                   (if (and (not automatic-p)
@@ -77,17 +85,17 @@ The enable callback receives one unique eligible unconfigured model ID. Hidden
 routes authorize Auto selection only when a session explicitly offers them."
   (unless (stringp model-prefix)
     (copilot--error "Copilot model namespace must be a string."))
-  (let* ((entries (copilot--catalog-entries document))
-         (picker-p (some (lambda (entry)
-                           (and (eq (json-get entry "model_picker_enabled") t)
-                                (not (equal (copilot--field entry "policy" "state") "disabled"))))
-                         entries))
+  (let* ((entries    (copilot--catalog-entries document))
+         (picker-p   (some (lambda (entry)
+                             (and (eq (json-get entry "model_picker_enabled") t)
+                                  (not (equal (copilot--field entry "policy" "state") "disabled"))))
+                           entries))
          (fallback-p (and personal-account-p (not picker-p)))
-         (seen nil)
-         (models nil))
+         (seen       nil)
+         (models     nil))
     (dolist (entry entries)
-      (let* ((id (json-get entry "id"))
-             (policy (copilot--field entry "policy" "state"))
+      (let* ((id         (json-get entry "id"))
+             (policy     (copilot--field entry "policy" "state"))
              (eligible-p (or (eq (json-get entry "model_picker_enabled") t) fallback-p)))
         (when (and eligible-p (not (member id seen :test #'string=)))
           (push id seen)
@@ -101,8 +109,8 @@ routes authorize Auto selection only when a session explicitly offers them."
           (let* ((windows (loop for entry in entries
                                 for limit = (copilot--field entry "capabilities" "limits" "max_prompt_tokens")
                                 when (typep limit '(integer 1)) collect limit))
-                 (window (and windows (reduce #'min windows))))
-            (cons (append (list :name (concatenate 'string model-prefix "auto")
+                 (window  (and windows (reduce #'min windows))))
+            (cons (append (list :name              (concatenate 'string model-prefix "auto")
                                 :protocol :auto :description "Auto"
                                 :reasoning-efforts '("none"))
                           (when window (list :context-window window)))
@@ -146,10 +154,14 @@ routes authorize Auto selection only when a session explicitly offers them."
 (defun copilot-protocol-endpoint (protocol)
   "Return the endpoint path for Copilot PROTOCOL."
   (case protocol
-    (:chat-completions "/chat/completions")
-    (:messages "/v1/messages")
-    (:responses "/responses")
-    (otherwise (copilot--error "Unsupported Copilot protocol: ~S." protocol))))
+    (:chat-completions
+     "/chat/completions")
+    (:messages
+     "/v1/messages")
+    (:responses
+     "/responses")
+    (otherwise
+     (copilot--error "Unsupported Copilot protocol: ~S." protocol))))
 
 (defun copilot-http-headers (token &key (user-agent "cl-llm-provider-api"))
   "Return authenticated Copilot HTTP headers without exposing TOKEN elsewhere."
@@ -165,12 +177,15 @@ routes authorize Auto selection only when a session explicitly offers them."
 (defun copilot--vision-p (value)
   "Return true when VALUE contains an image content block."
   (cond ((json-object-p value)
-          (or (json-string-member-p (json-get value "type") '("image" "input_image" "image_url"))
-              (loop for child being the hash-values of value thereis
-                (copilot--vision-p child))))
-         ((and (vectorp value) (not (stringp value))) (some #'copilot--vision-p value))
-         ((consp value) (some #'copilot--vision-p value))
-        (t nil)))
+         (or (json-string-member-p (json-get value "type") '("image" "input_image" "image_url"))
+             (loop for child being the hash-values of value thereis
+               (copilot--vision-p child))))
+        ((and (vectorp value) (not (stringp value)))
+         (some #'copilot--vision-p value))
+        ((consp value)
+         (some #'copilot--vision-p value))
+        (t
+         nil)))
 
 ;; Auto stream profile: https://github.com/mentalfl0w/copilot-auto at
 ;; 7141d8ee9a2b5041a9d2e2f316a06cea30da30f9, src/capi-client.ts and
@@ -194,7 +209,6 @@ routes authorize Auto selection only when a session explicitly offers them."
           (when (eq protocol :messages)
             (list (cons "anthropic-version" anthropic-version)))))
 
-
 (defun copilot-auto-session-request ()
   "Return the JSON object requesting an automatic-model session."
   (json-object "auto_mode" (json-object "model_hints" (vector "auto"))))
@@ -211,12 +225,12 @@ PREFERRED-MODEL is an unprefixed ID. Otherwise use the offered model order."
   (unless (and (json-object-p session) (stringp model-prefix)
                (or (null preferred-model) (stringp preferred-model)))
     (copilot--error "Copilot automatic-session response or namespace is invalid."))
-  (let* ((selected (json-get session "selected_model"))
+  (let* ((selected   (json-get session "selected_model"))
          (selected-p (nth-value 1 (gethash "selected_model" session)))
-         (offered (json-get session "available_models"))
-         (offered-p (nth-value 1 (gethash "available_models" session)))
-         (token (json-get session "session_token"))
-         (expires (json-get session "expires_at")))
+         (offered    (json-get session "available_models"))
+         (offered-p  (nth-value 1 (gethash "available_models" session)))
+         (token      (json-get session "session_token"))
+         (expires    (json-get session "expires_at")))
     (when (and (nth-value 1 (gethash "expires_at" session))
                (not (typep expires '(integer 1))))
       (copilot--error "Copilot automatic-session expiry is invalid."))
@@ -240,7 +254,7 @@ PREFERRED-MODEL is an unprefixed ID. Otherwise use the offered model order."
                    (copilot--catalog-entries catalog)))
            (candidate
              (labels ((find-model (id)
-                        (find id known :key (lambda (entry) (json-get entry "id"))
+                        (find id known :key  (lambda (entry) (json-get entry "id"))
                                        :test #'string=)))
                (if selected-p
                    (find-model selected)

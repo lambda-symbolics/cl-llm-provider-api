@@ -132,10 +132,10 @@ on every later replay."
           when (and (json-object-p namespace)
                     (json-string= (json-get namespace "type") "namespace"))
             do (let* ((namespace-name (or (json-get namespace "name") ""))
-                      (named-p (and (member (string-downcase namespace-name) terms
-                                            :test #'string=)
-                                    t))
-                      (tools (json-get namespace "tools")))
+                      (named-p        (and (member (string-downcase namespace-name) terms
+                                                   :test #'string=)
+                                           t))
+                      (tools          (json-get namespace "tools")))
                  (when (vectorp tools)
                    (loop for tool across tools
                          for position from 0
@@ -191,7 +191,7 @@ keeps those tools loaded. Children keep only the fields a deferred function
 declares: older server-produced expansions carried a null output_schema that
 the request validator rejects, and a child without an object parameter schema
 cannot be declared, so it is dropped."
-  (let ((copy (json-object-copy item))
+  (let ((copy  (json-object-copy item))
         (tools (json-get item "tools")))
     (setf (gethash "tools" copy)
           (if (or trimming-p (not (vectorp tools)) (stringp tools))
@@ -220,7 +220,7 @@ cannot be declared, so it is dropped."
   "Return the lowercase alphanumeric words of TEXT at least two characters long."
   (if (stringp text)
       (let ((tokens '())
-            (start nil))
+            (start  nil))
         (loop for index from 0 to (length text)
               for boundary-p = (or (= index (length text))
                                    (not (alphanumericp (char text index))))
@@ -245,9 +245,9 @@ cannot be declared, so it is dropped."
 
 (defun tool-search--score (namespace-name tool terms)
   "Return how strongly TOOL in NAMESPACE-NAME matches TERMS, zero for no match."
-  (let ((name (or (json-get tool "name") ""))
-        (name-tokens (tool-search--tokens (json-get tool "name")))
-        (namespace-tokens (tool-search--tokens namespace-name))
+  (let ((name               (or (json-get tool "name") ""))
+        (name-tokens        (tool-search--tokens (json-get tool "name")))
+        (namespace-tokens   (tool-search--tokens namespace-name))
         (description-tokens (tool-search--tokens (json-get tool "description"))))
     (loop for term in terms
           sum (cond

@@ -10,24 +10,24 @@
 
 (defun test-tls-transport-classification ()
   "Classify only unexpected EOF as transient at open and stream-read boundaries."
-  (let* ((eof "00000000:error:0A000126:SSL routines::unexpected eof while reading:ssl/record/example.c:1:")
+  (let* ((eof         "00000000:error:0A000126:SSL routines::unexpected eof while reading:ssl/record/example.c:1:")
          (certificate "00000000:error:0A000086:SSL routines::certificate verify failed:ssl/statem/example.c:1:")
-         (handshake "00000000:error:0A000410:SSL routines::sslv3 alert handshake failure:ssl/record/example.c:1:")
-         (cases (list
-                 (list '(#x0a000126) nil nil t)
-                 (list nil eof nil t)
-                 (list nil (format nil "~A~C~%" (string-downcase eof) #\Return) nil t)
-                 (list nil (format nil "~A~%~A~%" eof eof) nil t)
-                 (list '(#x0a000086) nil nil nil)
-                 (list nil certificate nil nil)
-                 (list nil handshake nil nil)
-                 (list '(#x05800126) nil nil nil)
-                 (list nil "00000000:error:05800126:x509 certificate routines::other reason:" nil nil)
-                 (list nil "unexpected eof while reading" nil nil)
-                 (list nil nil nil nil)
-                 (list '(#x0a000126 #x0a000086) eof nil nil)
-                 (list nil (format nil "~A~%~A~%" eof certificate) nil nil)
-                 (list nil eof "certificate verification failed" nil))))
+         (handshake   "00000000:error:0A000410:SSL routines::sslv3 alert handshake failure:ssl/record/example.c:1:")
+         (cases       (list
+                       (list '(#x0a000126) nil nil t)
+                       (list nil eof nil t)
+                       (list nil (format nil "~A~C~%" (string-downcase eof) #\Return) nil t)
+                       (list nil (format nil "~A~%~A~%" eof eof) nil t)
+                       (list '(#x0a000086) nil nil nil)
+                       (list nil certificate nil nil)
+                       (list nil handshake nil nil)
+                       (list '(#x05800126) nil nil nil)
+                       (list nil "00000000:error:05800126:x509 certificate routines::other reason:" nil nil)
+                       (list nil "unexpected eof while reading" nil nil)
+                       (list nil nil nil nil)
+                       (list '(#x0a000126 #x0a000086) eof nil nil)
+                       (list nil (format nil "~A~%~A~%" eof certificate) nil nil)
+                       (list nil eof "certificate verification failed" nil))))
     (dolist (case cases)
       (destructuring-bind (queue printed verify-error retryable-p) case
         (dolist (terminal-errors-p '(nil t))
@@ -47,7 +47,7 @@
   "Recover from a saved TLS EOF through the existing streaming retry ladder."
   (dolist (output-p '(nil t))
     (let ((attempts 0)
-          (events nil))
+          (events   nil))
       (check
        (eq :ok
            (call-with-streaming-retries

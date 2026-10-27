@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defparameter *provider-wire-function-name-maximum-length*
   64
   "Maximum function name length accepted by the shared provider wire codec.")
@@ -67,7 +66,8 @@
                   (incf index 9)))
                ((provider-wire-function-name--literal-character-p character)
                 (write-char character output) (incf index))
-               (t (return-from provider-wire-function-name--decode-component nil)))))
+               (t
+                (return-from provider-wire-function-name--decode-component nil)))))
    (error nil nil)))
 
 (defun provider-wire-function-name--encode (namespace name)
@@ -76,7 +76,7 @@
     (error 'configuration-error :message
            "Provider tool namespaces and names must be nonempty strings."))
   (let* ((encoded-namespace (provider-wire-function-name--encode-component namespace))
-         (encoded-name (provider-wire-function-name--encode-component name))
+         (encoded-name      (provider-wire-function-name--encode-component name))
          (wire-name
           (format nil "t_~D_~A__~A" (length encoded-namespace) encoded-namespace
                   encoded-name)))
@@ -138,7 +138,8 @@
         (provider-wire-function-name--decode-readable wire-name))
        ((char= (char wire-name 0) #\LATIN_SMALL_LETTER_A)
         (provider-wire-function-name--decode-legacy wire-name))
-       (t (values nil nil)))
+       (t
+        (values nil nil)))
       (values nil nil)))
 
 (defmethod provider-wire-tool
@@ -173,8 +174,8 @@
            (non-empty-string-p (json-get item "name")))
       (let ((copy (json-object-copy item)))
         (setf (gethash "name" copy)
-                (provider-wire-tool-name provider (json-get item "namespace")
-                                         (json-get item "name")))
+              (provider-wire-tool-name provider (json-get item "namespace")
+                                       (json-get item "name")))
         (remhash "namespace" copy)
         copy)
       item))
@@ -185,7 +186,7 @@
   (call-next-method)
   (when (clinker-transcript:function-call-item-p item)
     (let* ((name (json-get item "name"))
-           (dot (and (stringp name) (position #\FULL_STOP name))))
+           (dot  (and (stringp name) (position #\FULL_STOP name))))
       (when (and dot (plusp dot) (< (1+ dot) (length name)))
         (setf (gethash "namespace" item) (subseq name 0 dot)
               (gethash "name" item) (subseq name (1+ dot))))))

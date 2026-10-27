@@ -22,32 +22,32 @@ Hosts may name a subclass carrying their own condition protocol.")
 
 (defclass provider-model ()
   ((name
-    :initarg :name
-    :reader provider-model-name
-    :type string
+    :initarg       :name
+    :reader        provider-model-name
+    :type          string
     :documentation "The model identifier accepted by a provider.")
    (description
-    :initarg :description
-    :initform ""
-    :reader provider-model-description
-    :type string
+    :initarg       :description
+    :initform      ""
+    :reader        provider-model-description
+    :type          string
     :documentation "The optional user-visible model description.")
    (context-window
-    :initarg :context-window
-    :reader provider-model-context-window
-    :type (integer 1)
+    :initarg       :context-window
+    :reader        provider-model-context-window
+    :type          (integer 1)
     :documentation "The model context window in tokens.")
    (context-window-specified-p
-    :initarg :context-window-specified-p
+    :initarg  :context-window-specified-p
     :initform nil
-    :reader provider-model-context-window-specified-p
-    :type boolean
+    :reader   provider-model-context-window-specified-p
+    :type     boolean
     :documentation
     "True when CONTEXT-WINDOW was declared or discovered, not filled from a default.")
    (reasoning-efforts
-    :initarg :reasoning-efforts
-    :reader provider-model-reasoning-efforts
-    :type list
+    :initarg       :reasoning-efforts
+    :reader        provider-model-reasoning-efforts
+    :type          list
     :documentation "The reasoning effort names offered for this model."))
   (:documentation "Metadata describing one model exposed by a registered provider."))
 
@@ -62,139 +62,139 @@ Hosts may name a subclass carrying their own condition protocol.")
 
 (defclass provider-registration ()
   ((name
-    :initarg :name
-    :reader provider-registration-name
-    :type string
+    :initarg       :name
+    :reader        provider-registration-name
+    :type          string
     :documentation "The stable user-visible provider name.")
    (description
-    :initarg :description
-    :reader provider-registration-description
-    :type string
+    :initarg       :description
+    :reader        provider-registration-description
+    :type          string
     :documentation "The user-visible provider description.")
    (family
-    :initarg :family
-    :reader provider-registration-family
-    :type keyword
+    :initarg       :family
+    :reader        provider-registration-family
+    :type          keyword
     :documentation "The conversation family keyword used for private item filtering.")
    (models
-    :initarg :models
-    :reader provider-registration-models
-    :type list
+    :initarg       :models
+    :reader        provider-registration-models
+    :type          list
     :documentation "The ordered effective model metadata exposed by this provider.")
    (declared-models
-    :initarg :declared-models
-    :reader provider-registration-declared-models
-    :type list
+    :initarg       :declared-models
+    :reader        provider-registration-declared-models
+    :type          list
     :documentation "The static model metadata declared by this provider.")
    (discovered-models
-    :initarg :discovered-models
-    :initform nil
-    :reader provider-registration-discovered-models
-    :type list
+    :initarg       :discovered-models
+    :initform      nil
+    :reader        provider-registration-discovered-models
+    :type          list
     :documentation "The last successful dynamic model metadata for this provider.")
    (model-discovery
-    :initarg :model-discovery
-    :initform nil
-    :reader provider-registration-model-discovery
-    :type (or null function)
+    :initarg       :model-discovery
+    :initform      nil
+    :reader        provider-registration-model-discovery
+    :type          (or null function)
     :documentation "The function of one context returning current model specifications.")
    (model-discovery-endpoint
-    :initarg :model-discovery-endpoint
-    :initform nil
-    :reader provider-registration-model-discovery-endpoint
-    :type (or null string)
+    :initarg       :model-discovery-endpoint
+    :initform      nil
+    :reader        provider-registration-model-discovery-endpoint
+    :type          (or null string)
     :documentation "The endpoint identifying discovered models in the cache, when declared.")
    (model-discovery-endpoint-resolver
-    :initarg :model-discovery-endpoint-resolver
-    :initform nil
-    :reader provider-registration-model-discovery-endpoint-resolver
-    :type (or null function)
+    :initarg       :model-discovery-endpoint-resolver
+    :initform      nil
+    :reader        provider-registration-model-discovery-endpoint-resolver
+    :type          (or null function)
     :documentation "The optional zero-argument function returning the current discovery endpoint.")
    (model-discovery-lock
-    :initform (bordeaux-threads:make-recursive-lock "Provider model discovery")
-    :reader provider-registration-model-discovery-lock
+    :initform      (bordeaux-threads:make-recursive-lock "Provider model discovery")
+    :reader        provider-registration-model-discovery-lock
     :documentation "The lock serializing discovery requests for this provider.")
    (factory
-    :initarg :factory
-    :reader provider-registration-factory
-    :type function
+    :initarg       :factory
+    :reader        provider-registration-factory
+    :type          function
     :documentation "The host function creating a provider.")
    (authenticator
-    :initarg :authenticator
-    :initform nil
-    :reader provider-registration-authenticator
-    :type (or null function)
+    :initarg       :authenticator
+    :initform      nil
+    :reader        provider-registration-authenticator
+    :type          (or null function)
     :documentation "The optional host function implementing provider authentication.")
    (protocol
-    :initarg :protocol
-    :initform :custom
-    :reader provider-registration-protocol
-    :type keyword
+    :initarg       :protocol
+    :initform      :custom
+    :reader        provider-registration-protocol
+    :type          keyword
     :documentation "The wire protocol label shown in provider diagnostics.")
    (endpoint
-    :initarg :endpoint
-    :initform nil
-    :reader provider-registration-endpoint
-    :type (or null string)
+    :initarg       :endpoint
+    :initform      nil
+    :reader        provider-registration-endpoint
+    :type          (or null string)
     :documentation "The provider endpoint, when one is declared by metadata.")
    (source
-    :initarg :source
-    :reader provider-registration-source
-    :type keyword
+    :initarg       :source
+    :reader        provider-registration-source
+    :type          keyword
     :documentation "The source layer that supplied this registration.")
    (sequence
-    :initarg :sequence
-    :reader provider-registration-sequence
-    :type (integer 0)
+    :initarg       :sequence
+    :reader        provider-registration-sequence
+    :type          (integer 0)
     :documentation "The monotonic registration order within its registry."))
   (:documentation "One provider registration layer and its model metadata."))
 
 (defclass provider-registry ()
   ((sources
-    :initarg :sources
-    :reader provider-registry-sources
-    :type list
+    :initarg       :sources
+    :reader        provider-registry-sources
+    :type          list
     :documentation "The registration source keywords from lowest to highest precedence.")
    (default-context-window
-    :initarg :default-context-window
-    :reader provider-registry-default-context-window
-    :type (integer 1)
+    :initarg       :default-context-window
+    :reader        provider-registry-default-context-window
+    :type          (integer 1)
     :documentation "The context window of models that declare none.")
    (default-reasoning-efforts
-    :initarg :default-reasoning-efforts
-    :reader provider-registry-default-reasoning-efforts
-    :type list
+    :initarg       :default-reasoning-efforts
+    :reader        provider-registry-default-reasoning-efforts
+    :type          list
     :documentation "The reasoning efforts of models that declare none.")
    (cache-read-function
-    :initarg :cache-read-function
-    :reader provider-registry-cache-read-function
-    :type (or null function)
+    :initarg       :cache-read-function
+    :reader        provider-registry-cache-read-function
+    :type          (or null function)
     :documentation "NIL, or a function of one context returning the cache form or NIL.")
    (cache-write-function
-    :initarg :cache-write-function
-    :reader provider-registry-cache-write-function
-    :type (or null function)
+    :initarg       :cache-write-function
+    :reader        provider-registry-cache-write-function
+    :type          (or null function)
     :documentation "NIL, or a function of a context and a cache form that stores the form.")
    (change-function
-    :initarg :change-function
-    :reader provider-registry-change-function
-    :type (or null function)
+    :initarg       :change-function
+    :reader        provider-registry-change-function
+    :type          (or null function)
     :documentation "NIL, or a function of the registry called after effective models change.")
    (registrations
-    :initform nil
-    :accessor provider-registry--registrations
+    :initform      nil
+    :accessor      provider-registry--registrations
     :documentation "Every registration layer, shadowed ones included.")
    (sequence
-    :initform 0
-    :accessor provider-registry--sequence
+    :initform      0
+    :accessor      provider-registry--sequence
     :documentation "The last registration sequence number issued.")
    (lock
-    :initform (bordeaux-threads:make-recursive-lock "Provider registry")
-    :reader provider-registry--lock
+    :initform      (bordeaux-threads:make-recursive-lock "Provider registry")
+    :reader        provider-registry--lock
     :documentation "Guards the registration layers and their published models.")
    (cache-lock
-    :initform (bordeaux-threads:make-lock "Provider model cache")
-    :reader provider-registry--cache-lock
+    :initform      (bordeaux-threads:make-lock "Provider model cache")
+    :reader        provider-registry--cache-lock
     :documentation "Serializes cache read-modify-write cycles."))
   (:documentation "Layered provider registrations with merged and cached model metadata."))
 
@@ -207,13 +207,13 @@ Hosts may name a subclass carrying their own condition protocol.")
 
 (define-condition provider-model-discovery-error (provider-api-error)
   ((provider-name
-    :initarg :provider-name
-    :reader provider-model-discovery-error-provider-name
-    :type string
+    :initarg       :provider-name
+    :reader        provider-model-discovery-error-provider-name
+    :type          string
     :documentation "The provider whose model list could not be discovered.")
    (cause
-    :initarg :cause
-    :reader provider-model-discovery-error-cause
+    :initarg       :cause
+    :reader        provider-model-discovery-error-cause
     :documentation "The underlying request or response failure."))
   (:documentation "A provider's dynamic model list could not be refreshed."))
 
@@ -266,12 +266,12 @@ called with the registry whenever the effective models may have changed."
     (unless (or (null function) (functionp function))
       (registry--fail "Registry hooks must be functions.")))
   (make-instance 'provider-registry
-                 :sources (copy-list sources)
-                 :default-context-window default-context-window
+                 :sources                   (copy-list sources)
+                 :default-context-window    default-context-window
                  :default-reasoning-efforts (copy-list default-reasoning-efforts)
-                 :cache-read-function cache-read-function
-                 :cache-write-function cache-write-function
-                 :change-function change-function))
+                 :cache-read-function       cache-read-function
+                 :cache-write-function      cache-write-function
+                 :change-function           change-function))
 
 (defun provider-model-create (registry spec)
   "Normalize model SPEC into metadata using REGISTRY's defaults.
@@ -286,8 +286,8 @@ SPEC is a model name, an existing PROVIDER-MODEL, or a property list with
      (unless (plusp (length spec))
        (registry--fail "Provider model names must not be empty."))
      (make-instance 'provider-model
-                    :name spec
-                    :context-window (provider-registry-default-context-window registry)
+                    :name                       spec
+                    :context-window             (provider-registry-default-context-window registry)
                     :context-window-specified-p nil
                     :reasoning-efforts
                     (copy-list (provider-registry-default-reasoning-efforts registry))))
@@ -304,13 +304,13 @@ SPEC is a model name, an existing PROVIDER-MODEL, or a property list with
            (unless (registry--reasoning-efforts-p reasoning-efforts)
              (registry--fail "Provider model ~A has invalid :reasoning-efforts." name))
            (make-instance 'provider-model
-                          :name name
-                          :description (or (getf spec :description) "")
-                          :context-window (if specified-p
-                                              context-window
-                                              (provider-registry-default-context-window registry))
+                          :name                       name
+                          :description                (or (getf spec :description) "")
+                          :context-window             (if specified-p
+                                                          context-window
+                                                          (provider-registry-default-context-window registry))
                           :context-window-specified-p specified-p
-                          :reasoning-efforts (copy-list reasoning-efforts))))))))
+                          :reasoning-efforts          (copy-list reasoning-efforts))))))))
 
 
 ;;;; -- Registration --
@@ -351,8 +351,8 @@ it already discovered."
     (registry--fail "Provider ~A has an invalid model discovery endpoint." name))
   (let* ((declared-models (registry--normalize-models registry models
                                                       :allow-empty-p (functionp model-discovery)))
-         (previous (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
-                     (registry--layer registry name source)))
+         (previous        (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
+                            (registry--layer registry name source)))
          (retained-models
            (if (and model-discovery
                     previous
@@ -365,21 +365,21 @@ it already discovered."
                nil))
          (registration
            (make-instance 'provider-registration
-                          :name name
-                          :description (or description name)
-                          :family (or family (provider-name-family name))
-                          :models (registry--merge-models registry declared-models retained-models)
-                          :declared-models declared-models
-                          :discovered-models retained-models
-                          :model-discovery model-discovery
-                          :model-discovery-endpoint model-discovery-endpoint
+                          :name                              name
+                          :description                       (or description name)
+                          :family                            (or family (provider-name-family name))
+                          :models                            (registry--merge-models registry declared-models retained-models)
+                          :declared-models                   declared-models
+                          :discovered-models                 retained-models
+                          :model-discovery                   model-discovery
+                          :model-discovery-endpoint          model-discovery-endpoint
                           :model-discovery-endpoint-resolver model-discovery-endpoint-resolver
-                          :factory factory
-                          :authenticator authenticator
-                          :protocol protocol
-                          :endpoint endpoint
-                          :source source
-                          :sequence 0)))
+                          :factory                           factory
+                          :authenticator                     authenticator
+                          :protocol                          protocol
+                          :endpoint                          endpoint
+                          :source                            source
+                          :sequence                          0)))
     (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
       (setf (slot-value registration 'sequence) (incf (provider-registry--sequence registry))
             (provider-registry--registrations registry)
@@ -417,11 +417,11 @@ it already discovered."
 (defun provider-registry-registrations (registry)
   "Return REGISTRY's effective registrations in first-registration order."
   (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
-    (let ((order nil)
+    (let ((order   nil)
           (winners (make-hash-table :test #'equal)))
       (dolist (registration (sort (copy-list (provider-registry--registrations registry))
                                   #'< :key #'provider-registration-sequence))
-        (let* ((key (registry--key (provider-registration-name registration)))
+        (let* ((key    (registry--key (provider-registration-name registration)))
                (winner (gethash key winners)))
           (unless winner
             (push key order))
@@ -435,7 +435,7 @@ it already discovered."
   "Return REGISTRY's effective registration named NAME, ignoring case, or NIL."
   (when (and (stringp name) (plusp (length name)))
     (find (registry--key name) (provider-registry-registrations registry)
-          :key (lambda (registration) (registry--key (provider-registration-name registration)))
+          :key  (lambda (registration) (registry--key (provider-registration-name registration)))
           :test #'string=)))
 
 (defun provider-registry-for-model (registry model)
@@ -460,7 +460,7 @@ registration."
 (defun provider-registry-model-identifiers (registry)
   "Return each model identifier REGISTRY's effective providers serve, once."
   (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
-    (let ((seen (make-hash-table :test #'equal))
+    (let ((seen   (make-hash-table :test #'equal))
           (models nil))
       (dolist (registration (provider-registry-registrations registry))
         (dolist (model (provider-registration-models registration))
@@ -500,16 +500,16 @@ signals."
                            (list (or (provider-registry-find registry provider-name)
                                      (registry--fail "Unknown provider ~A." provider-name)))
                            (provider-registry-registrations registry)))
-        (failures nil))
+        (failures      nil))
     (dolist (registration registrations (nreverse failures))
       (when (provider-registration-model-discovery registration)
         (handler-case (registry--refresh-registration registry registration context)
           (error (cause)
             (push (make-condition 'provider-model-discovery-error
-                                  :message (format nil "Could not discover models for provider ~A."
-                                                   (provider-registration-name registration))
+                                  :message       (format nil "Could not discover models for provider ~A."
+                                                         (provider-registration-name registration))
                                   :provider-name (provider-registration-name registration)
-                                  :cause cause)
+                                  :cause         cause)
                   failures)))))))
 
 
@@ -519,12 +519,12 @@ signals."
   "Return an exact snapshot of REGISTRY's layers and their published models."
   (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
     (list :registrations (copy-list (provider-registry--registrations registry))
-          :models (loop for registration in (provider-registry--registrations registry)
-                        collect (list registration
-                                      (copy-list (provider-registration-models registration))
-                                      (copy-list (provider-registration-discovered-models
-                                                  registration))))
-          :sequence (provider-registry--sequence registry))))
+          :models        (loop for registration in (provider-registry--registrations registry)
+                               collect (list registration
+                                             (copy-list (provider-registration-models registration))
+                                             (copy-list (provider-registration-discovered-models
+                                                         registration))))
+          :sequence      (provider-registry--sequence registry))))
 
 (defun provider-registry-restore (registry snapshot)
   "Restore REGISTRY's layers and published models from SNAPSHOT."
@@ -565,7 +565,7 @@ signals."
 
 (defun registry--precedes-p (registry left right)
   "Return true when registration LEFT takes precedence over RIGHT."
-  (let ((left-rank (registry--source-rank registry (provider-registration-source left)))
+  (let ((left-rank  (registry--source-rank registry (provider-registration-source left)))
         (right-rank (registry--source-rank registry (provider-registration-source right))))
     (or (> left-rank right-rank)
         (and (= left-rank right-rank)
@@ -585,11 +585,11 @@ signals."
   "Normalize and validate the ordered model specifications MODELS."
   (unless (and (listp models) (or models allow-empty-p))
     (registry--fail "A provider registration needs at least one model."))
-  (let ((seen (make-hash-table :test #'equal))
+  (let ((seen       (make-hash-table :test #'equal))
         (normalized nil))
     (dolist (spec models (nreverse normalized))
       (let* ((model (provider-model-create registry spec))
-             (name (provider-model-name model)))
+             (name  (provider-model-name model)))
         (when (gethash name seen)
           (registry--fail "Provider registration repeats model ~A." name))
         (setf (gethash name seen) t)
@@ -601,9 +601,9 @@ signals."
 A declared model keeps its description and reasoning efforts and gains the
 discovered context window only when it declares none."
   (let* ((discovered (registry--normalize-models registry discovered-models :allow-empty-p t))
-         (by-name (make-hash-table :test #'equal))
-         (seen (make-hash-table :test #'equal))
-         (merged nil))
+         (by-name    (make-hash-table :test #'equal))
+         (seen       (make-hash-table :test #'equal))
+         (merged     nil))
     (dolist (model discovered)
       (setf (gethash (provider-model-name model) by-name) model))
     (dolist (declared declared-models)
@@ -613,9 +613,9 @@ discovered context window only when it declares none."
                        (not (provider-model-context-window-specified-p declared))
                        (provider-model-context-window-specified-p match))
                   (make-instance 'provider-model
-                                 :name (provider-model-name declared)
-                                 :description (provider-model-description declared)
-                                 :context-window (provider-model-context-window match)
+                                 :name                       (provider-model-name declared)
+                                 :description                (provider-model-description declared)
+                                 :context-window             (provider-model-context-window match)
                                  :context-window-specified-p t
                                  :reasoning-efforts
                                  (copy-list (provider-model-reasoning-efforts declared)))
@@ -638,10 +638,10 @@ discovered context window only when it declares none."
   "Discover REGISTRATION's models for CONTEXT, publish them while it is registered, and cache them."
   (bordeaux-threads:with-recursive-lock-held ((provider-registration-model-discovery-lock
                                                registration))
-    (let ((discovered (registry--normalize-models
-                       registry
-                       (funcall (provider-registration-model-discovery registration) context)
-                       :allow-empty-p t))
+    (let ((discovered  (registry--normalize-models
+                        registry
+                        (funcall (provider-registration-model-discovery registration) context)
+                        :allow-empty-p t))
           (published-p nil))
       (bordeaux-threads:with-recursive-lock-held ((provider-registry--lock registry))
         (when (member registration (provider-registry--registrations registry) :test #'eq)
@@ -666,7 +666,7 @@ discovered context window only when it declares none."
 (defun registry--cache-entry-for (registration entries)
   "Return the cache entry in ENTRIES matching REGISTRATION's name and discovery endpoint."
   (let ((endpoint (registry--discovery-endpoint registration))
-        (key (registry--key (provider-registration-name registration))))
+        (key      (registry--key (provider-registration-name registration))))
     (find-if (lambda (entry)
                (and (string= key (registry--key (getf entry :provider-name)))
                     (equal endpoint (getf entry :discovery-endpoint))))
@@ -689,16 +689,16 @@ discovered context window only when it declares none."
                     when (and (stringp name) (plusp (length name))
                               (or (null endpoint) (and (stringp endpoint) (plusp (length endpoint))))
                               (listp models))
-                      collect (list :provider-name name
+                      collect (list :provider-name      name
                                     :discovery-endpoint endpoint
-                                    :models (registry--normalize-models registry models
-                                                                        :allow-empty-p t)))))
+                                    :models             (registry--normalize-models registry models
+                                                                                    :allow-empty-p t)))))
         (error ()
           nil)))))
 
 (defun registry--model-cache-form (model)
   "Return MODEL's portable cache form."
-  (append (list :name (provider-model-name model)
+  (append (list :name        (provider-model-name model)
                 :description (provider-model-description model))
           (when (provider-model-context-window-specified-p model)
             (list :context-window (provider-model-context-window model)))
@@ -711,25 +711,25 @@ discovered context window only when it declares none."
       (handler-case
           (bordeaux-threads:with-lock-held ((provider-registry--cache-lock registry))
             (let* ((endpoint (registry--discovery-endpoint registration))
-                   (key (registry--key (provider-registration-name registration)))
-                   (entries (cons (list :provider-name (provider-registration-name registration)
-                                        :discovery-endpoint endpoint
-                                        :models models)
-                                  (remove-if (lambda (entry)
-                                               (and (string= key (registry--key
-                                                                  (getf entry :provider-name)))
-                                                    (equal endpoint
-                                                           (getf entry :discovery-endpoint))))
-                                             (registry--read-cache registry context)))))
+                   (key      (registry--key (provider-registration-name registration)))
+                   (entries  (cons (list :provider-name      (provider-registration-name registration)
+                                         :discovery-endpoint endpoint
+                                         :models             models)
+                                   (remove-if (lambda (entry)
+                                                (and (string= key (registry--key
+                                                                   (getf entry :provider-name)))
+                                                     (equal endpoint
+                                                            (getf entry :discovery-endpoint))))
+                                              (registry--read-cache registry context)))))
               (funcall function context
                        (list :provider-model-cache
                              :version *provider-model-cache-version*
                              :providers
                              (loop for entry in entries
-                                   collect (list :provider-name (getf entry :provider-name)
+                                   collect (list :provider-name      (getf entry :provider-name)
                                                  :discovery-endpoint (getf entry :discovery-endpoint)
-                                                 :models (mapcar #'registry--model-cache-form
-                                                                 (getf entry :models))))))))
+                                                 :models             (mapcar #'registry--model-cache-form
+                                                                             (getf entry :models))))))))
         (error ()
           nil))))
   nil)

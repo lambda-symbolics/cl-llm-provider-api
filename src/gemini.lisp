@@ -57,13 +57,13 @@ PREFIX texts form the systemInstruction, history ITEMS become contents, and
 SUFFIX texts trail them as one user content. TOOLS is the result of
 PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS and :INCLUDE-THOUGHTS-P."
   (declare (ignore provider goal-context compaction-p))
-  (let* ((options (wire-request-options projection))
-         (contents (gemini--contents (wire-request-items projection)))
-         (trailing (gemini--text-content (wire-request-suffix projection)))
-         (system (gemini--text-content (wire-request-prefix projection)))
-         (request (json-object "contents" (if trailing
-                                               (concatenate 'vector contents (vector trailing))
-                                               contents)))
+  (let* ((options    (wire-request-options projection))
+         (contents   (gemini--contents (wire-request-items projection)))
+         (trailing   (gemini--text-content (wire-request-suffix projection)))
+         (system     (gemini--text-content (wire-request-prefix projection)))
+         (request    (json-object "contents" (if trailing
+                                                  (concatenate 'vector contents (vector trailing))
+                                                  contents)))
          (generation (json-object)))
     (when system
       (setf (gethash "systemInstruction" request) system))
@@ -87,14 +87,14 @@ STOP completes the response; MAX_TOKENS and MODEL_CONTEXT_WINDOW_EXCEEDED
 signal an incomplete response, any other finish reason a protocol error, and an
 error object the typed failure it describes. A stream that ends before a finish
 reason is a retryable interruption."
-  (let ((response-id nil)
-        (metadata (make-instance 'provider-response-metadata))
-        (usage nil)
-        (text-stream (make-string-output-stream))
+  (let ((response-id      nil)
+        (metadata         (make-instance 'provider-response-metadata))
+        (usage            nil)
+        (text-stream      (make-string-output-stream))
         (reasoning-stream (make-string-output-stream))
-        (calls nil)
-        (call-index 0)
-        (completed-p nil))
+        (calls            nil)
+        (call-index       0)
+        (completed-p      nil))
     (loop until completed-p
           for data = (provider--read-sse-data stream headers)
           do (cond
@@ -109,7 +109,7 @@ reason is a retryable interruption."
                   (when (json-object-p event)
                     (when (json-object-p (json-get event "error"))
                       (provider--signal-event-failure event :type "error" :data data
-                                                            :headers headers
+                                                            :headers     headers
                                                             :response-id response-id))
                     (multiple-value-bind (response event-response-id)
                         (provider-gemini-stream-response provider event)
@@ -135,49 +135,49 @@ reason is a retryable interruption."
                                               (json-get candidate "finishReason")
                                               headers response-id)
                                          (setf completed-p t))
-                                       (dolist (part (gemini--candidate-parts candidate))
-                                         (let ((text (json-get part "text"))
-                                               (function-call (json-get part "functionCall")))
-                                           (when (stringp text)
-                                             (if (json-get part "thought")
-                                                 (progn
-                                                   (write-string text reasoning-stream)
-                                                   (funcall event-callback
-                                                            (make-instance 'reasoning-delta-event
-                                                                           :text text)))
-                                                 (progn
-                                                   (write-string text text-stream)
-                                                   (funcall event-callback
-                                                            (make-instance 'assistant-delta-event
-                                                                           :text text)))))
-                                           (when (json-object-p function-call)
-                                             (push (gemini--normalize-call
-                                                    provider function-call (incf call-index)
-                                                    headers)
-                                                   calls))))))))))))))
+                                     (dolist (part (gemini--candidate-parts candidate))
+                                       (let ((text          (json-get part "text"))
+                                             (function-call (json-get part "functionCall")))
+                                         (when (stringp text)
+                                           (if (json-get part "thought")
+                                               (progn
+                                                 (write-string text reasoning-stream)
+                                                 (funcall event-callback
+                                                          (make-instance 'reasoning-delta-event
+                                                                         :text text)))
+                                               (progn
+                                                 (write-string text text-stream)
+                                                 (funcall event-callback
+                                                          (make-instance 'assistant-delta-event
+                                                                         :text text)))))
+                                         (when (json-object-p function-call)
+                                           (push (gemini--normalize-call
+                                                  provider function-call (incf call-index)
+                                                  headers)
+                                                 calls))))))))))))))
     (gemini--finish-result
-     :response-id response-id
-     :usage usage
-     :metadata metadata
-     :reasoning (get-output-stream-string reasoning-stream)
-     :text (get-output-stream-string text-stream)
-     :calls (nreverse calls)
+     :response-id    response-id
+     :usage          usage
+     :metadata       metadata
+     :reasoning      (get-output-stream-string reasoning-stream)
+     :text           (get-output-stream-string text-stream)
+     :calls          (nreverse calls)
      :event-callback event-callback)))
 
 (defun gemini--signal-request-conversion-failure (message)
   "Signal a terminal Gemini request conversion failure described by MESSAGE."
   (error 'provider-error
-         :message message
-         :status nil
-         :code "unsupported_content"
-         :request-id nil
+         :message     message
+         :status      nil
+         :code        "unsupported_content"
+         :request-id  nil
          :response-id nil
-         :response nil))
+         :response    nil))
 
 (defun gemini--wire-name (item)
   "Return portable call ITEM's flat Gemini function name."
   (let ((namespace (json-get item "namespace"))
-        (name (json-get item "name")))
+        (name      (json-get item "name")))
     (if (non-empty-string-p namespace)
         (provider-wire-function-name--encode namespace name)
         name)))
@@ -214,8 +214,8 @@ Gemini takes an image inline as its MIME type and base64 data, which the
 portable data URL carries. Any other image cannot be sent and signals a
 terminal PROVIDER-ERROR instead of being dropped from the request."
   (let* ((image-url (json-get part "image_url"))
-         (url (if (json-object-p image-url) (json-get image-url "url") image-url))
-         (marker (and (stringp url) (search ";base64," url))))
+         (url       (if (json-object-p image-url) (json-get image-url "url") image-url))
+         (marker    (and (stringp url) (search ";base64," url))))
     (unless (and marker
                  (eql 0 (search "data:" url))
                  (> marker (length "data:")))
@@ -253,7 +253,7 @@ terminal PROVIDER-ERROR instead of being dropped from the request."
   "Translate portable conversation ITEMS into Gemini contents.
 
 Function responses carry the name of the call they answer, found by call_id."
-  (let ((contents nil)
+  (let ((contents   nil)
         (call-names (make-hash-table :test #'equal)))
     (dolist (item items)
       (when (json-object-p item)
@@ -345,7 +345,7 @@ Function responses carry the name of the call they answer, found by call_id."
 (defun gemini--candidate-parts (candidate)
   "Return CANDIDATE's content parts that are JSON objects."
   (let* ((content (json-get candidate "content"))
-         (parts (and (json-object-p content) (json-get content "parts"))))
+         (parts   (and (json-object-p content) (json-get content "parts"))))
     (and (vectorp parts)
          (remove-if-not #'json-object-p (coerce parts 'list)))))
 
@@ -356,12 +356,12 @@ Function responses carry the name of the call they answer, found by call_id."
 (defun gemini--normalize-call (provider function-call index headers)
   "Return the portable function_call item for Gemini FUNCTION-CALL."
   (let* ((wire-name (json-get function-call "name"))
-         (item (json-object "type" "function_call"
-                            "call_id" (or (json-get function-call "id")
-                                          (gemini--call-identifier index))
-                            "name" wire-name
-                            "arguments" (json-encode (or (json-get function-call "args")
-                                                         (json-object))))))
+         (item      (json-object "type" "function_call"
+                                 "call_id" (or (json-get function-call "id")
+                                               (gemini--call-identifier index))
+                                 "name" wire-name
+                                 "arguments" (json-encode (or (json-get function-call "args")
+                                                              (json-object))))))
     (multiple-value-bind (namespace name) (provider-wire-function-name--decode wire-name)
       (when (and namespace name)
         (setf (gethash "namespace" item) namespace
@@ -388,28 +388,28 @@ Function responses carry the name of the call they answer, found by call_id."
 
 REASONING and TEXT become one reasoning and one assistant message item ahead
 of the CALLS; a response with calls continues the turn."
-  (let ((items (append
-                (when (plusp (length reasoning))
-                  (list (json-object "type" "reasoning_content" "content" reasoning)))
-                (when (plusp (length text))
-                  (list (json-object "type" "message" "role" "assistant"
-                                     "content" (json-array
-                                                (json-object "type" "output_text"
-                                                             "text" text)))))
-                calls))
+  (let ((items           (append
+                          (when (plusp (length reasoning))
+                            (list (json-object "type" "reasoning_content" "content" reasoning)))
+                          (when (plusp (length text))
+                            (list (json-object "type" "message" "role" "assistant"
+                                               "content" (json-array
+                                                          (json-object "type" "output_text"
+                                                                       "text" text)))))
+                          calls))
         (turn-completion (if calls ':continue ':end)))
     (dolist (item items)
       (funcall event-callback (make-instance 'provider-item-event :item item)))
     (funcall event-callback (make-instance 'provider-completed-event
-                                           :response-id response-id
-                                           :usage usage
-                                           :metadata metadata
+                                           :response-id     response-id
+                                           :usage           usage
+                                           :metadata        metadata
                                            :turn-completion turn-completion))
     (make-instance 'provider-result
-                   :response-id response-id
-                   :output-items items
-                   :tool-calls calls
-                   :usage usage
-                   :metadata metadata
-                   :turn-state nil
+                   :response-id     response-id
+                   :output-items    items
+                   :tool-calls      calls
+                   :usage           usage
+                   :metadata        metadata
+                   :turn-state      nil
                    :turn-completion turn-completion)))

@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defun openai-compatible-provider-tests--stream-event
        (delta response-id &optional finish-reason)
   "Return one Chat Completions stream event containing DELTA."
@@ -16,6 +15,7 @@
                                        '(("x-request-id" . "chat-terminal-request"))
                                        #'identity)
               (provider-error (condition) condition)))
+
            (finish-source (reason &key (done-p t))
              "Return a Chat stream with REASON followed by usage and optional DONE."
              (concatenate 'string
@@ -78,7 +78,7 @@
                   (string= (provider-error-request-id outcome) "chat-terminal-request")
                   (string= (provider-error-response-id outcome)
                            "chat-terminal-response")
-                   (typep outcome 'provider-retryable-error))
+                  (typep outcome 'provider-retryable-error))
              "Chat truncation retains sanitized metadata and permits bounded retry"))
           (when (typep outcome 'response-stream-error)
             (test-assert (typep outcome 'provider-retryable-error)
@@ -90,31 +90,35 @@
 
 (defun openai-compatible-provider-tests--object-parameters ()
   "Project composed tool schemas at the wire boundary without changing validation."
-  (let* ((nested (json-object "oneOf"
-                             (vector (json-object "type" "string")
-                                     (json-object "type" "integer"))))
+  (let* ((nested     (json-object "oneOf"
+                                 (vector (json-object "type" "string")
+                                         (json-object "type" "integer"))))
          (properties (json-object "id" (json-object "type" "string") "value" nested)))
     (dolist (keyword '("oneOf" "anyOf" "allOf" "not" "enum" "const"))
       (let* ((schema
                (json-object "type" "object" "properties" properties
                             "required" #("id") "additionalProperties" yason:false
                             keyword
-                            (cond ((string= keyword "const") (json-object "id" "fixed"))
-                                  ((string= keyword "enum") (vector (json-object "id" "fixed")))
-                                  ((string= keyword "not") (json-object "required" #("excluded")))
-                                  (t (vector
-                                      (json-object "properties"
-                                                   (json-object "query" (json-object "type" "string"))
-                                                   "required" #("query"))
-                                      (json-object "properties"
-                                                   (json-object "query" (json-object "type" "integer")
-                                                                "patterns" (json-object "type" "array"))
-                                                   "required" #("patterns")))))))
-             (before (json-encode schema))
-             (tool (json-object "name" "content" "description" "Choose a query or patterns."
-                                "parameters" schema))
-             (wire (json-get (openai-compatible--wire-tool "search" tool) "function"))
-             (parameters (json-get wire "parameters"))
+                            (cond ((string= keyword "const")
+                                   (json-object "id" "fixed"))
+                                  ((string= keyword "enum")
+                                   (vector (json-object "id" "fixed")))
+                                  ((string= keyword "not")
+                                   (json-object "required" #("excluded")))
+                                  (t
+                                   (vector
+                                    (json-object "properties"
+                                                 (json-object "query" (json-object "type" "string"))
+                                                 "required" #("query"))
+                                    (json-object "properties"
+                                                 (json-object "query" (json-object "type" "integer")
+                                                              "patterns" (json-object "type" "array"))
+                                                 "required" #("patterns")))))))
+             (before          (json-encode schema))
+             (tool            (json-object "name" "content" "description" "Choose a query or patterns."
+                                           "parameters" schema))
+             (wire            (json-get (openai-compatible--wire-tool "search" tool) "function"))
+             (parameters      (json-get wire "parameters"))
              (wire-properties (json-get parameters "properties")))
         (test-assert
          (and (json-string= (json-get parameters "type") "object")
@@ -165,27 +169,27 @@
        "thinking items stay private to their producing family")
       (test-assert (string= (json-get (second messages) "role") "tool")
        "Chat Completions tool results follow the grouped assistant message"))
-    (let* ((user (json-object "type" "message" "role" "user" "content" "start"))
-           (call (json-object "type" "function_call" "call_id" "call-c" "name" "read"
-                  "arguments" "{}"))
-           (output (json-object "type" "function_call_output" "call_id" "call-c"
-                    "output" "done"))
+    (let* ((user       (json-object "type" "message" "role" "user" "content" "start"))
+           (call       (json-object "type" "function_call" "call_id" "call-c" "name" "read"
+                        "arguments" "{}"))
+           (output     (json-object "type" "function_call_output" "call_id" "call-c"
+                        "output" "done"))
            (breakpoint (json-object "type" "ephemeral")))
       (flet ((request-messages (options)
                "Return the encoded messages of a fixed projection with OPTIONS."
                (json-get (provider-request-object
                           provider
                           (make-instance 'wire-request :model "m"
-                                         :items (list user call output)
-                                         :prefix (list "stable")
-                                         :suffix (list "temporary")
-                                         :options options)
+                                         :items               (list user call output)
+                                         :prefix              (list "stable")
+                                         :suffix              (list "temporary")
+                                         :options             options)
                           #())
                          "messages")))
         (let ((marked (request-messages
                        (list :cache-breakpoint-fields
                              (list "cache_control" breakpoint))))
-              (plain (request-messages nil)))
+              (plain  (request-messages nil)))
           (test-assert
            (and (eq (json-get (aref (json-get (aref marked 0) "content") 0) "cache_control")
                     breakpoint)
@@ -242,7 +246,7 @@
            (result
             (provider-consume-stream provider (make-string-input-stream source) nil
                                      (lambda (event) (push event events))))
-           (call (first (provider-result-tool-calls result))))
+           (call   (first (provider-result-tool-calls result))))
       (test-assert
        (and (string= (provider-result-response-id result) "chat-test")
             (eq (provider-result-turn-completion result) ':continue)

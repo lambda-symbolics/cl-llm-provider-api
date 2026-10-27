@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defun provider-signal-http-failure (provider condition)
   "Record CONDITION headers and signal a typed provider or authentication error."
   (let ((status (dexador.error:response-status condition))
@@ -42,14 +41,14 @@ it is off by default."
    deadline-seconds
    (lambda ()
      (dexador:post url
-                   :headers headers
-                   :content body
-                   :want-stream t
-                   :force-string t
-                   :keep-alive keep-alive-p
+                   :headers             headers
+                   :content             body
+                   :want-stream         t
+                   :force-string        t
+                   :keep-alive          keep-alive-p
                    :use-connection-pool keep-alive-p
-                   :connect-timeout connect-timeout
-                   :read-timeout read-timeout))))
+                   :connect-timeout     connect-timeout
+                   :read-timeout        read-timeout))))
 
 (defun provider--call-with-transport-normalization
     (attempt-function &key terminal-errors-p)
@@ -67,7 +66,7 @@ raw SIMPLE-ERROR failures at that boundary become terminal provider errors."
   "Recognize OpenSSL 3+ unexpected EOF without retrying other TLS failures."
   (and (typep condition 'cl+ssl::ssl-error-ssl)
        (null (cl+ssl::ssl-error-ssl-verify-error condition))
-       (let ((queue (cl+ssl::ssl-error-queue condition))
+       (let ((queue   (cl+ssl::ssl-error-queue condition))
              (printed (cl+ssl::printed-queue condition)))
          (if queue
              (every (lambda (code) (= code #x0a000126)) queue)
@@ -129,7 +128,6 @@ raw SIMPLE-ERROR failures at that boundary become terminal provider errors."
            :retryable-p nil)
           (error condition)))))
 
-
 ;;;; -- SSE Inactivity Deadline --
 
 (defparameter *sse-inactivity-seconds* 300
@@ -152,12 +150,13 @@ Install it as *SSE-READ-LINE-FUNCTION*."
              seconds (lambda () (sse-read-line-characters stream)))
           (sb-sys:deadline-timeout ()
             (error 'response-stream-error
-                   :message (format nil "The provider stream delivered nothing for ~D seconds."
-                                    seconds)
-                   :status nil
+                   :message    (format nil "The provider stream delivered nothing for ~D seconds."
+                                       seconds)
+                   :status     nil
                    :request-id nil
-                   :response nil)))
+                   :response   nil)))
         (sse-read-line-characters stream))))
+
 
 ;;;; -- Vertex Streaming --
 

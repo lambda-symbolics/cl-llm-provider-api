@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defparameter *provider-rate-limit-event-error-codes*
   '("rate_limit_exceeded" "RESOURCE_EXHAUSTED")
   "Structured SSE error codes reporting exhausted provider allowance.")
@@ -43,7 +42,8 @@
 
 Compound structure is always freshly consed, while strings holding no
 credential are shared unmodified with VALUE."
-  (cond ((stringp value) (provider--sanitize-wire-string value))
+  (cond ((stringp value)
+         (provider--sanitize-wire-string value))
         ((hash-table-p value)
          (let ((copy
                 (make-hash-table :test (hash-table-test value) :size
@@ -51,14 +51,16 @@ credential are shared unmodified with VALUE."
            (maphash
             (lambda (key child)
               (setf (gethash (provider--sanitize-wire-value key) copy)
-                      (provider--sanitize-wire-value child)))
+                    (provider--sanitize-wire-value child)))
             value)
            copy))
-        ((vectorp value) (map 'vector #'provider--sanitize-wire-value value))
+        ((vectorp value)
+         (map 'vector #'provider--sanitize-wire-value value))
         ((consp value)
          (cons (provider--sanitize-wire-value (first value))
                (provider--sanitize-wire-value (rest value))))
-        (t value)))
+        (t
+         value)))
 
 (defun response-header (headers name)
   "Return case-insensitive header NAME from Dexador HEADERS."
@@ -74,7 +76,8 @@ credential are shared unmodified with VALUE."
           (if (consp (rest pair))
               (second pair)
               (rest pair)))))
-     (t nil))))
+     (t
+      nil))))
 
 (defun provider--response-request-id (headers)
   "Return a provider request identifier from common response HEADERS."
@@ -106,11 +109,16 @@ credential are shared unmodified with VALUE."
   (let ((detail (provider--error-body-detail body))
         (hint
          (case status
-           (404 "The requested resource or model is not being served.")
-           (429 "The provider rate limit was reached.")
-           (529 "The provider service is overloaded.")
-           ((500 502 503 504 507) "The provider service is having trouble.")
-           (t nil))))
+           (404
+            "The requested resource or model is not being served.")
+           (429
+            "The provider rate limit was reached.")
+           (529
+            "The provider service is overloaded.")
+           ((500 502 503 504 507)
+            "The provider service is having trouble.")
+           (t
+            nil))))
     (format nil "The provider returned HTTP ~D.~@[ ~A~]~@[~%~A~]" status hint detail)))
 
 (defgeneric provider-retryable-status-p
@@ -129,7 +137,7 @@ credential are shared unmodified with VALUE."
 (defun provider--signal-http-status-failure (provider status &key headers raw-body)
   "Signal the typed failure represented by HTTP STATUS, HEADERS, and RAW-BODY."
   (let* ((raw-text (provider--error-body-text raw-body))
-         (body (and raw-text (provider--sanitize-wire-string raw-text))))
+         (body     (and raw-text (provider--sanitize-wire-string raw-text))))
     (if (= status 401)
         (error 'provider-unauthorized :message
                (format nil "The provider rejected the current ~A credentials."
@@ -183,12 +191,15 @@ abandon the looping stream; the default reaction ignores the report."))
 
 (defun provider--reasoning-summary-key (event)
   "Return EVENT's stable reasoning summary part identity, when available."
-  (let ((item-id (json-get event "item_id"))
-        (output-index (json-get event "output_index"))
+  (let ((item-id       (json-get event "item_id"))
+        (output-index  (json-get event "output_index"))
         (summary-index (json-get event "summary_index")))
-    (cond ((integerp output-index) (list :output output-index :summary summary-index))
-          ((non-empty-string-p item-id) (list :item item-id :summary summary-index))
-          (t nil))))
+    (cond ((integerp output-index)
+           (list :output output-index :summary summary-index))
+          ((non-empty-string-p item-id)
+           (list :item item-id :summary summary-index))
+          (t
+           nil))))
 
 (defun provider--signal-stream-interruption (headers message)
   "Signal a retryable provider stream interruption described by MESSAGE."
@@ -209,7 +220,7 @@ abandon the looping stream; the default reaction ignores the report."))
          (detail
           (bounded-string (provider--sanitize-wire-string reported-detail) :limit
            *provider-error-detail-limit*))
-         (trimmed-detail (string-trim '(#\Space #\Tab #\Newline #\Return) detail)))
+         (trimmed-detail  (string-trim '(#\Space #\Tab #\Newline #\Return) detail)))
     (if (non-empty-string-p trimmed-detail)
         (format nil "~A: ~A"
                 (string-right-trim '(#\FULL_STOP #\Space #\Tab #\Newline #\Return)
@@ -253,38 +264,58 @@ abandon the looping stream; the default reaction ignores the report."))
 
 (defun provider--event-error-object (event)
   "Return the structured error object nested in EVENT, when present."
-  (let* ((response (provider--event-response event))
+  (let* ((response       (provider--event-response event))
          (response-error (and response (json-get response "error")))
-         (event-error (json-get event "error")))
-    (cond ((json-object-p response-error) response-error)
-          ((json-object-p event-error) event-error)
-          ((equal (json-get event "type") "error") event) (t nil))))
+         (event-error    (json-get event "error")))
+    (cond ((json-object-p response-error)
+           response-error)
+          ((json-object-p event-error)
+           event-error)
+          ((equal (json-get event "type") "error")
+           event)
+          (t
+           nil))))
 
 (defun provider--event-error-code (error-object)
   "Return ERROR-OBJECT's code, type, or status when it is a non-empty string."
   (when error-object
-    (let ((code (json-get error-object "code"))
-          (type (json-get error-object "type"))
+    (let ((code   (json-get error-object "code"))
+          (type   (json-get error-object "type"))
           (status (json-get error-object "status")))
-      (cond ((non-empty-string-p code) code) ((non-empty-string-p type) type)
-            ((non-empty-string-p status) status) (t nil)))))
+      (cond ((non-empty-string-p code)
+             code)
+            ((non-empty-string-p type)
+             type)
+            ((non-empty-string-p status)
+             status)
+            (t
+             nil)))))
 
 (defun provider--event-response-id (event current-response-id)
   "Return EVENT's response identifier or CURRENT-RESPONSE-ID."
-  (let* ((response (provider--event-response event))
+  (let* ((response  (provider--event-response event))
          (nested-id (and response (json-get response "id")))
-         (event-id (json-get event "response_id")))
-    (cond ((non-empty-string-p nested-id) nested-id)
-          ((non-empty-string-p event-id) event-id) (t current-response-id))))
+         (event-id  (json-get event "response_id")))
+    (cond ((non-empty-string-p nested-id)
+           nested-id)
+          ((non-empty-string-p event-id)
+           event-id)
+          (t
+           current-response-id))))
 
 (defun provider--event-request-id (event error-object headers)
   "Return the structured or header request identifier for EVENT."
-  (let ((error-request-id (and error-object (json-get error-object "request_id")))
-        (event-request-id (json-get event "request_id"))
+  (let ((error-request-id  (and error-object (json-get error-object "request_id")))
+        (event-request-id  (json-get event "request_id"))
         (header-request-id (provider--response-request-id headers)))
-    (cond ((non-empty-string-p error-request-id) error-request-id)
-          ((non-empty-string-p event-request-id) event-request-id)
-          ((non-empty-string-p header-request-id) header-request-id) (t nil))))
+    (cond ((non-empty-string-p error-request-id)
+           error-request-id)
+          ((non-empty-string-p event-request-id)
+           event-request-id)
+          ((non-empty-string-p header-request-id)
+           header-request-id)
+          (t
+           nil))))
 
 (defun provider--retryable-event-error-code-p (code)
   "Return true when structured provider CODE describes a transient failure."
@@ -358,14 +389,14 @@ abandon the looping stream; the default reaction ignores the report."))
   (let* ((response (json-get event "response"))
          (details
           (and (json-object-p response) (json-get response "incomplete_details")))
-         (reason (and (json-object-p details) (json-get details "reason"))))
+         (reason   (and (json-object-p details) (json-get details "reason"))))
     (and (non-empty-string-p reason) reason)))
 
 (defun provider--signal-incomplete-response (event &key data headers response-id)
   "Validate terminal EVENT and signal its recognized incomplete reason."
-  (let* ((response (json-get event "response"))
+  (let* ((response          (json-get event "response"))
          (event-response-id (provider--event-response-id event response-id))
-         (request-id (provider--event-request-id event nil headers)))
+         (request-id        (provider--event-request-id event nil headers)))
     (unless (json-object-p response)
       (provider--signal-terminal-protocol-error
        "The provider returned response.incomplete without a response object." headers
@@ -383,9 +414,9 @@ abandon the looping stream; the default reaction ignores the report."))
 (defun provider--signal-event-failure (event &key type data headers response-id)
   "Signal EVENT as a structured terminal or retryable provider failure."
   (let* ((error-object (provider--event-error-object event))
-         (code (provider--condition-string (provider--event-error-code error-object)))
+         (code         (provider--condition-string (provider--event-error-code error-object)))
          (status-value (and error-object (json-get error-object "code")))
-         (status (and (integerp status-value) status-value))
+         (status       (and (integerp status-value) status-value))
          (detail
           (provider--condition-string
            (and error-object (json-get error-object "message"))))
@@ -408,13 +439,13 @@ abandon the looping stream; the default reaction ignores the report."))
 (defmethod provider-consume-stream
            ((provider model-provider) stream headers event-callback)
   "Consume a Responses protocol STREAM into a provider result."
-  (let ((output-items nil)
-        (metadata (make-instance 'provider-response-metadata))
-        (response-id nil)
-        (usage nil)
-        (turn-completion :unspecified)
+  (let ((output-items          nil)
+        (metadata              (make-instance 'provider-response-metadata))
+        (response-id           nil)
+        (usage                 nil)
+        (turn-completion       :unspecified)
         (reasoning-summary-key nil)
-        (completed-p nil))
+        (completed-p           nil))
     (loop until completed-p
           for data = (provider--read-sse-data stream headers)
           do (cond
@@ -426,13 +457,13 @@ abandon the looping stream; the default reaction ignores the report."))
                 "The provider stream ended before a terminal event."))
               (t
                (let* ((event (provider--decode-sse-data data headers))
-                      (type (and (json-object-p event) (json-get event "type"))))
+                      (type  (and (json-object-p event) (json-get event "type"))))
                  (when (json-string-member-p type
                          '("response.created" "response.in_progress" "response.completed"
                            "response.incomplete" "response.failed"))
-                   (let* ((value (json-get event "response"))
+                   (let* ((value    (json-get event "response"))
                           (response (and (json-object-p value) value))
-                          (details (and response (json-get response "incomplete_details"))))
+                          (details  (and response (json-get response "incomplete_details"))))
                      (setf metadata
                            (provider--observe-response-metadata
                             provider metadata event-callback
@@ -442,8 +473,10 @@ abandon the looping stream; the default reaction ignores the report."))
                             (let ((reasoning (and response (json-get response "reasoning"))))
                               (and (json-object-p reasoning) (json-get reasoning "context")))
                             :finish-reason
-                            (cond ((json-string= type "response.completed") "completed")
-                                  ((json-string= type "response.failed") "failed")
+                            (cond ((json-string= type "response.completed")
+                                   "completed")
+                                  ((json-string= type "response.failed")
+                                   "failed")
                                   ((and (json-string= type "response.incomplete")
                                         (json-object-p details))
                                    (json-get details "reason")))))))

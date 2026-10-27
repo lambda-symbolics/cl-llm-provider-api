@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defun openai-compatible--wire-tool-name (namespace name)
   "Encode NAMESPACE and NAME with the shared grammar-safe provider codec."
   (let ((*provider-wire-function-name-maximum-length*
@@ -24,7 +23,7 @@ of positive alternatives without mutating the host's validation schema."
              (json-string= (json-get schema "type") "object")
              (notany (lambda (key) (nth-value 1 (gethash key schema))) forbidden))
         schema
-        (let ((projected (json-object))
+        (let ((projected  (json-object))
               (properties (json-object)))
           (labels ((add-property (name value)
                      "Keep every alternative for one named property."
@@ -118,11 +117,13 @@ of positive alternatives without mutating the host's validation schema."
      ((and (json-string= type "image_url") (non-empty-string-p (json-get part "url")))
       (json-object "type" "image_url" "image_url"
        (json-object "url" (json-get part "url"))))
-     (t nil))))
+     (t
+      nil))))
 
 (defun openai-compatible--chat-content (content)
   "Translate Responses CONTENT into a Chat Completions content value."
-  (cond ((stringp content) content)
+  (cond ((stringp content)
+         content)
         ((vectorp content)
          (coerce
           (loop for part across content
@@ -131,7 +132,10 @@ of positive alternatives without mutating the host's validation schema."
                 when translated
                 collect translated)
           'vector))
-        ((null content) "") (t (bounded-string content :limit 2000))))
+        ((null content)
+         "")
+        (t
+         (bounded-string content :limit 2000))))
 
 (defun openai-compatible--wire-call-name (item)
   "Return the flat Chat Completions function name for function-call ITEM."
@@ -174,7 +178,8 @@ of positive alternatives without mutating the host's validation schema."
       (openai-compatible--chat-message item))
      ((json-string= (json-get item "type") "function_call_output")
       (openai-compatible--chat-tool-output item))
-     (t nil))))
+     (t
+      nil))))
 
 (defun openai-compatible--chat-input-messages (items)
   "Translate portable Responses ITEMS into valid Chat Completions messages.
@@ -199,7 +204,8 @@ message, which thinking-mode providers require passed back."
           (setf pending-reasoning (json-get item "content")))
          ((and (json-object-p item) (clinker-transcript:function-call-item-p item))
           (push item function-calls))
-         (t (flush-function-calls)
+         (t
+          (flush-function-calls)
           (when (and (json-object-p item) (json-string= (json-get item "role") "user"))
             (setf pending-reasoning nil))
           (let ((message (openai-compatible--chat-input-item item)))
@@ -229,7 +235,8 @@ it had none, such as an assistant message carrying only tool calls."
              (loop for (name value) on fields by #'cddr
                    do (setf (gethash name part) value)))
            t)
-          (t nil))))
+          (t
+           nil))))
 
 (defun openai-compatible--chat-context-message (texts)
   "Return volatile nonempty TEXTS as one trailing Chat Completions user message."
@@ -239,14 +246,16 @@ it had none, such as an assistant message carrying only tool calls."
 
 (defun openai-compatible--delta-text (value)
   "Return visible text from a Chat Completions delta VALUE."
-  (cond ((stringp value) value)
+  (cond ((stringp value)
+         value)
         ((vectorp value)
          (let ((parts
                 (loop for part across value
                       when (and (json-object-p part) (stringp (json-get part "text")))
                       collect (json-get part "text"))))
            (and parts (format nil "~{~A~^~%~}" parts))))
-        (t nil)))
+        (t
+         nil)))
 
 (defstruct
     (openai-compatible-tool-state (:constructor openai-compatible--tool-state (index)))
@@ -264,7 +273,7 @@ it had none, such as an assistant message carrying only tool calls."
          (or (gethash index states)
              (setf (gethash index states) (openai-compatible--tool-state index)))))
     (let* ((function (and (json-object-p delta) (json-get delta "function")))
-           (id (and (json-object-p delta) (json-get delta "id")))
+           (id       (and (json-object-p delta) (json-get delta "id")))
            (name
             (or (and (json-object-p function) (json-get function "name"))
                 (and (json-object-p delta) (json-get delta "name"))))
@@ -332,7 +341,7 @@ Models that do not repeat the encoded function names verbatim commonly
 reproduce the dotted canonical name from the prompt, sometimes with a
 stray leading dot. A bare name without a namespace half is left for
 the registry's unique-name dispatch."
-  (let* ((trimmed (string-left-trim "." name))
+  (let* ((trimmed   (string-left-trim "." name))
          (separator (position #\FULL_STOP trimmed)))
     (if (and separator (plusp separator) (< (1+ separator) (length trimmed)))
         (values (subseq trimmed 0 separator) (subseq trimmed (1+ separator)))
@@ -358,14 +367,14 @@ the registry's unique-name dispatch."
 (defmethod provider-consume-stream
            ((provider chat-completions-provider) stream headers event-callback)
   "Consume a Chat Completions SSE stream into a provider result."
-  (let ((response-id nil)
-        (metadata (make-instance 'provider-response-metadata))
-        (usage nil)
-        (finish-reason nil)
-        (text-stream (make-string-output-stream))
+  (let ((response-id      nil)
+        (metadata         (make-instance 'provider-response-metadata))
+        (usage            nil)
+        (finish-reason    nil)
+        (text-stream      (make-string-output-stream))
         (reasoning-stream (make-string-output-stream))
-        (tool-states (make-hash-table :test #'equal))
-        (completed-p nil))
+        (tool-states      (make-hash-table :test #'equal))
+        (completed-p      nil))
     (loop until completed-p
           for data = (provider--read-sse-data stream headers)
           do (cond
@@ -386,12 +395,12 @@ the registry's unique-name dispatch."
                    (setf metadata
                          (provider--observe-response-metadata
                           provider metadata event-callback :model (json-get event "model")
-                          :usage (json-get event "usage"))))
+                          :usage                                  (json-get event "usage"))))
                  (when error-object
                    (provider--signal-event-failure event :type "error" :data data
                     :headers headers :response-id response-id))
                  (when (json-object-p event)
-                   (let ((event-id (json-get event "id"))
+                   (let ((event-id    (json-get event "id"))
                          (event-usage (json-get event "usage")))
                      (when (non-empty-string-p event-id) (setf response-id event-id))
                      (when event-usage (setf usage event-usage)))
@@ -457,7 +466,7 @@ the registry's unique-name dispatch."
                                          response-id))))) (funcall event-callback
                                                                    (make-instance
                                                                     'provider-progress-event))))))))))
-    (let ((output-items nil)
+    (let ((output-items   nil)
           (reasoning-text (get-output-stream-string reasoning-stream))
           (assistant-text (get-output-stream-string text-stream)))
       (when (plusp (length reasoning-text))

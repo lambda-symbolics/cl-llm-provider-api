@@ -35,9 +35,9 @@
 (defun metadata-test--events (protocol &key (model "returned-model") (cache ':missing)
                                           (outcome ':success))
   "Build valid empty responses, incomplete responses, or interrupted streams."
-  (let* ((usage (json-object "input_tokens" 3 "output_tokens" 0))
+  (let* ((usage    (json-object "input_tokens" 3 "output_tokens" 0))
          (gemini-p (eq protocol ':gemini-generate-content))
-         (initial nil)
+         (initial  nil)
          (terminal nil))
     (unless (eq cache ':missing)
       (setf (gethash (if gemini-p "cacheWriteInputTokens" "cache_creation_input_tokens") usage)
@@ -74,8 +74,10 @@
         (list initial)
         (append (list initial terminal)
                 (case protocol
-                  (:chat-completions (list "[DONE]"))
-                  (:anthropic-messages (list (json-object "type" "message_stop"))))))))
+                  (:chat-completions
+                   (list "[DONE]"))
+                  (:anthropic-messages
+                   (list (json-object "type" "message_stop"))))))))
 
 (defun metadata-test--snapshots (events)
   "Return only the immutable response metadata emitted by a stream."
@@ -85,7 +87,7 @@
 (defun test-response-metadata-streams ()
   "Exercise successful, incomplete, and interrupted streams across wire adapters."
   (dolist (class '(responses-api-provider chat-completions-provider anthropic-messages-provider
-                  gemini-generate-content-provider metadata-test-code-assist-provider))
+                   gemini-generate-content-provider metadata-test-code-assist-provider))
     (let* ((provider (make-instance class))
            (protocol (provider-wire-protocol provider)))
       (dolist (cache '(:missing 0 7))
@@ -95,7 +97,7 @@
               (setf frames (mapcar (lambda (frame) (json-object "response" frame)) frames)))
             (multiple-value-bind (result events) (metadata-test--consume provider frames)
               (let* ((snapshots (metadata-test--snapshots events))
-                     (metadata (first (last snapshots)))
+                     (metadata  (first (last snapshots)))
                      (completed (find-if (lambda (event) (typep event 'provider-completed-event)) events)))
                 (check (equal (provider-response-metadata-model metadata) "returned-model")
                        "~S/~S lost the response model" class outcome)
@@ -119,10 +121,14 @@
                 (check (equal (provider-response-metadata-finish-reason metadata)
                               (unless (eq outcome ':partial)
                                 (case protocol
-                                  (:responses-api (if (eq outcome ':success) "completed" "max_output_tokens"))
-                                  (:chat-completions (if (eq outcome ':success) "stop" "length"))
-                                  (:anthropic-messages (if (eq outcome ':success) "end_turn" "max_tokens"))
-                                  (:gemini-generate-content (if (eq outcome ':success) "STOP" "MAX_TOKENS")))))
+                                  (:responses-api
+                                   (if (eq outcome ':success) "completed" "max_output_tokens"))
+                                  (:chat-completions
+                                   (if (eq outcome ':success) "stop" "length"))
+                                  (:anthropic-messages
+                                   (if (eq outcome ':success) "end_turn" "max_tokens"))
+                                  (:gemini-generate-content
+                                   (if (eq outcome ':success) "STOP" "MAX_TOKENS")))))
                        "~S/~S lost the terminal reason before validation" class outcome)))))))))
 
 (defun test-response-reasoning-context ()
@@ -135,7 +141,7 @@
                       #())
                      "reasoning")))
     (check (equal "all_turns"
-                  (json-get (reasoning (list :reasoning-effort "high"
+                  (json-get (reasoning (list :reasoning-effort  "high"
                                              :reasoning-context "all_turns"))
                             "context"))
            "a requested reasoning context reaches the wire")
@@ -159,7 +165,7 @@
 (defun test-response-metadata-cache-counters ()
   "Distinguish omitted and invalid counters, explicit zero, and Codex placeholders."
   (let ((provider (make-instance 'model-provider))
-        (codex (make-instance 'metadata-test-codex-provider)))
+        (codex    (make-instance 'metadata-test-codex-provider)))
     (dolist (value '(nil -1 "0" 0 12))
       (dolist (usage (list (json-object "cache_creation_input_tokens" value)
                           (json-object "cache_write_tokens" value)
@@ -220,8 +226,8 @@
                  (with-input-from-string
                      (stream (metadata-test--body
                               (metadata-test--events ':responses-api
-                                                     :model (when (= attempts 1) "first-attempt")
-                                                     :cache (if (= attempts 1) 9 ':missing)
+                                                     :model   (when (= attempts 1) "first-attempt")
+                                                     :cache   (if (= attempts 1) 9 ':missing)
                                                      :outcome (if (= attempts 1) ':partial ':success))))
                    (provider-consume-stream provider stream nil callback)))
                (lambda (event) (push event emitted))
@@ -239,11 +245,11 @@
 (defun test-response-metadata-model-spelling ()
   "Preserve response model spellings and ignore nested generated model fields."
   (dolist (class '(responses-api-provider chat-completions-provider anthropic-messages-provider
-                  gemini-generate-content-provider metadata-test-code-assist-provider))
+                   gemini-generate-content-provider metadata-test-code-assist-provider))
     (let* ((provider (make-instance class))
            (protocol (provider-wire-protocol provider)))
       (dolist (model (list nil (concatenate 'string "Soukromý/模型-" (make-string 300 :initial-element #\x))))
-        (let* ((frames (metadata-test--events protocol :model model))
+        (let* ((frames  (metadata-test--events protocol :model model))
                (initial (first frames)))
           (case protocol
             (:responses-api

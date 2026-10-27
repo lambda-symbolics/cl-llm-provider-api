@@ -69,24 +69,24 @@ Two components of this length, including reserved-escape quoting, fit the
                    for character across raw
                    for lower = (char-downcase character)
                    for safe = (if (or (and (<= (char-code lower) 127)
-                                            (alphanumericp lower))
+                                           (alphanumericp lower))
                                       (member lower '(#\_ #\-) :test #'char=))
                                   lower #\_)
                    do (unless (and previous-underscore-p (char= safe #\_))
                         (write-char safe stream))
                       (setf previous-underscore-p (char= safe #\_)))))
-         (usable (if (plusp (length normalized)) normalized "unnamed"))
-         (initial (if (or (alpha-char-p (char usable 0))
-                          (char= (char usable 0) #\_))
-                        usable
-                        (concatenate 'string "tool_" usable)))
+         (usable   (if (plusp (length normalized)) normalized "unnamed"))
+         (initial  (if (or (alpha-char-p (char usable 0))
+                           (char= (char usable 0) #\_))
+                       usable
+                       (concatenate 'string "tool_" usable)))
          (combined (concatenate 'string prefix initial)))
     (subseq combined 0 (min limit (length combined)))))
 
 (defun provider-tool-identifier-map
     (raw-names &key (prefix "")
-                        (limit *provider-chat-completions-tool-identifier-limit*)
-                        identity-scope)
+                    (limit *provider-chat-completions-tool-identifier-limit*)
+                    identity-scope)
   "Map distinct RAW-NAMES to stable provider-safe identifiers.
 
 RAW-NAMES are sanitized for provider grammar. PREFIX must already be a valid
@@ -121,16 +121,16 @@ input and is useful for independent namespaces."
     (provider-tool-identifier--invalid
      'provider-tool-identifier-duplicate-error
      "Provider tool identifiers require distinct raw names."))
-  (let ((used (make-hash-table :test #'equal))
+  (let ((used   (make-hash-table :test #'equal))
         (result (make-hash-table :test #'equal)))
     (dolist (raw raw-names result)
       (let* ((hash-source (if identity-scope
                              (format nil "~D:~A~A" (length identity-scope)
                                      identity-scope raw)
                              raw))
-             (suffix (format nil "_~A"
-                             (subseq (provider-tool-identifier--hash hash-source)
-                                     0 *provider-tool-identifier-hash-characters*)))
+             (suffix      (format nil "_~A"
+                                  (subseq (provider-tool-identifier--hash hash-source)
+                                          0 *provider-tool-identifier-hash-characters*)))
              (candidate
                (loop for base-limit from (- limit (length suffix)) downto 1
                      for base = (provider-tool-identifier--base raw prefix base-limit)
@@ -145,6 +145,7 @@ input and is useful for independent namespaces."
            "Distinct provider tool names produced the same identifier."))
         (setf (gethash candidate used) t
               (gethash raw result) candidate)))))
+
 
 ;;;; -- JSON Schema Helpers --
 
@@ -200,20 +201,24 @@ not a required-name array."
     (cond ((and (vectorp required) (not (stringp required))
                 (every #'stringp required))
            (coerce required 'list))
-          ((and (listp required) (every #'stringp required)) required)
-          (t nil))))
+          ((and (listp required) (every #'stringp required))
+           required)
+          (t
+           nil))))
 
 (defun provider-schema-required-groups (schema)
   "Return complete alternative required-name groups from SCHEMA."
-  (let* ((base (provider-schema-required-names schema))
+  (let* ((base         (provider-schema-required-names schema))
          (alternatives (and (hash-table-p schema)
                             (or (gethash "oneOf" schema)
                                 (gethash "anyOf" schema))))
-         (schemas (cond ((and (vectorp alternatives)
-                              (not (stringp alternatives)))
-                         (coerce alternatives 'list))
-                        ((listp alternatives) alternatives)
-                        (t nil))))
+         (schemas      (cond ((and (vectorp alternatives)
+                                   (not (stringp alternatives)))
+                              (coerce alternatives 'list))
+                             ((listp alternatives)
+                              alternatives)
+                             (t
+                              nil))))
     (if schemas
         (mapcar (lambda (alternative)
                   (remove-duplicates
@@ -232,16 +237,18 @@ as supplied. Malformed schemas contribute no requirements."
                                         (nth-value 1 (gethash name arguments)))
                                       group))
                          (provider-schema-required-groups schema))))
-    (cond ((some #'null missing) nil)
+    (cond ((some #'null missing)
+           nil)
           ((and (rest missing)
                 (every (lambda (group) (= (length group) 1)) missing))
            (cons :one-of (mapcar #'first missing)))
-          (t (first (sort missing #'< :key #'length))))))
+          (t
+           (first (sort missing #'< :key #'length))))))
 
 (defun provider-schema-argument-placeholder (schema)
   "Return a conservative JSON placeholder matching property SCHEMA."
   (let ((enumeration (and (hash-table-p schema) (gethash "enum" schema)))
-        (type (and (hash-table-p schema) (gethash "type" schema))))
+        (type        (and (hash-table-p schema) (gethash "type" schema))))
     (cond
       ((and (vectorp enumeration)
             (not (stringp enumeration))
@@ -263,7 +270,7 @@ as supplied. Malformed schemas contribute no requirements."
 (defun provider-call-canonical-name (call)
   "Return the dotted or bare canonical name carried by JSON CALL."
   (let ((namespace (gethash "namespace" call))
-        (name (or (gethash "name" call) "")))
+        (name      (or (gethash "name" call) "")))
     (if (and (stringp namespace) (plusp (length namespace)))
         (format nil "~A.~A" namespace name)
         name)))
@@ -277,12 +284,12 @@ Namespace and tool callback results are used without reordering. NAME-FUNCTION
 returns the local name used when CANONICAL-NAMES is supplied. A supplied NIL
 CANONICAL-NAMES selects no tools; omitting the keyword selects all tools.
 DESCRIPTION-FUNCTION is called once per namespace, after grouping."
-  (let ((groups (make-hash-table :test #'equal))
-        (order '())
+  (let ((groups   (make-hash-table :test #'equal))
+        (order    '())
         (filter-p canonical-names-supplied-p))
     (dolist (tool tools)
       (let* ((namespace (funcall namespace-function tool))
-             (name (and name-function (funcall name-function tool)))
+             (name      (and name-function (funcall name-function tool)))
              (canonical (and name-function
                              (stringp name)
                              (if (and (stringp namespace) (plusp (length namespace)))

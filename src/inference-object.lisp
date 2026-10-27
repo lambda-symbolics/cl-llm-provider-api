@@ -4,37 +4,37 @@
 
 (defclass rlm-context-store ()
   ((root
-    :initarg :root
-    :reader rlm-context-store-root
-    :type pathname
+    :initarg       :root
+    :reader        rlm-context-store-root
+    :type          pathname
     :documentation "The directory holding immutable context objects."))
   (:documentation "A content-addressed store for bounded inference context."))
 
 (defclass rlm-context-object ()
   ((store
-    :initarg :store
-    :reader rlm-context-object--store
-    :type rlm-context-store
+    :initarg       :store
+    :reader        rlm-context-object--store
+    :type          rlm-context-store
     :documentation "The store whose canonical pathname owns this object.")
    (digest
-    :initarg :digest
-    :reader rlm-context-object-digest
-    :type string
+    :initarg       :digest
+    :reader        rlm-context-object-digest
+    :type          string
     :documentation "The SHA-256 content digest naming this object.")
    (label
-    :initarg :label
-    :reader rlm-context-object-label
-    :type string
+    :initarg       :label
+    :reader        rlm-context-object-label
+    :type          string
     :documentation "The short human-meaningful name shown to a model.")
    (characters
-    :initarg :characters
-    :reader rlm-context-object-characters
-    :type (integer 0)
+    :initarg       :characters
+    :reader        rlm-context-object-characters
+    :type          (integer 0)
     :documentation "The exact character count of the stored content.")
    (pathname
-    :initarg :pathname
-    :reader rlm-context-object-pathname
-    :type pathname
+    :initarg       :pathname
+    :reader        rlm-context-object-pathname
+    :type          pathname
     :documentation "The content-addressed file holding the exact content."))
   (:documentation "One immutable content-addressed context object."))
 
@@ -62,7 +62,7 @@
   (unless (rlm-context-object--digest-p digest)
     (error 'rlm-view-error
            :designator digest
-           :message "expected a lowercase 64-character SHA-256 digest"))
+           :message    "expected a lowercase 64-character SHA-256 digest"))
   (merge-pathnames (make-pathname :name digest :type "txt")
                    (rlm-context-store-root store)))
 
@@ -119,11 +119,11 @@ effect at the top level of the WITH-TEMPORARY-FILE body."
   (ensure-directories-exist pathname)
   (let ((temporary nil))
     (unwind-protect
-         (uiop:with-temporary-file (:pathname temporary-pathname
-                                    :stream stream
-                                    :keep t
-                                    :directory (rlm-context-store-root store)
-                                    :prefix "intern"
+         (uiop:with-temporary-file (:pathname        temporary-pathname
+                                    :stream          stream
+                                    :keep            t
+                                    :directory       (rlm-context-store-root store)
+                                    :prefix          "intern"
                                     :external-format :utf-8)
            (setf temporary temporary-pathname)
            (write-string content stream)
@@ -140,17 +140,17 @@ Interning identical content is idempotent. A stored object whose content no
 longer matches its digest is repaired atomically from CONTENT."
   (check-type store rlm-context-store)
   (check-type content string)
-  (let* ((digest (rlm-content-digest content))
+  (let* ((digest   (rlm-content-digest content))
          (pathname (rlm-context-object--pathname store digest)))
     (unless (and (rlm-context-object--canonical-file-p pathname)
                  (string= content (uiop:read-file-string pathname)))
       (rlm-context-object--write store pathname content))
     (make-instance 'rlm-context-object
-                   :store store
-                   :digest digest
-                   :label (or label "context")
+                   :store      store
+                   :digest     digest
+                   :label      (or label "context")
                    :characters (length content)
-                   :pathname pathname)))
+                   :pathname   pathname)))
 
 (defun rlm-context-intern-pathname (store pathname &key label)
   "Intern the file at PATHNAME, defaulting the label to its name."
@@ -161,7 +161,7 @@ longer matches its digest is repaired atomically from CONTENT."
     (error (condition)
       (error 'rlm-view-error
              :designator pathname
-             :message (format nil "~A" condition)))))
+             :message    (format nil "~A" condition)))))
 
 (defun rlm-context-object-find (store digest)
   "Return the verified object for DIGEST and its content, or NIL when absent."
@@ -170,19 +170,19 @@ longer matches its digest is repaired atomically from CONTENT."
       (unless (rlm-context-object--canonical-file-p pathname)
         (error 'rlm-view-error
                :designator digest
-               :message "the stored context object is not a canonical cache file"))
+               :message    "the stored context object is not a canonical cache file"))
       (let ((content (uiop:read-file-string pathname)))
         (unless (string= digest (rlm-content-digest content))
           (error 'rlm-view-error
                  :designator digest
-                 :message "the stored context object no longer matches its digest"))
+                 :message    "the stored context object no longer matches its digest"))
         (values
          (make-instance 'rlm-context-object
-                        :store store
-                        :digest digest
-                        :label "context"
+                        :store      store
+                        :digest     digest
+                        :label      "context"
                         :characters (length content)
-                        :pathname pathname)
+                        :pathname   pathname)
          content)))))
 
 (defun rlm-context-object-content (object)
@@ -196,13 +196,13 @@ longer matches its digest is repaired atomically from CONTENT."
                  (rlm-context-object--canonical-file-p pathname))
       (error 'rlm-view-error
              :designator object
-             :message "the context object is outside its canonical store path"))
+             :message    "the context object is outside its canonical store path"))
     (let ((content (uiop:read-file-string pathname)))
       (unless (string= (rlm-context-object-digest object)
                        (rlm-content-digest content))
         (error 'rlm-view-error
                :designator object
-               :message "the context object no longer matches its digest"))
+               :message    "the context object no longer matches its digest"))
       content)))
 
 (defun rlm-context-designator-object (store designator)
@@ -212,12 +212,14 @@ longer matches its digest is repaired atomically from CONTENT."
      (rlm-context-intern store
                          (rlm-context-object-content designator)
                          :label (rlm-context-object-label designator)))
-    (string (rlm-context-intern store designator))
-    (pathname (rlm-context-intern-pathname store designator))
+    (string
+     (rlm-context-intern store designator))
+    (pathname
+     (rlm-context-intern-pathname store designator))
     (cons
-     (let ((label (getf designator :label))
+     (let ((label   (getf designator :label))
            (content (getf designator :content))
-           (path (getf designator :path)))
+           (path    (getf designator :path)))
        (cond
          ((and (stringp content) (not path))
           (rlm-context-intern store content :label label))
@@ -226,8 +228,8 @@ longer matches its digest is repaired atomically from CONTENT."
          (t
           (error 'rlm-view-error
                  :designator designator
-                 :message "expected :label with exactly one of :content or :path")))))
+                 :message    "expected :label with exactly one of :content or :path")))))
     (t
      (error 'rlm-view-error
             :designator designator
-            :message "expected a context object, string, pathname, or plist"))))
+            :message    "expected a context object, string, pathname, or plist"))))

@@ -17,8 +17,8 @@
 (defun test-streaming-retry-budget ()
   "Exercise the tighter budget once output streamed and the full cold ladder."
   (let ((attempts 0)
-        (events nil)
-        (outcome nil))
+        (events   nil)
+        (outcome  nil))
     (handler-case
         (call-with-streaming-retries
          (lambda (event-callback)
@@ -45,7 +45,7 @@
     (check (= (count-if (lambda (event) (typep event 'provider-retry-event)) events) 4)
            "only the two permitted streaming retries produce reconnect events"))
   (let ((attempts 0)
-        (events nil))
+        (events   nil))
     (check (eq :ok (call-with-streaming-retries
                     (lambda (event-callback)
                       (declare (ignore event-callback))
@@ -76,8 +76,8 @@
                     :maximum-retries 6 :maximum-streaming-retries 1
                     :sleep-function #'retry-tests--no-sleep))
            "output on one attempt does not taint later cold attempts"))
-  (let ((sleeps nil)
-        (events nil)
+  (let ((sleeps   nil)
+        (events   nil)
         (attempts 0))
     (handler-case (call-with-streaming-retries
                    (lambda (event-callback)
@@ -109,7 +109,7 @@
   (let ((state (make-random-state t)))
     (check (every (lambda (retry)
                     (let ((delay (provider-jittered-retry-delay retry :random-state state))
-                          (base (min 50 (ash 1 (min 6 (1- retry))))))
+                          (base  (min 50 (ash 1 (min 6 (1- retry))))))
                       (and (<= 1 delay 60)
                            (<= (floor (* 0.8 base)) delay (ceiling (* 1.2 base))))))
                   '(1 2 3 4 5 6 7 8 20))
@@ -176,8 +176,8 @@
       (dolist (budget '(0 2))
         (let ((attempts 0)
               (failures nil)
-              (sleeps nil)
-              (outcome nil))
+              (sleeps   nil)
+              (outcome  nil))
           (handler-case
               (call-with-streaming-retries
                (lambda (callback)
@@ -221,7 +221,7 @@
     (check (= attempts 2) "successful recovery stops further attempts"))
   (dolist (reason '("content_filter" "safety" "future_reason"))
     (let ((attempts 0)
-          (outcome nil))
+          (outcome  nil))
       (handler-case
           (call-with-streaming-retries
            (lambda (callback)
@@ -256,7 +256,7 @@
                               (declare (ignore force-refresh-p))
                               (incf attempts)
                               (error (rejection)))
-                            :refreshable-p t
+                            :refreshable-p      t
                             :exhausted-function (lambda (condition)
                                                   (declare (ignore condition))
                                                   (error "host authentication failure")))
@@ -291,7 +291,7 @@
   (multiple-value-bind (stream sockets) (retry-tests--connected-stream)
     (unwind-protect
          (let ((*sse-inactivity-seconds* 1)
-               (started (get-universal-time)))
+               (started                  (get-universal-time)))
            (check (handler-case (progn (sse-read-line-within-inactivity-deadline stream) nil)
                     (response-stream-error (condition)
                       (search "delivered nothing" (provider-api-error-message condition))))
@@ -343,7 +343,7 @@
            (multiple-value-bind (body status)
                (provider-post-event-stream (format nil "http://127.0.0.1:~D/stream" port)
                                            "{\"stream\":true}"
-                                           :headers '(("Accept" . "text/event-stream"))
+                                           :headers          '(("Accept" . "text/event-stream"))
                                            :deadline-seconds 10)
              (unwind-protect
                   (progn

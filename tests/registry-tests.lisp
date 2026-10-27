@@ -10,7 +10,7 @@
 (defun registry-tests--registry (&rest arguments)
   "Return a registry with small defaults, adjusted by ARGUMENTS."
   (apply #'provider-registry-create
-         (append arguments (list :default-context-window 1000
+         (append arguments (list :default-context-window    1000
                                  :default-reasoning-efforts '("low" "high")))))
 
 (defun registry-tests--names (registrations)
@@ -29,7 +29,7 @@
 
 (defun test-registry-layers ()
   "Exercise source precedence, shadowing, removal and change notification."
-  (let* ((changes 0)
+  (let* ((changes  0)
          (registry (registry-tests--registry :change-function (lambda (registry)
                                                                  (declare (ignore registry))
                                                                  (incf changes)))))
@@ -79,7 +79,7 @@
 (defun test-registry-validation ()
   "Exercise model normalization, defaults and refused registrations."
   (let ((registry (registry-tests--registry)))
-    (let ((plain (provider-model-create registry "plain"))
+    (let ((plain    (provider-model-create registry "plain"))
           (declared (provider-model-create registry '(:name "big" :context-window 9000
                                                       :reasoning-efforts ("max")))))
       (check (and (= (provider-model-context-window plain) 1000)
@@ -101,7 +101,7 @@
                                                                             :factory #'identity))
                          (lambda () (provider-registry-register registry "p" :models '("m")
                                                                             :factory #'identity
-                                                                            :source :nowhere))
+                                                                            :source  :nowhere))
                          (lambda () (provider-registry-create :sources '(:a :a)))
                          (lambda () (provider-registry-refresh-models registry nil
                                                                       :provider-name "missing"))))
@@ -113,22 +113,22 @@
 
 (defun test-registry-discovery-and-cache ()
   "Exercise merged discovery, failures, retention, the cache and snapshots."
-  (let* ((store nil)
+  (let* ((store      nil)
          (discovered '((:name "declared" :context-window 7000) "found"))
-         (failing-p nil)
-         (registry (registry-tests--registry
-                    :cache-read-function (lambda (context)
-                                           (getf store context))
-                    :cache-write-function (lambda (context form)
-                                            (setf (getf store context) form))))
-         (discovery (lambda (context)
-                      (declare (ignore context))
-                      (when failing-p
-                        (error "discovery is down"))
-                      discovered)))
-    (provider-registry-register registry "dynamic" :models '("declared")
-                                                   :factory #'registry-tests--factory
-                                                   :model-discovery discovery
+         (failing-p  nil)
+         (registry   (registry-tests--registry
+                      :cache-read-function  (lambda (context)
+                                              (getf store context))
+                      :cache-write-function (lambda (context form)
+                                              (setf (getf store context) form))))
+         (discovery  (lambda (context)
+                       (declare (ignore context))
+                       (when failing-p
+                         (error "discovery is down"))
+                       discovered)))
+    (provider-registry-register registry "dynamic" :models                   '("declared")
+                                                   :factory                  #'registry-tests--factory
+                                                   :model-discovery          discovery
                                                    :model-discovery-endpoint "https://example.test/models")
     (check (null (provider-registry-refresh-models registry :home)) "a successful refresh has no failures")
     (let ((models (provider-registration-models (provider-registry-find registry "dynamic"))))
@@ -145,21 +145,21 @@
                   (string= (provider-model-discovery-error-provider-name (first failures)) "dynamic"))
              "a failed refresh is returned, not signaled"))
     (check (provider-registry-model registry "found") "a failed refresh keeps the last models")
-    (provider-registry-register registry "dynamic" :models '("declared")
-                                                   :factory #'registry-tests--factory
-                                                   :model-discovery discovery
+    (provider-registry-register registry "dynamic" :models                   '("declared")
+                                                   :factory                  #'registry-tests--factory
+                                                   :model-discovery          discovery
                                                    :model-discovery-endpoint "https://example.test/models")
     (check (provider-registry-model registry "found")
            "re-registering an unchanged discovering provider keeps its discovered models")
     (let ((fresh (registry-tests--registry :cache-read-function (lambda (context)
                                                                   (getf store context)))))
-      (provider-registry-register fresh "dynamic" :models '("declared")
-                                                  :factory #'registry-tests--factory
-                                                  :model-discovery discovery
+      (provider-registry-register fresh "dynamic" :models                   '("declared")
+                                                  :factory                  #'registry-tests--factory
+                                                  :model-discovery          discovery
                                                   :model-discovery-endpoint "https://example.test/models")
-      (provider-registry-register fresh "moved" :models '("declared-elsewhere")
-                                                :factory #'registry-tests--factory
-                                                :model-discovery discovery
+      (provider-registry-register fresh "moved" :models                   '("declared-elsewhere")
+                                                :factory                  #'registry-tests--factory
+                                                :model-discovery          discovery
                                                 :model-discovery-endpoint "https://other.test/models")
       (provider-registry-load-model-cache fresh :home)
       (check (provider-registry-model fresh "found") "a new registry adopts cached models")
@@ -169,8 +169,8 @@
                                      (rest (rest (rest (getf store :home))))))
       (let ((stale (registry-tests--registry :cache-read-function (lambda (context)
                                                                     (getf store context)))))
-        (provider-registry-register stale "dynamic" :models '("declared")
-                                                    :factory #'registry-tests--factory
+        (provider-registry-register stale "dynamic" :models          '("declared")
+                                                    :factory         #'registry-tests--factory
                                                     :model-discovery discovery
                                                     :model-discovery-endpoint
                                                     "https://example.test/models")
@@ -212,7 +212,7 @@
                                                 :factory #'registry-tests--factory)
     (let ((registered (make-instance 'model-provider
                                      :registration (provider-registry-find registry "acme")))
-          (bare (make-instance 'model-provider)))
+          (bare       (make-instance 'model-provider)))
       (check (and (string= (provider-account-label registered) "Acme")
                   (eq (provider-family registered) :acme))
              "a registered provider is labelled and classified by its registration")

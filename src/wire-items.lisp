@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defun responses-developer-message (instructions)
   "Return a standard Responses developer message containing INSTRUCTIONS."
   (json-object "type" "message" "role" "developer" "content"

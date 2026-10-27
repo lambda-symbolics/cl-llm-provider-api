@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defparameter *provider-error-body-deadline-seconds*
   2
   "Maximum seconds spent reading an optional provider error body.")
@@ -38,10 +37,10 @@ failures are diagnostic-only, and STREAM is always abort-closed."
         (lambda ()
           (if (subtypep (stream-element-type stream) 'character)
               (let* ((buffer (make-string 4000))
-                     (end (read-character-sequence buffer stream)))
+                     (end    (read-character-sequence buffer stream)))
                 (and (plusp end) (subseq buffer 0 end)))
               (let* ((buffer (make-array 4000 :element-type '(unsigned-byte 8)))
-                     (end (read-sequence buffer stream)))
+                     (end    (read-sequence buffer stream)))
                 (and (plusp end)
                      (sb-ext:octets-to-string (subseq buffer 0 end) :external-format
                                               ':utf-8))))))
@@ -54,14 +53,16 @@ failures are diagnostic-only, and STREAM is always abort-closed."
 Strings pass through, streams are drained and closed under the diagnostic body
 deadline, and octet vectors are decoded as UTF-8."
   (handler-case
-   (cond ((stringp content) (and (plusp (length content)) content))
-         ((streamp content) (provider--drain-error-body content))
+   (cond ((stringp content)
+          (and (plusp (length content)) content))
+         ((streamp content)
+          (provider--drain-error-body content))
          ((and (vectorp content) (plusp (length content)))
           (sb-ext:octets-to-string (coerce content '(vector (unsigned-byte 8)))
                                    :external-format ':utf-8))
-         (t nil))
+         (t
+          nil))
    (error nil nil)))
-
 
 ;;;; -- Credential Refresh --
 
@@ -84,4 +85,3 @@ resignaled."
                    (when exhausted-function
                      (funcall exhausted-function condition))
                    (error condition)))))))
-

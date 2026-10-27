@@ -4,14 +4,14 @@
 
 (define-condition rlm-view-error (error)
   ((designator
-    :initarg :designator
-    :reader rlm-view-error-designator
-    :type t
+    :initarg       :designator
+    :reader        rlm-view-error-designator
+    :type          t
     :documentation "The view designator that could not be materialized.")
    (message
-    :initarg :message
-    :reader rlm-view-error-message
-    :type string
+    :initarg       :message
+    :reader        rlm-view-error-message
+    :type          string
     :documentation "The concise materialization failure."))
   (:documentation "A context view designator could not be materialized.")
   (:report
@@ -22,24 +22,24 @@
 
 (defclass rlm-view ()
   ((label
-    :initarg :label
-    :reader rlm-view-label
-    :type string
+    :initarg       :label
+    :reader        rlm-view-label
+    :type          string
     :documentation "The short name identifying this view inside the frame.")
    (origin
-    :initarg :origin
-    :reader rlm-view-origin
-    :type string
+    :initarg       :origin
+    :reader        rlm-view-origin
+    :type          string
     :documentation "The literal marker or pathname the content came from.")
    (content
-    :initarg :content
-    :reader rlm-view-content
-    :type string
+    :initarg       :content
+    :reader        rlm-view-content
+    :type          string
     :documentation "The exact read-only text the frame sees.")
    (digest
-    :initarg :digest
-    :reader rlm-view-digest
-    :type string
+    :initarg       :digest
+    :reader        rlm-view-digest
+    :type          string
     :documentation "The SHA-256 content digest recorded for provenance."))
   (:documentation "One materialized read-only context block."))
 
@@ -54,10 +54,10 @@
 (defun rlm-view--create (label origin content)
   "Create a materialized view of CONTENT with provenance LABEL and ORIGIN."
   (make-instance 'rlm-view
-                 :label label
-                 :origin origin
+                 :label   label
+                 :origin  origin
                  :content content
-                 :digest (rlm-content-digest content)))
+                 :digest  (rlm-content-digest content)))
 
 (defun rlm-view--from-pathname (pathname label)
   "Materialize the file at PATHNAME, defaulting LABEL to its name."
@@ -67,22 +67,22 @@
             (error (condition)
               (error 'rlm-view-error
                      :designator pathname
-                     :message (format nil "~A" condition))))))
+                     :message    (format nil "~A" condition))))))
     (rlm-view--create (or label (file-namestring pathname))
                       (namestring pathname)
                       content)))
 
 (defun rlm-view--from-plist (designator)
   "Materialize a (:LABEL ... :CONTENT ...) or (:LABEL ... :PATH ...) plist."
-  (let ((label (getf designator :label))
+  (let ((label   (getf designator :label))
         (content (getf designator :content))
-        (path (getf designator :path)))
+        (path    (getf designator :path)))
     (unless (and (or (null label) (stringp label))
                  (or (stringp content) (pathnamep path))
                  (not (and content path)))
       (error 'rlm-view-error
              :designator designator
-             :message "expected :label with exactly one of :content or :path"))
+             :message    "expected :label with exactly one of :content or :path"))
     (if content
         (rlm-view--create (or label "literal") "literal" content)
         (rlm-view--from-pathname path label))))
@@ -90,19 +90,24 @@
 (defun rlm-view-materialize (designator)
   "Materialize one view DESIGNATOR: a string, pathname, plist, or RLM-VIEW."
   (typecase designator
-    (rlm-view designator)
-    (string (rlm-view--create "literal" "literal" designator))
-    (pathname (rlm-view--from-pathname designator nil))
-    (cons (rlm-view--from-plist designator))
-    (t (error 'rlm-view-error
-              :designator designator
-              :message "expected a string, pathname, view plist, or RLM-VIEW"))))
+    (rlm-view
+     designator)
+    (string
+     (rlm-view--create "literal" "literal" designator))
+    (pathname
+     (rlm-view--from-pathname designator nil))
+    (cons
+     (rlm-view--from-plist designator))
+    (t
+     (error 'rlm-view-error
+            :designator designator
+            :message    "expected a string, pathname, view plist, or RLM-VIEW"))))
 
 (defun rlm-views-materialize (designators)
   "Materialize DESIGNATORS in order, numbering duplicate labels."
-  (let ((views (mapcar #'rlm-view-materialize designators))
+  (let ((views  (mapcar #'rlm-view-materialize designators))
         (counts (make-hash-table :test #'equal))
-        (seen (make-hash-table :test #'equal)))
+        (seen   (make-hash-table :test #'equal)))
     (dolist (view views)
       (incf (gethash (rlm-view-label view) counts 0)))
     (loop for view in views

@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (deftype json-object () 'hash-table)
 
 (deftype non-empty-string () '(and string (satisfies non-empty-string-p)))
@@ -39,7 +38,7 @@
                       (format nil "JSON object key ~S is not a string." key))) (setf (gethash
                                                                                       key
                                                                                       object)
-                                                                                       value))
+                                                                                     value))
     object))
 
 (defun json-array (&rest elements)
@@ -88,7 +87,8 @@ OBJECT so that re-encoding preserves the distinction from JSON null."
 
 (defun json--encoding-value (value)
   "Return VALUE with decoded-false markers translated for Yason encoding."
-  (cond ((eq value *json-decoded-false*) yason:false)
+  (cond ((eq value *json-decoded-false*)
+         yason:false)
         ((json-object-p value)
          (let ((copy
                 (make-hash-table :test (hash-table-test value) :size
@@ -97,9 +97,14 @@ OBJECT so that re-encoding preserves the distinction from JSON null."
             (lambda (key child) (setf (gethash key copy) (json--encoding-value child)))
             value)
            copy))
-        ((stringp value) value)
-        ((vectorp value) (map 'vector #'json--encoding-value value))
-        ((consp value) (mapcar #'json--encoding-value value)) (t value)))
+        ((stringp value)
+         value)
+        ((vectorp value)
+         (map 'vector #'json--encoding-value value))
+        ((consp value)
+         (mapcar #'json--encoding-value value))
+        (t
+         value)))
 
 (defun json-encode (value)
   "Encode VALUE as a compact JSON string."
@@ -107,10 +112,10 @@ OBJECT so that re-encoding preserves the distinction from JSON null."
 
 (defun json-decode (source)
   "Decode one JSON value from SOURCE without conflating false and null."
-  (let ((yason:*parse-json-arrays-as-vectors* t)
+  (let ((yason:*parse-json-arrays-as-vectors*   t)
         (yason:*parse-json-booleans-as-symbols* t)
-        (yason:true t)
-        (yason:false *json-decoded-false*))
+        (yason:true                             t)
+        (yason:false                            *json-decoded-false*))
     (yason:parse source)))
 
 (defun json-object-source-p (source)
@@ -118,10 +123,10 @@ OBJECT so that re-encoding preserves the distinction from JSON null."
   (and (stringp source)
        (handler-case
         (with-input-from-string (stream source)
-          (let ((yason:*parse-json-arrays-as-vectors* t)
+          (let ((yason:*parse-json-arrays-as-vectors*   t)
                 (yason:*parse-json-booleans-as-symbols* t)
-                (yason:true t)
-                (yason:false *json-decoded-false*))
+                (yason:true                             t)
+                (yason:false                            *json-decoded-false*))
             (let ((value (yason:parse stream)))
               (loop for character = (peek-char nil stream nil nil)
                     while (and character

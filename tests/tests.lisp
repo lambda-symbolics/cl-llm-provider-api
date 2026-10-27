@@ -24,24 +24,24 @@
     (funcall event-callback
              (make-instance 'assistant-delta-event :text "hello")))
   (make-instance 'provider-result
-                 :response-id "response-1"
-                 :output-items (list conversation)
-                 :usage '(:total-tokens 7)
+                 :response-id     "response-1"
+                 :output-items    (list conversation)
+                 :usage           '(:total-tokens 7)
                  :turn-completion :end))
 
 (defun test-provider-values ()
   "Exercise portable provider events and results."
-  (let ((delta (make-instance 'assistant-delta-event :text "part"))
+  (let ((delta     (make-instance 'assistant-delta-event :text "part"))
         (reasoning (make-instance 'reasoning-delta-event :text "summary"))
-        (item (make-instance 'provider-item-event :item '(:kind :message)))
+        (item      (make-instance 'provider-item-event :item '(:kind :message)))
         (completed (make-instance 'provider-completed-event
-                                  :response-id "r"
-                                  :usage '(:tokens 4)
+                                  :response-id     "r"
+                                  :usage           '(:tokens 4)
                                   :turn-completion :continue))
-        (retry (make-instance 'provider-retry-event
-                              :attempt 2
-                              :maximum-attempts 4
-                              :delay 0.5)))
+        (retry     (make-instance 'provider-retry-event
+                                  :attempt          2
+                                  :maximum-attempts 4
+                                  :delay            0.5)))
     (check (typep delta 'provider-event) "delta is not a provider event")
     (check (string= (assistant-delta-event-text delta) "part")
            "assistant delta lost its text")
@@ -61,14 +61,14 @@
 (defun test-provider-protocol ()
   "Exercise generic provider and wire protocol defaults."
   (let* ((provider (make-instance 'test-responses-provider
-                                  :registration '(:name "test")
-                                  :configuration '(:model "test-model")
+                                  :registration       '(:name "test")
+                                  :configuration      '(:model "test-model")
                                   :credential-manager ':test-credentials
-                                  :session-id "session-1"))
-         (events nil)
-         (result (provider-stream-turn
-                  provider '(:role :user)
-                  :event-callback (lambda (event) (push event events)))))
+                                  :session-id         "session-1"))
+         (events   nil)
+         (result   (provider-stream-turn
+                    provider '(:role :user)
+                    :event-callback (lambda (event) (push event events)))))
      (check (eq (provider-family provider) :custom)
             "provider family default is not custom")
      (check (equal (model-provider-registration provider) '(:name "test"))
@@ -140,7 +140,7 @@
                (and (eq (rlm-budget-exhausted-dimension condition) :calls)
                     (string= (rlm-budget-exhausted-task condition) "again"))))
            "drained call budget did not identify its dimension and task"))
-  (let* ((root (rlm-budget-create :calls 2 :tokens 50 :depth 1))
+  (let* ((root  (rlm-budget-create :calls 2 :tokens 50 :depth 1))
          (child (rlm-budget-descend root :task "child")))
     (check (zerop (rlm-budget-remaining-depth child))
            "descended budget did not spend depth")
@@ -170,8 +170,8 @@
 
 (defun test-inference-budget-contention ()
   "Exercise atomic reservations under concurrent acquisition."
-  (let* ((budget (rlm-budget-create :calls 16 :tokens 100 :depth 1))
-         (lock (bordeaux-threads:make-lock "budget test results"))
+  (let* ((budget   (rlm-budget-create :calls 16 :tokens 100 :depth 1))
+         (lock     (bordeaux-threads:make-lock "budget test results"))
          (tranches nil)
          (refusals 0))
     (mapc #'bordeaux-threads:join-thread
@@ -217,7 +217,7 @@
 
 (defun call-with-temporary-directory (function)
   "Call FUNCTION with a fresh directory and remove it afterwards."
-  (let* ((base (uiop:temporary-directory))
+  (let* ((base      (uiop:temporary-directory))
          (directory (merge-pathnames
                      (format nil "cl-llm-provider-api-~36R/" (random (expt 36 8)))
                      base)))
@@ -230,8 +230,8 @@
   "Exercise content-addressed context storage and integrity checks."
   (call-with-temporary-directory
    (lambda (directory)
-     (let* ((store (rlm-context-store-create directory))
-            (first (rlm-context-intern store "durable context" :label "notes"))
+     (let* ((store  (rlm-context-store-create directory))
+            (first  (rlm-context-intern store "durable context" :label "notes"))
             (second (rlm-context-intern store "durable context")))
        (check (string= (rlm-context-object-digest first)
                        (rlm-context-object-digest second))
@@ -266,23 +266,23 @@
   (call-with-temporary-directory
    (lambda (directory)
      (let* ((*default-pathname-defaults* directory)
-            (store (rlm-context-store-create #P"objects/"))
-            (object (rlm-context-intern store "confined context"))
-            (outside (merge-pathnames "outside.txt" directory)))
+            (store                       (rlm-context-store-create #P"objects/"))
+            (object                      (rlm-context-intern store "confined context"))
+            (outside                     (merge-pathnames "outside.txt" directory)))
        (check (uiop:absolute-pathname-p (rlm-context-store-root store))
               "relative context store root was not made absolute")
        (with-open-file (stream outside
-                               :direction :output
-                               :if-exists :supersede
+                               :direction         :output
+                               :if-exists         :supersede
                                :if-does-not-exist :create)
          (write-string "confined context" stream))
        (let ((forged
                (make-instance 'rlm-context-object
-                              :store store
-                              :digest (rlm-context-object-digest object)
-                              :label "forged"
+                              :store      store
+                              :digest     (rlm-context-object-digest object)
+                              :label      "forged"
                               :characters (length "confined context")
-                              :pathname outside)))
+                              :pathname   outside)))
          (check (handler-case
                     (progn (rlm-context-object-content forged) nil)
                   (rlm-view-error () t))
@@ -290,7 +290,7 @@
        (call-with-temporary-directory
         (lambda (other-directory)
           (let* ((other-store (rlm-context-store-create other-directory))
-                 (copied (rlm-context-designator-object other-store object)))
+                 (copied      (rlm-context-designator-object other-store object)))
             (check (string= (rlm-context-object-content copied)
                             "confined context")
                    "foreign context object did not retain its content")
@@ -365,8 +365,8 @@
 (defun test-bounded-retries ()
   "Exercise the bounded retry ladder and its events."
   (let ((attempts 0)
-        (events nil)
-        (slept nil))
+        (events   nil)
+        (slept    nil))
     (flet ((event (event) (push event events))
            (nap (delay) (push delay slept)))
       (check (eq (call-with-bounded-retries
@@ -377,7 +377,7 @@
                                :message "transient")
                         ':done))
                   #'event
-                  :delays '(1 2 4)
+                  :delays         '(1 2 4)
                   :sleep-function #'nap)
                  ':done)
              "a recovering attempt did not return its value")
@@ -397,24 +397,24 @@
                     (incf attempts)
                     (error 'provider-retryable-error :message "persistent"))
                   (lambda (event) (declare (ignore event)))
-                  :delays '(1)
+                  :delays         '(1)
                   :sleep-function (lambda (delay) (declare (ignore delay))))
                  nil)
              (provider-retryable-error () (= attempts 2)))
            "an exhausted ladder did not propagate the final failure")
     (let ((resamples 0)
-          (events nil))
+          (events    nil))
       (check (eq (call-with-bounded-retries
                   (lambda ()
                     (incf resamples)
                     (if (< resamples 2)
                         (error 'provider-resample-requested
-                               :message "degenerate"
-                               :attempt 1
+                               :message          "degenerate"
+                               :attempt          1
                                :maximum-attempts 3)
                         ':sampled))
                   (lambda (event) (push event events))
-                  :delays '(1)
+                  :delays         '(1)
                   :sleep-function (lambda (delay) (declare (ignore delay))))
                  ':sampled)
              "a resample request did not restart the attempt")
@@ -422,7 +422,6 @@
                   (zerop (provider-retry-event-delay (first events)))
                   (= (provider-retry-event-maximum-attempts (first events)) 3))
              "the resample event did not reflect the provider budget"))))
-
 
 (defun run-tests ()
   "Run every cl-llm-provider-api test."

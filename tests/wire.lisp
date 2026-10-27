@@ -1,6 +1,5 @@
 (in-package #:cl-llm-provider-api)
 
-
 (defvar *wire-test-checks* 0)
 
 (defun test-assert (value message)
@@ -23,7 +22,7 @@
 (defmethod sb-gray:stream-read-char ((stream test-character-input-stream))
   "Read one character from STREAM, returning the Gray-stream EOF marker at its end."
   (let ((position (test-character-input-stream-position stream))
-        (source (test-character-input-stream-source stream)))
+        (source   (test-character-input-stream-source stream)))
     (if (< position (length source))
         (prog1 (char source position)
           (incf (test-character-input-stream-position stream)))
@@ -143,7 +142,7 @@
       "opaque-test-ciphertext")
      "completed encrypted reasoning remains available for replay")
     (let* ((reasoning-output (second (provider-result-output-items result)))
-           (summary (response-item-reasoning-summary reasoning-output)))
+           (summary          (response-item-reasoning-summary reasoning-output)))
       (test-assert
        (string= summary
                 (format nil "I inspected the request.~2%I chose a safe response."))

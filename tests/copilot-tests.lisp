@@ -11,7 +11,7 @@
     (check (eq (copilot-model-protocol (cl-llm-provider-api::json-object "id" "x"
                                                      "supported_endpoints"
                                                      (vector "/unknown")))
-                :unsupported)
+               :unsupported)
            "unknown Copilot route was not rejected")
     (let ((models (copilot-model-catalog
                    (cl-llm-provider-api::json-object "data"
@@ -55,9 +55,9 @@
                                        (entry "blocked" :state "disabled")
                                        (entry "no-tools" :tools :json-false)
                                        (entry "unsupported" :endpoint "/unknown"))))
-             (models (copilot-model-catalog
-                      document :enable-model-function
-                      (lambda (id) (push id enabled) t))))
+             (models   (copilot-model-catalog
+                        document :enable-model-function
+                        (lambda (id) (push id enabled) t))))
         (check (equal enabled '("allowed"))
                "Policy enablement must be limited to unique eligible tool models")
         (check (equal (mapcar (lambda (model) (getf model :name)) models) '("allowed"))
@@ -70,7 +70,7 @@
                "Personal fallback must include an enabled tool model")
         (check (null (copilot-model-catalog document))
                "Business discovery must preserve picker restrictions"))))
-  (check (string= (copilot-base-url "token" )
+  (check (string= (copilot-base-url "token")
                   "https://api.individual.githubcopilot.com")
          "Copilot default base URL is wrong")
   (check (string= (copilot-base-url "proxy-ep=proxy.foo.githubcopilot.com")
@@ -114,26 +114,25 @@
                   "anthropic-version"))
            "Anthropic version leaked into Responses headers")))
 
-
 (defun test-copilot-auto-wire ()
   "Exercise Auto entitlement decoding, concrete protocols, capability filtering, and secrecy."
   (flet ((object (&rest fields)
            (apply #'cl-llm-provider-api::json-object fields)))
-    (let* ((request (copilot-auto-session-request))
-           (chat (object "id" "chat" "model_picker_enabled" :json-false
-                         "supported_endpoints" (vector "/chat/completions")
-                         "capabilities" (object "limits" (object "max_prompt_tokens" 4096))))
-           (responses (object "id" "responses" "model_picker_enabled" :json-false
-                              "supported_endpoints" (vector "/responses")
-                              "capabilities" (object "limits" (object "max_prompt_tokens" 8192)
-                                                     "supports" (object "vision" t))))
-           (messages (object "id" "messages" "model_picker_enabled" :json-false
-                             "supported_endpoints" (vector "/v1/messages")))
-           (no-tools (object "id" "no-tools" "capabilities"
-                             (object "supports" (object "tool_calls" :json-false))))
+    (let* ((request     (copilot-auto-session-request))
+           (chat        (object "id" "chat" "model_picker_enabled" :json-false
+                                "supported_endpoints" (vector "/chat/completions")
+                                "capabilities" (object "limits" (object "max_prompt_tokens" 4096))))
+           (responses   (object "id" "responses" "model_picker_enabled" :json-false
+                                "supported_endpoints" (vector "/responses")
+                                "capabilities" (object "limits" (object "max_prompt_tokens" 8192)
+                                                       "supports" (object "vision" t))))
+           (messages    (object "id" "messages" "model_picker_enabled" :json-false
+                                "supported_endpoints" (vector "/v1/messages")))
+           (no-tools    (object "id" "no-tools" "capabilities"
+                                (object "supports" (object "tool_calls" :json-false))))
            (unsupported (object "id" "unsupported" "supported_endpoints" (vector "/unknown")))
-           (document (object "data" (vector chat responses messages no-tools unsupported)))
-           (token "session-secret"))
+           (document    (object "data" (vector chat responses messages no-tools unsupported)))
+           (token       "session-secret"))
       (check (and (hash-table-p request)
                   (equalp (gethash "model_hints" (gethash "auto_mode" request)) (vector "auto")))
              "Auto must request an authorized session with an object body")
@@ -162,8 +161,8 @@
                       ("chat" t "responses")))
         (let* ((session (object "available_models" (vector "unknown" "messages" "responses" "chat")
                                 "session_token" token "expires_at" 10))
-               (model (copilot-auto-session-model session document
-                                                 :preferred-model (first spec) :vision-p (second spec))))
+               (model   (copilot-auto-session-model session document
+                                                   :preferred-model (first spec) :vision-p (second spec))))
           (check (equal (getf model :name) (third spec))
                  "Auto must select only offered capable models, honoring affinity and server order")))
       (dolist (session

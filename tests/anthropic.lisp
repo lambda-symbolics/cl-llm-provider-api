@@ -60,7 +60,7 @@
 (defun anthropic-provider-test--stream-decoding ()
   "Test Anthropic SSE decoding into a normalized provider result."
   (let* ((provider (make-instance 'anthropic-messages-provider))
-         (events nil)
+         (events   nil)
          (result
            (anthropic-provider-test--consume
             provider
@@ -102,8 +102,8 @@
              (anthropic-provider-test--message-delta "tool_use")
              (json-object "type" "message_stop"))
             :event-callback (lambda (event) (push event events))))
-         (usage (provider-result-usage result))
-         (call (first (provider-result-tool-calls result))))
+         (usage    (provider-result-usage result))
+         (call     (first (provider-result-tool-calls result))))
     (test-assert (string= (provider-result-response-id result) "msg-test")
                  "Anthropic streams retain the message identifier")
     (test-assert (= (length (provider-result-output-items result)) 2)
@@ -225,8 +225,8 @@
             (not (typep condition 'provider-retryable-error))
             (search "pause_turn" (provider-api-error-message condition)))
        "pause_turn is rejected instead of starting a blind follow-up"))
-    (let* ((credential "synthetic-credential-in-stream")
-           (*provider-active-credential-values* (list credential))
+    (let* ((credential                                    "synthetic-credential-in-stream")
+           (*provider-active-credential-values*           (list credential))
            (*provider-active-credential-redaction-marker* "[REDACTED]")
            (condition
              (anthropic-provider-test--consume-condition
@@ -243,8 +243,8 @@
 
 (defun anthropic-provider-test--stream-ordering ()
   "Test that live and completed Anthropic blocks retain wire order."
-  (let* ((provider (make-instance 'anthropic-messages-provider))
-         (events nil)
+  (let* ((provider       (make-instance 'anthropic-messages-provider))
+         (events         nil)
          (result
            (anthropic-provider-test--consume
             provider
@@ -261,7 +261,7 @@
              (anthropic-provider-test--message-delta "end_turn")
              (json-object "type" "message_stop"))
             :event-callback (lambda (event) (push event events))))
-         (items (provider-result-output-items result))
+         (items          (provider-result-output-items result))
          (ordered-events (nreverse events))
          (item-events
            (remove-if-not (lambda (event) (typep event 'provider-item-event))
@@ -292,7 +292,7 @@
 (defun anthropic-provider-test--stream-lifecycle ()
   "Test representative Anthropic stream lifecycle schema violations."
   (let* ((provider (make-instance 'anthropic-messages-provider))
-         (start (anthropic-provider-test--message-start))
+         (start    (anthropic-provider-test--message-start))
          (text-start
            (json-object "type" "content_block_start" "index" 0
                         "content_block"
@@ -325,18 +325,16 @@
          "Anthropic lifecycle schema violations signal typed failures"))))
   nil)
 
-
 (defun anthropic-provider-test--request-condition (provider items)
   "Return the terminal condition while encoding projected ITEMS, or NIL."
   (handler-case
    (progn
     (provider-request-object provider
                              (make-instance 'wire-request :model "claude-haiku-4-5-20251001"
-                                            :items items)
+                                            :items               items)
                              #())
     nil)
    (provider-error (condition) condition)))
-
 
 (defun anthropic-provider-test--request-conversion-failures ()
   "Test representative failures for persisted content Anthropic cannot preserve."
@@ -384,7 +382,6 @@
        "an all-unsupported tool result uses a bounded textual fallback")))
   nil)
 
-
 (defun anthropic-provider-test--request-encoding ()
   "Test Messages request shape: system blocks, alternation, and tool encoding."
   (let* ((provider (make-instance 'anthropic-messages-provider))
@@ -422,8 +419,8 @@
                                                                                    "object")))))))
       (declare (ignore delivery))
       (let ((messages (json-get request "messages"))
-            (system (json-get request "system"))
-            (tools (json-get request "tools")))
+            (system   (json-get request "system"))
+            (tools    (json-get request "tools")))
         (test-assert (string= (json-get request "model") "claude-haiku-4-5-20251001")
          "the request selects the configured Claude model")
         (test-assert
@@ -451,7 +448,7 @@
             '("text" "tool_use"))
            "assistant messages join text and tool_use blocks in order"))
         (let* ((final-user (first (last (coerce messages 'list))))
-               (content (json-get final-user "content")))
+               (content    (json-get final-user "content")))
           (test-assert
            (equal
             (loop for block across content
@@ -502,7 +499,6 @@
              "wire tool names round-trip through the readable encoding"))))))
   nil)
 
-
 (defun anthropic-provider-test--portable-content ()
   "Test cross-provider refusal and multimodal tool-result encoding."
   (let* ((provider (make-instance 'anthropic-messages-provider))
@@ -537,7 +533,7 @@
                     thereis (loop for block across (json-get message "content")
                                   when (json-string= (json-get block "type")
                                                      "tool_result") return block)))
-             (content (and tool-result (json-get tool-result "content")))
+             (content  (and tool-result (json-get tool-result "content")))
              (refusal-text
               (loop for message across messages
                     thereis (and (json-string= (json-get message "role") "assistant")
@@ -569,10 +565,9 @@
          "durable refusal content becomes Anthropic assistant text"))))
   nil)
 
-
 (defun anthropic-provider-test--cache-boundaries ()
   "Test explicit cache boundaries using only projected request values."
-  (let* ((provider (make-instance 'anthropic-messages-provider))
+  (let* ((provider          (make-instance 'anthropic-messages-provider))
          (items
            (list (json-object "type" "message" "role" "user" "content" "question")
                  (json-object "type" "message" "role" "assistant" "content" "answer")))
@@ -590,10 +585,10 @@
          (projection
            (make-instance 'wire-request :model "claude-test" :items items
                           :prefix '("prefix") :suffix '("suffix")
-                          :options (list :ephemeral-items ephemeral
+                          :options (list :ephemeral-items       ephemeral
                                          :maximum-output-tokens 12)))
-         (request (provider-request-object provider projection tools))
-         (messages (json-get request "messages"))
+         (request           (provider-request-object provider projection tools))
+         (messages          (json-get request "messages"))
          (assistant-content (json-get (aref messages 1) "content")))
     (test-assert
      (and (= (json-get request "max_tokens") 12)
@@ -630,8 +625,8 @@
              (provider-request-object
               provider
               (make-instance 'wire-request :model "claude-test"
-                             :items (append items guidance)
-                             :prefix '("prefix"))
+                             :items               (append items guidance)
+                             :prefix              '("prefix"))
               #()))
            (content (json-get (aref (json-get request "messages") 2) "content")))
       (test-assert
@@ -643,9 +638,9 @@
 
 (defun anthropic-provider-test--execution ()
   "Exercise injected transport, deadlines, cleanup, and secret-safe semantic events."
-  (let* ((provider (make-instance 'anthropic-messages-provider))
-         (secret "synthetic-anthropic-secret")
-         (request (json-object "model" "claude-test"))
+  (let* ((provider       (make-instance 'anthropic-messages-provider))
+         (secret         "synthetic-anthropic-secret")
+         (request        (json-object "model" "claude-test"))
          (source
            (anthropic-provider-test--stream-source
             (list (anthropic-provider-test--message-start :id secret)
@@ -654,28 +649,28 @@
                   (json-object "type" "content_block_stop" "index" 0)
                   (anthropic-provider-test--message-delta "end_turn")
                   (json-object "type" "message_stop"))))
-         (stream (make-string-input-stream source))
-         (cleaned-p nil)
+         (stream         (make-string-input-stream source))
+         (cleaned-p      nil)
          (deadline-calls 0)
-         (completed-p nil)
-         (events nil)
+         (completed-p    nil)
+         (events         nil)
          (result
            (provider-execute-request
             provider request :secrets (list secret)
-            :transport (lambda (projected)
-                         (test-assert (eq projected request)
-                                      "transport receives the projected request")
-                         (values stream 200 (list (cons "request-id" secret))))
-            :call-with-deadline (lambda (function)
-                                  (incf deadline-calls)
-                                  (funcall function))
-            :cleanup (lambda (input)
-                       (close input)
-                       (setf cleaned-p t))
-            :completion (lambda ()
-                          (test-assert cleaned-p "completion follows stream cleanup")
-                          (setf completed-p t))
-            :event-callback (lambda (event) (push event events)))))
+            :transport                (lambda (projected)
+                                        (test-assert (eq projected request)
+                                                     "transport receives the projected request")
+                                        (values stream 200 (list (cons "request-id" secret))))
+            :call-with-deadline       (lambda (function)
+                                        (incf deadline-calls)
+                                        (funcall function))
+            :cleanup                  (lambda (input)
+                                        (close input)
+                                        (setf cleaned-p t))
+            :completion               (lambda ()
+                                        (test-assert cleaned-p "completion follows stream cleanup")
+                                        (setf completed-p t))
+            :event-callback           (lambda (event) (push event events)))))
     (test-assert (and cleaned-p completed-p (= deadline-calls 1)
                       (not (open-stream-p stream)))
                  "successful Anthropic execution honors lifecycle hooks")
@@ -707,19 +702,19 @@
                     (anthropic-provider-test--stream-source
                      (list (json-object "type" "message_stop")))
                     'provider-protocol-error)))
-      (let* ((input (make-string-input-stream (third case)))
-             (events nil)
+      (let* ((input         (make-string-input-stream (third case)))
+             (events        nil)
              (cleanup-count 0)
-             (completed-p nil)
+             (completed-p   nil)
              (condition
                (handler-case
                    (provider-execute-request
                     provider request
-                    :transport (lambda (projected)
-                                 (declare (ignore projected))
-                                 (values input (second case) nil))
-                    :cleanup (lambda (input) (incf cleanup-count) (close input))
-                    :completion (lambda () (setf completed-p t))
+                    :transport      (lambda (projected)
+                                      (declare (ignore projected))
+                                      (values input (second case) nil))
+                    :cleanup        (lambda (input) (incf cleanup-count) (close input))
+                    :completion     (lambda () (setf completed-p t))
                     :event-callback (lambda (event) (push event events)))
                  (provider-error (condition) condition))))
         (test-assert
@@ -735,38 +730,38 @@
 (defun anthropic-provider-test--tool-schema-projection ()
   "Test unsupported root composition at the serialized Messages boundary."
   (dolist (keywords '(nil ("oneOf") ("allOf") ("anyOf")
-                     ("oneOf" "allOf" "anyOf")))
-    (let* ((provider (make-instance 'anthropic-messages-provider))
+                      ("oneOf" "allOf" "anyOf")))
+    (let* ((provider     (make-instance 'anthropic-messages-provider))
            (alternatives (json-array
                           (json-object "type" "object" "required" #("query"))
                           (json-object "type" "object" "required" #("patterns"))))
-           (schema (provider-object-schema
-                    (json-object
-                     "query" (provider-string-property "One query.")
-                     "patterns" (provider-array-schema
-                                 (provider-string-property "One literal pattern."))
-                     "payload" (json-object "anyOf"
-                                            (json-array
-                                             (json-object "type" "string")
-                                             (json-object "type" "integer"))))
-                    '("payload")))
-           (constraints (json-object)))
+           (schema       (provider-object-schema
+                          (json-object
+                           "query" (provider-string-property "One query.")
+                           "patterns" (provider-array-schema
+                                       (provider-string-property "One literal pattern."))
+                           "payload" (json-object "anyOf"
+                                                  (json-array
+                                                   (json-object "type" "string")
+                                                   (json-object "type" "integer"))))
+                          '("payload")))
+           (constraints  (json-object)))
       (setf (gethash "description" schema) "Search arguments.")
       (dolist (keyword keywords)
         (setf (gethash keyword schema) alternatives
               (gethash keyword constraints) alternatives))
-      (let* ((original (json-encode schema))
+      (let* ((original   (json-encode schema))
              (namespaces (json-array
                           (json-object "type" "namespace" "name" "search" "tools"
                                        (json-array
                                         (json-object "name" "content"
                                                      "description" "Search contents."
                                                      "parameters" schema)))))
-             (request (provider-request-object
-                       provider (make-instance 'wire-request :model "claude-test")
-                       (provider-wire-tools provider namespaces)))
-             (wire (json-decode (json-encode request)))
-             (projected (json-get (aref (json-get wire "tools") 0) "input_schema")))
+             (request    (provider-request-object
+                          provider (make-instance 'wire-request :model "claude-test")
+                          (provider-wire-tools provider namespaces)))
+             (wire       (json-decode (json-encode request)))
+             (projected  (json-get (aref (json-get wire "tools") 0) "input_schema")))
         (test-assert
          (notany (lambda (keyword) (nth-value 1 (gethash keyword projected)))
                  '("oneOf" "allOf" "anyOf"))
@@ -827,11 +822,11 @@
                       (json-object "type" "content_block_stop" "index" 1)
                       (anthropic-provider-test--message-delta "end_turn")
                       (json-object "type" "message_stop")))))
-        (let* ((items (provider-result-output-items result))
+        (let* ((items         (provider-result-output-items result))
                (thinking-item (aref (json-get (first items) "content") 0))
                (redacted-item (aref (json-get (second items) "content") 0))
-               (messages (anthropic--input-messages items))
-               (content (json-get (first messages) "content")))
+               (messages      (anthropic--input-messages items))
+               (content       (json-get (first messages) "content")))
           (test-assert
            (and (= (length items) 2)
                 (json-string= (json-get thinking-item "type") "thinking")
@@ -892,7 +887,6 @@
                            "delta" delta)))
        label)))
   nil)
-
 
 (defun run-anthropic-tests ()
   "Run the standalone Anthropic wire checks and return their count."

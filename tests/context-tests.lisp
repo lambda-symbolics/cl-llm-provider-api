@@ -3,7 +3,7 @@
 (defun context-tests--value (identifier &rest options)
   "Construct a contribution with distinguishable instruction and evidence data."
   (apply #'make-context-contribution :identifier identifier
-         :instruction (concatenate 'string "instruction-" identifier) options))
+         :instruction                            (concatenate 'string "instruction-" identifier) options))
 
 (defun context-tests--identifiers (selection)
   "Return the semantic selection's identifiers in delivery order."
@@ -12,26 +12,26 @@
 
 (defun test-context-selection ()
   "Test stacking, semantic deduplication, supersession, conflicts and required-first order."
-  (let* ((resolver (make-context-resolver))
-         (values (list
-                  (context-tests--value "generic" :priority 5)
-                  (context-tests--value "specific" :priority 20 :supersedes '("generic"))
-                  (context-tests--value "stacked" :priority 10)
-                  (context-tests--value "duplicate-low" :priority 1 :deduplication-key "duplicate")
-                  (context-tests--value "duplicate-high" :priority 2 :deduplication-key "duplicate")
-                  (context-tests--value "conflict-low" :priority 3 :conflict-group "mode")
-                  (context-tests--value "conflict-high" :priority 4 :conflict-group "mode")))
+  (let* ((resolver  (make-context-resolver))
+         (values    (list
+                     (context-tests--value "generic" :priority 5)
+                     (context-tests--value "specific" :priority 20 :supersedes '("generic"))
+                     (context-tests--value "stacked" :priority 10)
+                     (context-tests--value "duplicate-low" :priority 1 :deduplication-key "duplicate")
+                     (context-tests--value "duplicate-high" :priority 2 :deduplication-key "duplicate")
+                     (context-tests--value "conflict-low" :priority 3 :conflict-group "mode")
+                     (context-tests--value "conflict-high" :priority 4 :conflict-group "mode")))
          (selection (context-resolve values :resolver resolver :session-key "one")))
     (check (equal (context-tests--identifiers selection)
                   '("specific" "stacked" "conflict-high" "duplicate-high"))
            "compatible advice did not stack after generic resolution")
     (check (= 7 (length values)) "resolution mutated the caller's contribution list"))
-  (let* ((required (context-tests--value "required" :class ':mandatory :priority -100
-                                        :deduplication-key "key" :conflict-group "mode"))
-         (values (list (context-tests--value "advice" :priority 1000
-                                            :deduplication-key "key" :supersedes '("required"))
-                       required
-                       (context-tests--value "other" :priority 2000 :conflict-group "mode")))
+  (let* ((required  (context-tests--value "required" :class ':mandatory :priority -100
+                                         :deduplication-key "key" :conflict-group "mode"))
+         (values    (list (context-tests--value "advice" :priority 1000
+                                               :deduplication-key "key" :supersedes '("required"))
+                          required
+                          (context-tests--value "other" :priority 2000 :conflict-group "mode")))
          (selection (context-resolve values :resolver (make-context-resolver) :budget 0)))
     (check (equal (list required) (context-selection-contributions selection))
            "mandatory contributions must survive higher-priority advice and supersession"))
@@ -52,10 +52,10 @@
 (defun test-context-budget ()
   "Test injected costs, stable priority, omission and mandatory budget bypass."
   (let* ((mandatory (context-tests--value "mandatory" :class ':mandatory :priority -100))
-         (large (context-tests--value "large" :priority 100))
-         (small (context-tests--value "small" :priority 10 :evidence "untrusted data"))
-         (last (context-tests--value "last" :priority 10))
-         (calls nil)
+         (large     (context-tests--value "large" :priority 100))
+         (small     (context-tests--value "small" :priority 10 :evidence "untrusted data"))
+         (last      (context-tests--value "last" :priority 10))
+         (calls     nil)
          (selection
            (context-resolve
             (list last mandatory large small) :resolver (make-context-resolver)
@@ -73,7 +73,7 @@
   (dolist (cost '(-1 "invalid"))
     (check (handler-case
                (progn (context-resolve (list (context-tests--value "value"))
-                                       :resolver (make-context-resolver)
+                                       :resolver      (make-context-resolver)
                                        :cost-function (lambda (value) (declare (ignore value)) cost))
                       nil)
              (context-contribution-error () t))
@@ -82,8 +82,8 @@
 (defun test-context-receipts ()
   "Test successful delivery, retry, session isolation, reactivation and late completion."
   (let* ((resolver (make-context-resolver))
-         (once (context-tests--value "once" :lifetime ':next-request))
-         (values (list once)))
+         (once     (context-tests--value "once" :lifetime ':next-request))
+         (values   (list once)))
     (labels ((resolve (&optional (session "one") (budget 100))
                (context-resolve values :resolver resolver :session-key session :budget budget)))
       (let ((failed (resolve)))
@@ -122,7 +122,7 @@
   "Test public contribution bounds and supported lifetime values."
   (dolist (lifetime '(:next-request :turn :while-relevant :until-success))
     (check (eq lifetime (context-contribution-lifetime
-                        (context-tests--value "valid" :lifetime lifetime)))
+                         (context-tests--value "valid" :lifetime lifetime)))
            "a supported lifetime was rejected"))
   (dolist (options (list '(:identifier "" :instruction "x")
                          '(:identifier "x" :instruction "")

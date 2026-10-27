@@ -25,37 +25,37 @@
 
 (defun gemini-test--request-encoding ()
   "Test contents, calls, responses, thinking, declarations, and generation options."
-  (let* ((provider (gemini-test--provider))
-         (tools (provider-wire-tools
-                 provider
-                 (json-array (json-object
-                              "type" "namespace" "name" "fs" "description" "Files"
-                              "tools" (json-array
-                                       (json-object "name" "read" "description" "Read a file"
-                                                    "parameters" (json-object "type" "object")))))))
-         (wire-name (provider-wire-function-name--encode "fs" "read"))
+  (let* ((provider   (gemini-test--provider))
+         (tools      (provider-wire-tools
+                      provider
+                      (json-array (json-object
+                                   "type" "namespace" "name" "fs" "description" "Files"
+                                   "tools" (json-array
+                                            (json-object "name" "read" "description" "Read a file"
+                                                         "parameters" (json-object "type" "object")))))))
+         (wire-name  (provider-wire-function-name--encode "fs" "read"))
          (request
            (provider-request-object
             provider
             (make-instance
              'wire-request
-             :model "gemini-test"
-             :items (list (json-object "type" "message" "role" "user" "content" "hello")
-                          (json-object "type" "reasoning_content" "content" "considering")
-                          (json-object "type" "function_call" "namespace" "fs" "name" "read"
-                                       "call_id" "call-1" "arguments" "{\"path\":\"a\"}")
-                          (json-object "type" "function_call_output" "call_id" "call-1"
-                                       "output" "plain text"))
-             :prefix (list "system rules" "")
-             :suffix (list "keep the goal" nil "temporary context")
+             :model   "gemini-test"
+             :items   (list (json-object "type" "message" "role" "user" "content" "hello")
+                            (json-object "type" "reasoning_content" "content" "considering")
+                            (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                         "call_id" "call-1" "arguments" "{\"path\":\"a\"}")
+                            (json-object "type" "function_call_output" "call_id" "call-1"
+                                         "output" "plain text"))
+             :prefix  (list "system rules" "")
+             :suffix  (list "keep the goal" nil "temporary context")
              :options (list :maximum-output-tokens 1024 :include-thoughts-p t))
             tools))
-         (contents (json-get request "contents"))
-         (parts (loop for content across contents
-                      append (coerce (json-get content "parts") 'list)))
-         (call (some (lambda (part) (json-get part "functionCall")) parts))
-         (response (some (lambda (part) (json-get part "functionResponse")) parts))
-         (trailing (aref contents (1- (length contents))))
+         (contents   (json-get request "contents"))
+         (parts      (loop for content across contents
+                           append (coerce (json-get content "parts") 'list)))
+         (call       (some (lambda (part) (json-get part "functionCall")) parts))
+         (response   (some (lambda (part) (json-get part "functionResponse")) parts))
+         (trailing   (aref contents (1- (length contents))))
          (generation (json-get request "generationConfig")))
     (test-assert (string= (json-get (aref (json-get (aref (json-get request "tools") 0)
                                                     "functionDeclarations")
@@ -99,8 +99,8 @@
                                       (json-object "type" "input_text" "text" "look")
                                       (json-object "type" "input_image"
                                                    "image_url" "data:image/png;base64,iVBORw0K"))))))
-         (parts (json-get (aref contents 0) "parts"))
-         (inline (json-get (aref parts 1) "inlineData")))
+         (parts    (json-get (aref contents 0) "parts"))
+         (inline   (json-get (aref parts 1) "inlineData")))
     (test-assert (and (= (length parts) 2)
                       (equal (json-get (aref parts 0) "text") "look")
                       (equal (json-get inline "mimeType") "image/png")

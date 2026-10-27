@@ -23,7 +23,7 @@
 Keep those constraints as a description annotation. The caller must validate
 arguments against the original schema; the wire projection is less restrictive.
 Nested composition and all other object constraints are preserved."
-  (let ((projection (json-object-copy schema))
+  (let ((projection  (json-object-copy schema))
         (constraints (json-object)))
     (dolist (keyword '("oneOf" "allOf" "anyOf"))
       (multiple-value-bind (value present-p) (gethash keyword projection)
@@ -65,15 +65,15 @@ Nested composition and all other object constraints are preserved."
   (cond
     ((uiop:string-prefix-p "data:" image-url)
      (let* ((metadata-end (position #\, image-url))
-            (metadata (and metadata-end
-                           (subseq image-url (length "data:") metadata-end)))
-            (base64-p (and metadata
-                           (uiop:string-suffix-p metadata ";base64")))
-            (media-type (and base64-p
-                             (subseq metadata 0
-                                     (- (length metadata)
-                                        (length ";base64")))))
-            (data (and metadata-end (subseq image-url (1+ metadata-end)))))
+            (metadata     (and metadata-end
+                               (subseq image-url (length "data:") metadata-end)))
+            (base64-p     (and metadata
+                               (uiop:string-suffix-p metadata ";base64")))
+            (media-type   (and base64-p
+                               (subseq metadata 0
+                                       (- (length metadata)
+                                          (length ";base64")))))
+            (data         (and metadata-end (subseq image-url (1+ metadata-end)))))
        (when (and base64-p (non-empty-string-p media-type)
                   (non-empty-string-p data))
          (json-object "type" "base64"
@@ -88,12 +88,12 @@ Nested composition and all other object constraints are preserved."
 (defun anthropic--signal-request-conversion-failure (message)
   "Signal a terminal Anthropic request conversion failure described by MESSAGE."
   (error 'provider-error
-         :message message
-         :status nil
-         :code "unsupported_content"
-         :request-id nil
+         :message     message
+         :status      nil
+         :code        "unsupported_content"
+         :request-id  nil
          :response-id nil
-         :response nil))
+         :response    nil))
 
 (defun anthropic--content-block (part)
   "Translate one Responses content PART into an Anthropic content block."
@@ -134,7 +134,7 @@ Nested composition and all other object constraints are preserved."
     ((stringp content)
      (values (list (json-object "type" "text" "text" content)) t))
     ((vectorp content)
-     (let ((blocks nil)
+     (let ((blocks     nil)
            (complete-p t))
        (loop for part across content
              for block = (and (json-object-p part)
@@ -148,7 +148,7 @@ Nested composition and all other object constraints are preserved."
 
 (defun anthropic--tool-use-block (item)
   "Translate one Responses function-call ITEM into an Anthropic tool_use block."
-  (let* ((call-id (json-get item "call_id"))
+  (let* ((call-id   (json-get item "call_id"))
          (tool-name (json-get item "name"))
          (namespace (json-get item "namespace"))
          (arguments (json-get item "arguments"))
@@ -173,7 +173,7 @@ Nested composition and all other object constraints are preserved."
 (defun anthropic--tool-result-block (item)
   "Translate one Responses function-call output ITEM into a tool_result block."
   (let ((call-id (json-get item "call_id"))
-        (output (json-get item "output")))
+        (output  (json-get item "output")))
     (unless (non-empty-string-p call-id)
       (anthropic--signal-request-conversion-failure
        "A replayed tool result has no valid Anthropic tool-use identifier."))
@@ -266,14 +266,14 @@ system cache prefix when mid-conversation guidance changes."
                (let ((role (json-get item "role")))
                  (cond
                   ((json-string-member-p role '("developer" "system"))
-                    (append-message "user" (json-get item "content")))
-                   ((json-string-member-p role '("user" "assistant"))
-                    (append-message role (json-get item "content")))
-                   (t
-                    nil))))
+                   (append-message "user" (json-get item "content")))
+                  ((json-string-member-p role '("user" "assistant"))
+                   (append-message role (json-get item "content")))
+                  (t
+                   nil))))
               ((and (json-string= type "function_call")
                     (clinker-transcript:function-call-item-p item))
-               (let* ((block (anthropic--tool-use-block item))
+               (let* ((block   (anthropic--tool-use-block item))
                       (call-id (json-get block "id")))
                  (when (gethash call-id tool-use-states)
                    (anthropic--signal-request-conversion-failure
@@ -283,7 +283,7 @@ system cache prefix when mid-conversation guidance changes."
                  (begin "assistant")
                  (anthropic--message-state-push state block)))
               ((json-string= type "function_call_output")
-               (let* ((block (anthropic--tool-result-block item))
+               (let* ((block   (anthropic--tool-result-block item))
                       (call-id (json-get block "tool_use_id")))
                  (unless (eq (gethash call-id tool-use-states) ':pending)
                    (anthropic--signal-request-conversion-failure
@@ -296,6 +296,7 @@ system cache prefix when mid-conversation guidance changes."
                nil)))))
       (flush)
       (nreverse messages))))
+
 
 ;;;; -- Anthropic Requests --
 
@@ -380,6 +381,7 @@ system cache prefix when mid-conversation guidance changes."
                (list (json-object "role" "user"
                                   "content" (coerce blocks 'vector))))))))
 
+
 ;;;; -- Anthropic Stream Decoding --
 
 (defstruct (anthropic--block-state
@@ -403,10 +405,10 @@ system cache prefix when mid-conversation guidance changes."
     (message &key headers response-id data)
   "Signal a terminal Anthropic stream protocol failure described by MESSAGE."
   (error 'provider-protocol-error
-         :message (provider--sanitize-wire-string message)
-         :status nil
-         :code "invalid_stream"
-         :request-id (anthropic--request-id headers)
+         :message     (provider--sanitize-wire-string message)
+         :status      nil
+         :code        "invalid_stream"
+         :request-id  (anthropic--request-id headers)
          :response-id response-id
          :response
          (and data
@@ -417,7 +419,7 @@ system cache prefix when mid-conversation guidance changes."
   "Signal Anthropic's incomplete response using the shared retry classification."
   (provider--signal-incomplete-terminal reason headers
                                         :response-id response-id
-                                        :response data))
+                                        :response    data))
 
 (defun anthropic--event-index (event &key headers response-id data)
   "Return EVENT's validated nonnegative content block index."
@@ -470,7 +472,7 @@ system cache prefix when mid-conversation guidance changes."
                   "content" (json-array (json-object "type" "redacted_thinking"
                                                        "data" (anthropic--block-state-initial-data state)))))
     ((string= (anthropic--block-state-type state) "thinking")
-     (let ((thinking (get-output-stream-string (anthropic--block-state-text-stream state)))
+     (let ((thinking  (get-output-stream-string (anthropic--block-state-text-stream state)))
            (signature (get-output-stream-string (anthropic--block-state-signature-stream state))))
        (unless (and (stringp thinking) (non-empty-string-p signature))
          (anthropic--signal-protocol-failure
@@ -487,6 +489,7 @@ system cache prefix when mid-conversation guidance changes."
                       "content" (json-array (json-object "type" "output_text"
                                                            "text" text
                                                            "annotations" (json-array)))))))))
+
 (defun anthropic--ordered-block-items
     (completed-blocks &key headers response-id data)
   "Return COMPLETED-BLOCKS in contiguous Anthropic content index order."
@@ -547,7 +550,7 @@ system cache prefix when mid-conversation guidance changes."
            (anthropic--usage-field start-usage "cache_read_input_tokens"))
          (cache-created
            (anthropic--usage-field start-usage "cache_creation_input_tokens"))
-         (input (+ uncached-input (or cache-read 0) (or cache-created 0)))
+         (input  (+ uncached-input (or cache-read 0) (or cache-created 0)))
          (output (or (anthropic--usage-field delta-usage "output_tokens")
                      (anthropic--usage-field start-usage "output_tokens")
                      0))
@@ -564,19 +567,19 @@ system cache prefix when mid-conversation guidance changes."
 (defmethod provider-consume-stream
     ((provider anthropic-messages-provider) stream headers event-callback)
   "Consume PROVIDER's Anthropic SSE stream into a provider result."
-  (let ((open-blocks (make-hash-table))
-        (seen-blocks (make-hash-table))
-        (completed-blocks (make-hash-table))
-        (output-items nil)
-        (metadata (make-instance 'provider-response-metadata))
-        (response-id nil)
-        (start-usage (json-object))
-        (delta-usage (json-object))
-        (stop-reason nil)
-        (turn-completion :unspecified)
-        (started-p nil)
+  (let ((open-blocks          (make-hash-table))
+        (seen-blocks          (make-hash-table))
+        (completed-blocks     (make-hash-table))
+        (output-items         nil)
+        (metadata             (make-instance 'provider-response-metadata))
+        (response-id          nil)
+        (start-usage          (json-object))
+        (delta-usage          (json-object))
+        (stop-reason          nil)
+        (turn-completion      :unspecified)
+        (started-p            nil)
         (message-delta-seen-p nil)
-        (completed-p nil))
+        (completed-p          nil))
     (labels ((require-started (data)
                "Reject content events before the stream's message_start event."
                (unless started-p
@@ -622,7 +625,7 @@ system cache prefix when mid-conversation guidance changes."
                                provider metadata event-callback
                                :finish-reason (and (json-object-p delta)
                                                    (json-get delta "stop_reason"))
-                               :usage (json-get event "usage"))))))
+                               :usage         (json-get event "usage"))))))
                    (cond
                      ((string= type "error")
                       (provider--signal-event-failure
@@ -724,7 +727,7 @@ system cache prefix when mid-conversation guidance changes."
                                        :headers headers :response-id response-id :data data))
                                     (setf (anthropic--block-state-initial-data state) redacted)))))
                               ((string= block-type "tool_use")
-                               (let ((id (json-get block "id"))
+                               (let ((id   (json-get block "id"))
                                      (name (json-get block "name")))
                                  (unless (and (non-empty-string-p id)
                                               (non-empty-string-p name))
@@ -747,8 +750,8 @@ system cache prefix when mid-conversation guidance changes."
                             (setf (gethash index seen-blocks) t
                                   (gethash index open-blocks) state)))
                       ;; A content block opens only once the model generates.
-                      (funcall event-callback
-                               (make-instance 'generation-progress-event))))
+                       (funcall event-callback
+                                (make-instance 'generation-progress-event))))
                      ((string= type "content_block_delta")
                       (require-started data)
                       (reject-late-block-event data)
@@ -924,9 +927,9 @@ system cache prefix when mid-conversation guidance changes."
                          event-callback
                          (make-instance
                           'provider-completed-event
-                          :response-id response-id
-                          :usage (anthropic--portable-usage start-usage delta-usage)
-                          :metadata metadata
+                          :response-id     response-id
+                          :usage           (anthropic--portable-usage start-usage delta-usage)
+                          :metadata        metadata
                           :turn-completion turn-completion))))
                      (t
                       ;; Anthropic may add top-level event types. Ignore their
@@ -934,13 +937,13 @@ system cache prefix when mid-conversation guidance changes."
                       (funcall event-callback
                                (make-instance 'provider-progress-event))))))))
     (make-instance 'provider-result
-                   :response-id response-id
-                   :output-items output-items
-                   :tool-calls (remove-if-not
-                                #'clinker-transcript:function-call-item-p output-items)
-                   :usage (anthropic--portable-usage start-usage delta-usage)
-                   :metadata metadata
-                   :turn-state nil
+                   :response-id     response-id
+                   :output-items    output-items
+                   :tool-calls      (remove-if-not
+                                     #'clinker-transcript:function-call-item-p output-items)
+                   :usage           (anthropic--portable-usage start-usage delta-usage)
+                   :metadata        metadata
+                   :turn-state      nil
                    :turn-completion turn-completion)))
 
 
@@ -979,9 +982,9 @@ that history without a cache marker. PREFIX contains stable system texts.
 :CACHE-P defaults to true; callers disable it for one-off requests. TOOLS is
 the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
   (declare (ignore provider goal-context compaction-p))
-  (let* ((options (wire-request-options projection))
-         (cache-p (getf options :cache-p t))
-         (history (anthropic--input-messages (wire-request-items projection)))
+  (let* ((options    (wire-request-options projection))
+         (cache-p    (getf options :cache-p t))
+         (history    (anthropic--input-messages (wire-request-items projection)))
          (messages
            (anthropic--append-user-texts
             (anthropic--append-messages
@@ -990,8 +993,8 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
                  history)
              (anthropic--input-messages (getf options :ephemeral-items)))
             (wire-request-suffix projection)))
-         (system (anthropic--system-blocks (wire-request-prefix projection)
-                                          :cache-p cache-p))
+         (system     (anthropic--system-blocks (wire-request-prefix projection)
+                                              :cache-p cache-p))
          (wire-tools (map 'vector #'json-object-copy tools))
          (request
            (json-object

@@ -54,7 +54,7 @@ PROVIDER-MODEL-LIST-ERROR."
                     (error ()
                       (error 'provider-model-list-error
                              :message "The model discovery response was not valid JSON."))))
-         (data (and (json-object-p decoded) (json-get decoded "data"))))
+         (data    (and (json-object-p decoded) (json-get decoded "data"))))
     (unless (vectorp data)
       (error 'provider-model-list-error
              :message "The model discovery response did not contain a data array."))
@@ -72,13 +72,17 @@ PROVIDER-MODEL-LIST-ERROR."
 (defun model-spec-name (spec)
   "Return the model identifier of model specification SPEC."
   (etypecase spec
-    (string spec)
-    (cons (getf spec :name))))
+    (string
+     spec)
+    (cons
+     (getf spec :name))))
 
 (defun model-spec-rename (spec name)
   "Return a copy of model specification SPEC identified by NAME."
   (etypecase spec
-    (string name)
-    (cons (let ((copy (copy-list spec)))
-            (setf (getf copy :name) name)
-            copy))))
+    (string
+     name)
+    (cons
+     (let ((copy (copy-list spec)))
+       (setf (getf copy :name) name)
+       copy))))

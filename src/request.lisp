@@ -20,25 +20,25 @@
      &key goal-context compaction-p)
   "Encode projected Responses input, instructions, tools, and model options."
   (declare (ignore goal-context))
-  (let* ((options (wire-request-options projection))
-         (placement (provider-responses-instructions-placement provider))
-         (prefix (wire-request-prefix projection))
-         (suffix (wire-request-suffix projection))
+  (let* ((options    (wire-request-options projection))
+         (placement  (provider-responses-instructions-placement provider))
+         (prefix     (wire-request-prefix projection))
+         (suffix     (wire-request-suffix projection))
          (wire-tools (provider-wire-tools provider tools))
-         (input (append
-                 (when (eq placement ':input)
-                   (mapcar #'responses-developer-message
-                           (remove-if-not #'non-empty-string-p prefix)))
-                 (mapcar (lambda (item) (provider-wire-input-item provider item))
-                         (wire-request-items projection))
-                 (when (or (eq placement ':input) (not compaction-p))
-                   (mapcar #'responses-developer-message
-                           (remove-if-not #'non-empty-string-p suffix)))))
-         (request (json-object "model" (wire-request-model projection)
-                               "input" (coerce input 'vector)
-                               "tools" wire-tools
-                               "parallel_tool_calls" yason:false
-                               "store" yason:false "stream" t)))
+         (input      (append
+                      (when (eq placement ':input)
+                        (mapcar #'responses-developer-message
+                                (remove-if-not #'non-empty-string-p prefix)))
+                      (mapcar (lambda (item) (provider-wire-input-item provider item))
+                              (wire-request-items projection))
+                      (when (or (eq placement ':input) (not compaction-p))
+                        (mapcar #'responses-developer-message
+                                (remove-if-not #'non-empty-string-p suffix)))))
+         (request    (json-object "model" (wire-request-model projection)
+                                  "input" (coerce input 'vector)
+                                  "tools" wire-tools
+                                  "parallel_tool_calls" yason:false
+                                  "store" yason:false "stream" t)))
     (unless (member placement '(:input :top-level))
       (error 'provider-api-error
              :message (format nil "Unsupported Responses instruction placement ~S."
@@ -69,17 +69,17 @@
      &key goal-context compaction-p)
   "Encode projected Chat Completions history and model options."
   (declare (ignore goal-context compaction-p))
-  (let* ((options (wire-request-options projection))
-         (context (openai-compatible--chat-context-message
-                   (wire-request-suffix projection)))
-         (system (openai-compatible--chat-system-message
-                  (wire-request-prefix projection)))
-         (history (openai-compatible--chat-input-messages
-                   (wire-request-items projection)))
-         (fields (getf options :cache-breakpoint-fields))
+  (let* ((options  (wire-request-options projection))
+         (context  (openai-compatible--chat-context-message
+                    (wire-request-suffix projection)))
+         (system   (openai-compatible--chat-system-message
+                    (wire-request-prefix projection)))
+         (history  (openai-compatible--chat-input-messages
+                    (wire-request-items projection)))
+         (fields   (getf options :cache-breakpoint-fields))
          (messages (append (list system) history (when context (list context))))
-         (request (json-object "model" (wire-request-model projection)
-                               "messages" (coerce messages 'vector) "stream" t)))
+         (request  (json-object "model" (wire-request-model projection)
+                                "messages" (coerce messages 'vector) "stream" t)))
     ;; The temporary context message changes on every request, so a provider's
     ;; cache breakpoint belongs on the stable system message and at the end of
     ;; durable history, where the next request's prefix still matches.
@@ -101,6 +101,7 @@
                      request)
             (getf options :maximum-output-tokens)))
     request))
+
 
 ;;;; -- Request Execution --
 

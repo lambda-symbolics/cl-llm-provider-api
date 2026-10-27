@@ -12,30 +12,30 @@
 
 (defclass provider-response-metadata ()
   ((model :initarg :model :initform nil :reader provider-response-metadata-model
-          :type (or null string)
+          :type          (or null string)
           :documentation "The model identified by the response, never the requested model.")
    (finish-reason :initarg :finish-reason :initform nil
-                  :reader provider-response-metadata-finish-reason
-                  :type (or null string)
+                  :reader        provider-response-metadata-finish-reason
+                  :type          (or null string)
                   :documentation "The terminal protocol reason, including unsuccessful endings.")
    (cache-write-tokens :initarg :cache-write-tokens :initform nil
-                       :reader provider-response-metadata-cache-write-tokens
-                       :type (or null (integer 0))
+                       :reader        provider-response-metadata-cache-write-tokens
+                       :type          (or null (integer 0))
                        :documentation "Observed cache creation tokens; NIL means unreported.")
    (usage-observed-p :initarg :usage-observed-p :initform nil
-                     :reader provider-response-metadata-usage-observed-p
-                     :type boolean
+                     :reader        provider-response-metadata-usage-observed-p
+                     :type          boolean
                      :documentation "Whether a wire usage object has been received.")
    (reasoning-context :initarg :reasoning-context :initform nil
                       :reader provider-response-metadata-reasoning-context
-                      :type (or null string)
+                      :type   (or null string)
                       :documentation
                       "The reasoning retention mode the response reports, such as \"all_turns\"."))
   (:documentation "An immutable snapshot of metadata observed in one response stream."))
 
 (defclass provider-response-metadata-event (provider-event)
   ((metadata :initarg :metadata :reader provider-response-metadata-event-metadata
-             :type provider-response-metadata
+             :type          provider-response-metadata
              :documentation "The accumulated response metadata at this stream boundary."))
   (:documentation "Changed response metadata, emitted before terminal validation or failure."))
 
@@ -53,137 +53,137 @@ The model has begun generating, so retrying the request bills a fresh generation
 
 (defclass assistant-delta-event (provider-event)
   ((text
-    :initarg :text
-    :reader assistant-delta-event-text
-    :type string
+    :initarg       :text
+    :reader        assistant-delta-event-text
+    :type          string
     :documentation "The newly received assistant text."))
   (:documentation "An incremental assistant text update."))
 
 (defclass reasoning-delta-event (provider-event)
   ((text
-    :initarg :text
-    :reader reasoning-delta-event-text
-    :type string
+    :initarg       :text
+    :reader        reasoning-delta-event-text
+    :type          string
     :documentation "The newly received visible reasoning summary text."))
   (:documentation "An incremental visible reasoning summary update."))
 
 (defclass provider-item-event (provider-event)
   ((item
-    :initarg :item
-    :reader provider-item-event-item
-    :type t
+    :initarg       :item
+    :reader        provider-item-event-item
+    :type          t
     :documentation "The authoritative completed provider output item."))
   (:documentation "A completed provider output item ready for persistence."))
 
 (defclass provider-completed-event (provider-event)
   ((response-id
-    :initarg :response-id
-    :initform nil
-    :reader provider-completed-event-response-id
-    :type (or null string)
+    :initarg       :response-id
+    :initform      nil
+    :reader        provider-completed-event-response-id
+    :type          (or null string)
     :documentation "The provider response identifier, if supplied.")
    (usage
-    :initarg :usage
-    :initform nil
-    :reader provider-completed-event-usage
-    :type t
+    :initarg       :usage
+    :initform      nil
+    :reader        provider-completed-event-usage
+    :type          t
     :documentation "Portable provider usage metadata, if supplied.")
    (metadata :initarg :metadata :initform nil
-             :reader provider-completed-event-metadata
-             :type (or null provider-response-metadata)
+             :reader        provider-completed-event-metadata
+             :type          (or null provider-response-metadata)
              :documentation "The final observed response metadata, if supplied.")
    (turn-completion
-    :initarg :turn-completion
-    :initform :unspecified
-    :reader provider-completed-event-turn-completion
-    :type turn-completion
+    :initarg       :turn-completion
+    :initform      :unspecified
+    :reader        provider-completed-event-turn-completion
+    :type          turn-completion
     :documentation "Whether the provider explicitly ended or continued the turn."))
   (:documentation "The successful terminal event for one provider request."))
 
 (defclass provider-retry-event (provider-event)
   ((attempt
-    :initarg :attempt
-    :reader provider-retry-event-attempt
-    :type (integer 1)
+    :initarg       :attempt
+    :reader        provider-retry-event-attempt
+    :type          (integer 1)
     :documentation "The one-based reconnect attempt about to begin.")
    (maximum-attempts
-    :initarg :maximum-attempts
-    :reader provider-retry-event-maximum-attempts
-    :type (integer 1)
+    :initarg       :maximum-attempts
+    :reader        provider-retry-event-maximum-attempts
+    :type          (integer 1)
     :documentation "The maximum number of reconnect attempts allowed.")
    (delay
-    :initarg :delay
-    :reader provider-retry-event-delay
-    :type real
+    :initarg       :delay
+    :reader        provider-retry-event-delay
+    :type          real
     :documentation "Seconds to wait before reconnecting."))
   (:documentation "A transient provider stream is about to be retried."))
 
 (defclass provider-attempt-failed-event (provider-event)
   ((attempt
-    :initarg :attempt
-    :reader provider-attempt-failed-event-attempt
-    :type (integer 1)
+    :initarg       :attempt
+    :reader        provider-attempt-failed-event-attempt
+    :type          (integer 1)
     :documentation "The one-based attempt of the logical request that failed.")
    (elapsed-seconds
-    :initarg :elapsed-seconds
-    :reader provider-attempt-failed-event-elapsed-seconds
-    :type (integer 0)
+    :initarg       :elapsed-seconds
+    :reader        provider-attempt-failed-event-elapsed-seconds
+    :type          (integer 0)
     :documentation "Whole seconds between the attempt's start and its failure.")
    (output-received-p
-    :initarg :output-received-p
-    :reader provider-attempt-failed-event-output-received-p
-    :type boolean
+    :initarg       :output-received-p
+    :reader        provider-attempt-failed-event-output-received-p
+    :type          boolean
     :documentation "Whether the attempt streamed reasoning, text, or an item first.")
    (retryable-p
-    :initarg :retryable-p
-    :reader provider-attempt-failed-event-retryable-p
-    :type boolean
+    :initarg       :retryable-p
+    :reader        provider-attempt-failed-event-retryable-p
+    :type          boolean
     :documentation "Whether the failure class is eligible for the retry ladder.")
    (condition
-    :initarg :condition
-    :reader provider-attempt-failed-event-condition
+    :initarg       :condition
+    :reader        provider-attempt-failed-event-condition
     :documentation "The provider condition that ended the attempt."))
   (:documentation "One attempt of a provider request failed; it carries the retry audit trail."))
 
 (defclass provider-result ()
   ((response-id
-    :initarg :response-id
-    :initform nil
-    :reader provider-result-response-id
-    :type (or null string)
+    :initarg       :response-id
+    :initform      nil
+    :reader        provider-result-response-id
+    :type          (or null string)
     :documentation "The provider response identifier, if supplied.")
    (output-items
-    :initarg :output-items
-    :initform nil
-    :reader provider-result-output-items
-    :type list
+    :initarg       :output-items
+    :initform      nil
+    :reader        provider-result-output-items
+    :type          list
     :documentation "Authoritative completed response items in wire order.")
    (tool-calls
-    :initarg :tool-calls
-    :initform nil
-    :reader provider-result-tool-calls
-    :type list
+    :initarg       :tool-calls
+    :initform      nil
+    :reader        provider-result-tool-calls
+    :type          list
     :documentation "The function-call subset of OUTPUT-ITEMS.")
    (usage
-    :initarg :usage
-    :initform nil
-    :reader provider-result-usage
-    :type t
+    :initarg       :usage
+    :initform      nil
+    :reader        provider-result-usage
+    :type          t
     :documentation "Portable provider usage metadata, if supplied.")
    (metadata :initarg :metadata :initform nil :reader provider-result-metadata
-             :type (or null provider-response-metadata)
+             :type          (or null provider-response-metadata)
              :documentation "The final observed response metadata, if supplied.")
    (turn-state
-    :initarg :turn-state
-    :initform nil
-    :reader provider-result-turn-state
-    :type (or null string)
+    :initarg       :turn-state
+    :initform      nil
+    :reader        provider-result-turn-state
+    :type          (or null string)
     :documentation "The routing token to replay within the current user turn.")
    (turn-completion
-    :initarg :turn-completion
-    :initform :unspecified
-    :reader provider-result-turn-completion
-    :type turn-completion
+    :initarg       :turn-completion
+    :initform      :unspecified
+    :reader        provider-result-turn-completion
+    :type          turn-completion
     :documentation "Whether the provider explicitly ended or continued the turn."))
   (:documentation "The complete semantic result of one provider request."))
 
@@ -192,31 +192,31 @@ The model has begun generating, so retrying the request bills a fresh generation
 
 (defclass model-provider ()
   ((registration
-    :initarg :registration
-    :initform nil
-    :accessor model-provider-registration
-    :type t
+    :initarg       :registration
+    :initform      nil
+    :accessor      model-provider-registration
+    :type          t
     :documentation "Opaque registry metadata associated with this provider."))
   (:documentation "The abstract interface between an agent and a model service."))
 
 (defclass subscription-provider (model-provider)
   ((configuration
-    :initarg :configuration
-    :initform nil
-    :reader provider-configuration
-    :type t
+    :initarg       :configuration
+    :initform      nil
+    :reader        provider-configuration
+    :type          t
     :documentation "Opaque immutable configuration for this provider instance.")
    (credential-manager
-    :initarg :credential-manager
-    :initform nil
-    :reader provider-credential-manager
-    :type t
+    :initarg       :credential-manager
+    :initform      nil
+    :reader        provider-credential-manager
+    :type          t
     :documentation "Opaque credential manager used by this provider instance.")
    (session-id
-    :initarg :session-id
-    :initform nil
-    :reader provider-session-id
-    :type t
+    :initarg       :session-id
+    :initform      nil
+    :reader        provider-session-id
+    :type          t
     :documentation "Opaque session identity associated with this provider instance."))
   (:documentation "A model provider backed by subscription or managed credentials."))
 

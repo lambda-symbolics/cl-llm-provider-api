@@ -4,9 +4,9 @@
 
 (define-condition provider-api-error (error)
   ((message
-    :initarg :message
-    :reader provider-api-error-message
-    :type string
+    :initarg       :message
+    :reader        provider-api-error-message
+    :type          string
     :documentation "The human-readable description of the failure."))
   (:report
    (lambda (condition stream)
@@ -15,47 +15,47 @@
 
 (define-condition provider-error (provider-api-error)
   ((status :initarg :status :initform nil :reader provider-error-status
-           :type (or null integer)
+           :type          (or null integer)
            :documentation "The HTTP status, if a response was received.")
    (code :initarg :code :initform nil :reader provider-error-code
-         :type (or null string)
+         :type          (or null string)
          :documentation "The provider's structured error code, if supplied.")
    (request-id :initarg :request-id :initform nil :reader provider-error-request-id
-               :type (or null string)
+               :type          (or null string)
                :documentation "The request identifier, if supplied.")
    (response-id :initarg :response-id :initform nil :reader provider-error-response-id
-                :type (or null string)
+                :type          (or null string)
                 :documentation "The failed response identifier, if supplied.")
    (response :initarg :response :initform nil :reader provider-error-response
-             :type (or null string)
+             :type          (or null string)
              :documentation "A bounded provider response safe for display."))
   (:documentation "A model-provider request failed."))
 
 (define-condition provider-retryable-error (provider-error)
   ((generation-started-p
-    :initarg :generation-started-p
-    :initform nil
-    :reader provider-retryable-error-generation-started-p
-    :type boolean
+    :initarg       :generation-started-p
+    :initform      nil
+    :reader        provider-retryable-error-generation-started-p
+    :type          boolean
     :documentation "Whether generation began even without visible streamed output."))
   (:documentation "A transient provider failure eligible for bounded retry."))
 
 (define-condition provider-resample-requested (provider-retryable-error)
   ((triggers
-    :initarg :triggers
-    :initform nil
-    :reader provider-resample-requested-triggers
-    :type list
+    :initarg       :triggers
+    :initform      nil
+    :reader        provider-resample-requested-triggers
+    :type          list
     :documentation "The provider's degenerate-generation trigger labels.")
    (attempt
-    :initarg :attempt
-    :reader provider-resample-requested-attempt
-    :type (integer 1)
+    :initarg       :attempt
+    :reader        provider-resample-requested-attempt
+    :type          (integer 1)
     :documentation "The one-based resample attempt about to begin.")
    (maximum-attempts
-    :initarg :maximum-attempts
-    :reader provider-resample-requested-maximum-attempts
-    :type (integer 1)
+    :initarg       :maximum-attempts
+    :reader        provider-resample-requested-maximum-attempts
+    :type          (integer 1)
     :documentation "The provider's per-turn resample budget."))
   (:documentation
    "A provider reported a degenerate generation loop worth resampling."))
@@ -66,9 +66,9 @@
 
 (define-condition provider-stream-abandoned (provider-error)
   ((attempts
-    :initarg :attempts
-    :reader provider-stream-abandoned-attempts
-    :type (integer 1)
+    :initarg       :attempts
+    :reader        provider-stream-abandoned-attempts
+    :type          (integer 1)
     :documentation "How many attempts began model generation before giving up."))
   (:documentation
    "A request kept failing after generation began, past the streaming retry budget."))
@@ -98,9 +98,9 @@ supported runtime.")
       (let ((position
               (read-sequence buffer stream
                              :start filled
-                             :end (min length
-                                       (+ filled
-                                          *character-read-sequence-window*)))))
+                             :end   (min length
+                                         (+ filled
+                                            *character-read-sequence-window*)))))
         (when (= position filled)
           (return filled))
         (setf filled position)))))
@@ -136,7 +136,7 @@ supported runtime.")
   (let ((characters
           (make-array 256
                       :element-type 'character
-                      :adjustable t
+                      :adjustable   t
                       :fill-pointer 0)))
     (loop for character = (read-char stream nil *sse-end-of-stream*)
           do (cond
@@ -166,9 +166,9 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
 
 (defun read-sse-data (stream)
   "Read one bounded SSE event's joined data field from STREAM."
-  (let ((data-stream (make-string-output-stream))
+  (let ((data-stream          (make-string-output-stream))
         (data-character-count 0)
-        (data-line-count 0))
+        (data-line-count      0))
     (labels ((event-data ()
                (if (plusp data-line-count)
                    (get-output-stream-string data-stream)
@@ -205,7 +205,6 @@ Hosts may install a wrapper adding runtime-specific inactivity deadlines.")
 
 (defparameter *bounded-retry-sleep-function* #'sleep
   "Function used to wait between provider retry attempts.")
-
 
 (defun call-with-bounded-retries
        (attempt-function event-callback
@@ -283,10 +282,10 @@ at MAXIMUM-STREAMING-RETRIES, after which the request ends with
 PROVIDER-STREAM-ABANDONED. DELAY-FUNCTION defaults to
 PROVIDER-JITTERED-RETRY-DELAY drawing from RANDOM-STATE; SLEEP-FUNCTION and
 CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
-  (let ((attempt-number 0)
+  (let ((attempt-number     0)
         (streaming-failures 0)
-        (output-received-p nil)
-        (started-at 0))
+        (output-received-p  nil)
+        (started-at         0))
     (labels ((observe-event (event)
                "Note streamed output before forwarding EVENT."
                (when (typep event '(or assistant-delta-event
@@ -306,11 +305,11 @@ CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
                (let ((retryable-p (typep condition 'provider-retryable-error)))
                  (funcall event-callback
                           (make-instance 'provider-attempt-failed-event
-                                         :attempt attempt-number
-                                         :elapsed-seconds (elapsed-seconds)
+                                         :attempt           attempt-number
+                                         :elapsed-seconds   (elapsed-seconds)
                                          :output-received-p output-received-p
-                                         :retryable-p retryable-p
-                                         :condition condition))
+                                         :retryable-p       retryable-p
+                                         :condition         condition))
                  (when (and retryable-p
                             (or output-received-p
                                 (provider-retryable-error-generation-started-p condition)))
@@ -321,12 +320,12 @@ CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
                             (format nil
                                     "The provider failed after model generation began on ~D attempts; giving up instead of billing another generation. Last failure: ~A"
                                     streaming-failures condition)
-                            :status (provider-error-status condition)
-                            :code (provider-error-code condition)
-                            :request-id (provider-error-request-id condition)
+                            :status      (provider-error-status condition)
+                            :code        (provider-error-code condition)
+                            :request-id  (provider-error-request-id condition)
                             :response-id (provider-error-response-id condition)
-                            :response (provider-error-response condition)
-                            :attempts streaming-failures)))))
+                            :response    (provider-error-response condition)
+                            :attempts    streaming-failures)))))
 
              (attempt ()
                "Run one attempt with fresh output tracking."
@@ -340,11 +339,11 @@ CALL-WITH-ATTEMPT are passed to CALL-WITH-BOUNDED-RETRIES."
                  (funcall attempt-function #'observe-event))))
       (call-with-bounded-retries
        #'attempt #'observe-event
-       :maximum-retries maximum-retries
-       :sleep-function sleep-function
+       :maximum-retries   maximum-retries
+       :sleep-function    sleep-function
        :call-with-attempt call-with-attempt
-       :delay-function (or delay-function
-                           (lambda (retry-number condition)
-                             (declare (ignore condition))
-                             (provider-jittered-retry-delay retry-number
-                                                            :random-state random-state)))))))
+       :delay-function    (or delay-function
+                              (lambda (retry-number condition)
+                                (declare (ignore condition))
+                                (provider-jittered-retry-delay retry-number
+                                                               :random-state random-state)))))))
