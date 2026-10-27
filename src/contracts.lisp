@@ -38,7 +38,7 @@
 
 (defun output--plist-key-present-p (plist key)
   "Return true when proper PLIST contains KEY in a key position."
-  (loop for tail on plist by #'cddr
+  (loop for tail on plist by (lambda (tail) (nthcdr 2 tail))
         thereis (eq (first tail) key)))
 
 (defun output--plist-alist (value allowed-fields)
@@ -49,7 +49,7 @@
     (output-contract--error :message "The property list has a key without a value."))
   (let ((seen  (make-hash-table :test #'eq))
         (pairs nil))
-    (loop for (key child) on value by #'cddr
+    (loop for (key child) on value by (lambda (tail) (nthcdr 2 tail))
           do (unless (keywordp key)
                (output-contract--error :message "A property key is not a keyword."))
              (unless (member key allowed-fields :test #'eq)
@@ -279,7 +279,7 @@ inside enum value positions."
 (defun output-schema->json (schema)
   "Convert validated native output SCHEMA to provider JSON Schema."
   (let ((object (output--json-object)))
-    (loop for (key value) on schema by #'cddr
+    (loop for (key value) on schema by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash
                     (case key
                       (:additional-properties

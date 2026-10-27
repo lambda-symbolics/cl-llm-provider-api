@@ -232,7 +232,7 @@ it had none, such as an assistant message carrying only tool calls."
           ((and (vectorp content) (plusp (length content))
                 (json-object-p (aref content (1- (length content)))))
            (let ((part (aref content (1- (length content)))))
-             (loop for (name value) on fields by #'cddr
+             (loop for (name value) on fields by (lambda (tail) (nthcdr 2 tail))
                    do (setf (gethash name part) value)))
            t)
           (t

@@ -60,7 +60,7 @@
     (when (getf options :maximum-output-tokens)
       (setf (gethash "max_output_tokens" request)
             (getf options :maximum-output-tokens)))
-    (loop for (name value) on (getf options :fields) by #'cddr
+    (loop for (name value) on (getf options :fields) by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash name request) value))
     request))
 

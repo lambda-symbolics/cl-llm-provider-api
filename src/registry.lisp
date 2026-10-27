@@ -546,7 +546,7 @@ signals."
 
 (defun registry--property (plist indicator)
   "Return INDICATOR's value in PLIST and whether it is present."
-  (loop for (key value) on plist by #'cddr
+  (loop for (key value) on plist by (lambda (tail) (nthcdr 2 tail))
         when (eq key indicator)
           return (values value t)
         finally (return (values nil nil))))
