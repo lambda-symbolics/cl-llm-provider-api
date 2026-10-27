@@ -649,7 +649,9 @@ discovered context window only when it declares none."
           (setf published-p t)
           (registry--changed registry)))
       (when published-p
-        (registry--write-cache registry registration context discovered))
+        (registry--write-cache registry registration
+                               :context context
+                               :models  discovered))
       (provider-registration-models registration))))
 
 (defun registry--discovery-endpoint (registration)
@@ -704,7 +706,7 @@ discovered context window only when it declares none."
             (list :context-window (provider-model-context-window model)))
           (list :reasoning-efforts (copy-list (provider-model-reasoning-efforts model)))))
 
-(defun registry--write-cache (registry registration context models)
+(defun registry--write-cache (registry registration &key context models)
   "Best effort, replace REGISTRATION's cache entry for CONTEXT with MODELS."
   (let ((function (provider-registry-cache-write-function registry)))
     (when function
