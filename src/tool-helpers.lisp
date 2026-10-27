@@ -39,6 +39,7 @@ Two components of this length, including reserved-escape quoting, fit the
   (:documentation "Signals distinct raw names producing one provider identifier."))
 
 (defun provider-tool-identifier--invalid (class reason)
+  "Signal the tool identifier error CLASS with REASON."
   (error class :reason reason))
 
 (defun provider-tool-identifier--hash (string)
