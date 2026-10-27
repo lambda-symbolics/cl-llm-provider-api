@@ -26,7 +26,9 @@ Integers, integral reals and decimal strings are accepted."
     ((and (realp value) (plusp value) (= value (truncate value)))
      (truncate value))
     ((stringp value)
-     (let ((parsed (ignore-errors (parse-integer value))))
+     (let ((parsed (handler-case (parse-integer value)
+                     (parse-error ()
+                       nil))))
        (and parsed (plusp parsed) parsed)))
     (t
      nil)))
