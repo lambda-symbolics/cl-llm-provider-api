@@ -79,7 +79,7 @@ PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS and :INCLUDE-THOUGHTS-P.
     request))
 
 (defmethod provider-consume-stream
-    ((provider gemini-generate-content-provider) stream headers event-callback)
+    ((provider gemini-generate-content-provider) stream event-callback &key headers)
   "Consume a GenerateContent SSE stream into a provider result.
 
 Thought text streams as reasoning deltas and other text as assistant deltas.

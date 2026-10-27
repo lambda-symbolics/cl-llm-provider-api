@@ -29,7 +29,7 @@
     (values
      (handler-case
          (with-input-from-string (stream (metadata-test--body events))
-           (provider-consume-stream provider stream nil (lambda (event) (push event emitted))))
+           (provider-consume-stream provider stream (lambda (event) (push event emitted))))
        (provider-error (condition) condition))
      (nreverse emitted))))
 
@@ -230,7 +230,7 @@
                                                      :model   (when (= attempts 1) "first-attempt")
                                                      :cache   (if (= attempts 1) 9 ':missing)
                                                      :outcome (if (= attempts 1) ':partial ':success))))
-                   (provider-consume-stream provider stream nil callback)))
+                   (provider-consume-stream provider stream callback)))
                (lambda (event) (push event emitted))
                :maximum-retries 1 :maximum-streaming-retries 0
                :sleep-function #'retry-tests--no-sleep)))

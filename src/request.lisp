@@ -151,7 +151,7 @@ before emitting detached wire values."
                      (funcall call-with-deadline
                               (lambda ()
                                 (provider-consume-stream
-                                 provider stream headers event-callback))))
+                                 provider stream event-callback :headers headers))))
                 (handler-case (funcall cleanup stream)
                   (sb-sys:deadline-timeout () nil)
                   (error () nil)))))

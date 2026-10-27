@@ -257,9 +257,11 @@ The model has begun generating, so retrying the request bills a fresh generation
   (:documentation
    "Stream one model response for CONVERSATION and return a PROVIDER-RESULT."))
 
-(defgeneric provider-consume-stream (provider stream headers event-callback)
+(defgeneric provider-consume-stream (provider stream event-callback &key headers)
   (:documentation
-   "Consume a provider wire STREAM and emit semantic events through EVENT-CALLBACK."))
+   "Consume a provider wire STREAM and emit semantic events through EVENT-CALLBACK.
+
+HEADERS are the response headers, used to identify the request in failures."))
 
 (defgeneric provider-native-compact-conversation
     (provider conversation &key tool-namespaces event-callback)

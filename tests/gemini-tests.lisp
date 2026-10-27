@@ -17,8 +17,8 @@
                     (dolist (event events)
                       (write-string (if (stringp event) event (test-sse-event-string event))
                                     stream))))
-                 headers
-                 (lambda (event) (push event emitted)))
+                 (lambda (event) (push event emitted))
+                 :headers headers)
               (provider-error (condition)
                 condition))
             (nreverse emitted))))

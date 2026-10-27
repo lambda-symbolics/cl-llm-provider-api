@@ -125,8 +125,8 @@
           (provider-consume-stream (make-instance 'model-provider)
                                    (make-instance 'test-character-input-stream :source
                                                   source)
-                                   '(("x-codex-turn-state" . "turn-state-1"))
-                                   (lambda (event) (push event events)))))
+                                   (lambda (event) (push event events))
+                                   :headers '(("x-codex-turn-state" . "turn-state-1")))))
     (test-assert (= (length (provider-result-output-items result)) 2)
      "the stream retains authoritative completed items in wire order")
     (test-assert (string= (provider-result-response-id result) "response-1")
@@ -179,7 +179,7 @@
               (provider-consume-stream (make-instance 'model-provider)
                                        (make-instance 'test-character-input-stream
                                                       :source source)
-                                       nil #'identity)
+                                       #'identity)
               (provider-error (condition) condition))))
     (dolist
         (case
@@ -262,7 +262,7 @@
             (provider-consume-stream (make-instance 'model-provider)
                                      (make-instance 'test-character-input-stream
                                                     :source source)
-                                     nil #'identity)
+                                     #'identity)
             nil)
            (provider-error (error) error))))
     (test-assert (typep condition 'provider-retryable-error)
@@ -287,7 +287,7 @@
             (provider-consume-stream (make-instance 'model-provider)
                                      (make-instance 'test-character-input-stream
                                                     :source source)
-                                     nil #'identity)
+                                     #'identity)
             nil)
            (provider-error (error) error))))
     (test-assert (and condition (not (typep condition 'provider-retryable-error)))
@@ -308,7 +308,7 @@
             (provider-consume-stream (make-instance 'model-provider)
                                      (make-instance 'test-character-input-stream
                                                     :source source)
-                                     nil #'identity)
+                                     #'identity)
             nil)
            (provider-incomplete-response (error) error))))
     (test-assert
@@ -331,7 +331,7 @@
               (provider-consume-stream (make-instance 'model-provider)
                                        (make-instance 'test-character-input-stream
                                                       :source source)
-                                       nil #'identity)
+                                       #'identity)
               nil)
              (provider-error (error) error))))
       (test-assert (typep condition 'provider-retryable-error)
@@ -351,8 +351,8 @@
             (provider-consume-stream (make-instance 'model-provider)
                                      (make-instance 'test-character-input-stream
                                                     :source source)
-                                     '(("x-request-id" . "request-from-header"))
-                                     #'identity)
+                                     #'identity
+                                     :headers '(("x-request-id" . "request-from-header")))
             nil)
            (provider-error (error) error))))
     (test-assert (typep condition 'provider-retryable-error)
@@ -373,7 +373,7 @@
             (provider-consume-stream (make-instance 'model-provider)
                                      (make-instance 'test-character-input-stream
                                                     :source source)
-                                     nil #'identity)
+                                     #'identity)
             nil)
            (provider-error (error) error))))
     (test-assert

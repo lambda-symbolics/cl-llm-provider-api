@@ -128,7 +128,6 @@
              (with-output-to-string (stream)
                (dolist (event events)
                  (format stream "data: ~A~2%" (json-encode event)))))
-            nil
             event-callback))
          (lambda (event) (declare (ignore event)) nil)
          :maximum-retries 6 :maximum-streaming-retries 2

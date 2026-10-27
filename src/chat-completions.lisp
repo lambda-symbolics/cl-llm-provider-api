@@ -365,7 +365,7 @@ the registry's unique-name dispatch."
   item)
 
 (defmethod provider-consume-stream
-           ((provider chat-completions-provider) stream headers event-callback)
+           ((provider chat-completions-provider) stream event-callback &key headers)
   "Consume a Chat Completions SSE stream into a provider result."
   (let ((response-id      nil)
         (metadata         (make-instance 'provider-response-metadata))

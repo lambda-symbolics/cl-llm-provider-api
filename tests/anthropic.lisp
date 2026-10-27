@@ -45,8 +45,8 @@
    provider
    (make-string-input-stream
     (anthropic-provider-test--stream-source events))
-   headers
-   event-callback))
+   event-callback
+   :headers headers))
 
 (defun anthropic-provider-test--consume-condition (provider events &key headers)
   "Return the provider condition signaled while consuming EVENTS, or NIL."

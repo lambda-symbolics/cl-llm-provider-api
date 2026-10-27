@@ -437,7 +437,7 @@ abandon the looping stream; the default reaction ignores the report."))
            :response (provider--condition-string data))))
 
 (defmethod provider-consume-stream
-           ((provider model-provider) stream headers event-callback)
+           ((provider model-provider) stream event-callback &key headers)
   "Consume a Responses protocol STREAM into a provider result."
   (let ((output-items          nil)
         (metadata              (make-instance 'provider-response-metadata))

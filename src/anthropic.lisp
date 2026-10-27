@@ -565,7 +565,7 @@ system cache prefix when mid-conversation guidance changes."
     portable))
 
 (defmethod provider-consume-stream
-    ((provider anthropic-messages-provider) stream headers event-callback)
+    ((provider anthropic-messages-provider) stream event-callback &key headers)
   "Consume PROVIDER's Anthropic SSE stream into a provider result."
   (let ((open-blocks          (make-hash-table))
         (seen-blocks          (make-hash-table))

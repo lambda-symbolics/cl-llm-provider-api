@@ -12,8 +12,8 @@
              "Consume SOURCE and return either its result or typed condition."
              (handler-case
               (provider-consume-stream provider (make-string-input-stream source)
-                                       '(("x-request-id" . "chat-terminal-request"))
-                                       #'identity)
+                                       #'identity
+                                       :headers '(("x-request-id" . "chat-terminal-request")))
               (provider-error (condition) condition)))
 
            (finish-source (reason &key (done-p t))
@@ -244,7 +244,7 @@
                          (format nil "data: [DONE]~%~%")))
            (events nil)
            (result
-            (provider-consume-stream provider (make-string-input-stream source) nil
+            (provider-consume-stream provider (make-string-input-stream source)
                                      (lambda (event) (push event events))))
            (call   (first (provider-result-tool-calls result))))
       (test-assert
@@ -274,7 +274,7 @@
          (provider-consume-stream provider
                                   (make-string-input-stream
                                    (test-sse-event-string text-event))
-                                  nil #'identity)
+                                  #'identity)
          nil)
         (response-stream-error nil t))
        "truncated Chat Completions streams remain retryable failures"))
@@ -283,7 +283,7 @@
       (progn
        (provider-consume-stream provider
                                 (make-string-input-stream (format nil "data: {~%~%"))
-                                nil #'identity)
+                                #'identity)
        nil)
       (provider-protocol-error (condition)
        (not (typep condition 'provider-retryable-error))))
@@ -305,7 +305,7 @@
                                                    (test-sse-event-string tool-event)
                                                    (test-sse-event-string finish-event)
                                                    (format nil "data: [DONE]~%~%")))
-                                     nil #'identity))
+                                     #'identity))
            (call (first (provider-result-tool-calls result))))
       (test-assert (and call (string= (json-get call "arguments") "{}"))
        "empty Chat Completions tool arguments normalize to an object"))
@@ -332,7 +332,7 @@
         (test-assert
          (handler-case
           (progn
-           (provider-consume-stream provider (make-string-input-stream source) nil
+           (provider-consume-stream provider (make-string-input-stream source)
                                     #'identity)
            nil)
           (provider-protocol-error (condition)
@@ -366,7 +366,7 @@
       (test-assert
        (handler-case
         (progn
-         (provider-consume-stream provider (make-string-input-stream source) nil
+         (provider-consume-stream provider (make-string-input-stream source)
                                   #'identity)
          nil)
         (provider-protocol-error (condition)
