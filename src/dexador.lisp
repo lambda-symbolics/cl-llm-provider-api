@@ -159,3 +159,11 @@ Install it as *SSE-READ-LINE-FUNCTION*."
                    :response nil)))
         (sse-read-line-characters stream))))
 
+;;;; -- Vertex Streaming --
+
+(defun vertex-open-response-stream (provider request &key credentials)
+  "Open a native Vertex stream with request-scoped bearer credentials."
+  (provider-post-event-stream
+   (vertex-request-url provider (json-get request "model"))
+   (json-encode (vertex-request-body provider request))
+   :headers (vertex-request-headers provider credentials)))

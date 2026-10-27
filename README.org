@@ -26,6 +26,38 @@ Install the locked dependencies and run all tests:
 ./script/check
 #+end_src
 
+* Google Vertex AI
+
+Use =VERTEX-GEMINI-PROVIDER= for Gemini and =VERTEX-ANTHROPIC-PROVIDER=
+for Claude. Supply =:project= and optionally =:location= (default ="global"=)
+and =:quota-project=. Load =cl-llm-provider-api/dexador= for the streaming
+transport. Both clients reuse their native request encoders and stream parsers.
+
+#+begin_src lisp
+(make-instance 'cl-llm-provider-api:vertex-gemini-provider
+               :project "my-project" :location "global")
+(make-instance 'cl-llm-provider-api:vertex-anthropic-provider
+               :project "my-project" :location "us-east5")
+#+end_src
+
+For local credentials, run =gcloud auth application-default login=.
+=GOOGLE-CLOUD-DEFAULT-CREDENTIALS-PATH= locates the ADC file, honoring
+=GOOGLE_APPLICATION_CREDENTIALS= and =CLOUDSDK_CONFIG= before the standard
+Cloud SDK directory. =GOOGLE-CLOUD-USER-CREDENTIALS= takes that pathname and
+an injected HTTP function accepting a URL, =:headers=, and a form-parameter
+alist as =:content=. The function must return a JSON string and HTTP status.
+Each call exchanges the user refresh token at Google's fixed OAuth endpoint.
+Only =authorized_user= ADC files are supported. Credential files are read-only;
+no tokens are cached or saved. Keep acquisition and use inside the host's
+credential scope, including =PROVIDER-EXECUTE-REQUEST='s =:secrets= argument.
+
+Pass the returned =GOOGLE-CLOUD-CREDENTIALS= to
+=VERTEX-OPEN-RESPONSE-STREAM= through =:credentials=. The ADC quota project
+becomes =x-goog-user-project= unless overridden with =:quota-project=.
+Alternate transports can use =VERTEX-REQUEST-URL=, =VERTEX-REQUEST-BODY=,
+and =VERTEX-REQUEST-HEADERS=. Model identifiers travel in the URL, not the
+HTTP body; Claude's =anthropic_version= travels in the body.
+
 * Projected requests and execution
 
 Load =cl-llm-provider-api/wire= for Responses, Chat Completions, Anthropic

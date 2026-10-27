@@ -18,6 +18,23 @@
            #:rlm-usage-billable-tokens
            #:provider-account-label-for-registration
            #:provider-post-event-stream
+           #:google-cloud-authentication-error
+           #:google-cloud-authentication-error-stage
+           #:google-cloud-authentication-error-status
+           #:google-cloud-credentials
+           #:google-cloud-credentials-quota-project
+           #:google-cloud-default-credentials-path
+           #:google-cloud-user-credentials
+           #:vertex-provider-mixin
+           #:vertex-provider-project
+           #:vertex-provider-location
+           #:vertex-provider-quota-project
+           #:vertex-gemini-provider
+           #:vertex-anthropic-provider
+           #:vertex-request-url
+           #:vertex-request-body
+           #:vertex-request-headers
+           #:vertex-open-response-stream
            #:gemini-generate-content-provider
            #:provider-gemini-stream-response
            #:*provider-tool-search-default-limit*
