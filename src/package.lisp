@@ -1,5 +1,7 @@
 (defpackage #:cl-llm-provider-api
   (:nicknames #:llm-provider-api)
+  (:documentation
+   "Protocols, value types, and wire clients for language-model providers.")
   (:use #:cl)
   (:export #:output-text-json
            #:provider-response-metadata
