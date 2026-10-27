@@ -42,7 +42,7 @@
 (defgeneric vertex-request-url (provider model)
   (:documentation "Return the streaming Vertex URL for MODEL without credentials."))
 
-(defun vertex--model-url (provider model publisher operation)
+(defun vertex--model-url (provider model &key publisher operation)
   "Build one Vertex streaming URL from validated resource components."
   (unless (vertex--resource-component-p model)
     (error 'provider-api-error :message "Invalid Vertex model identifier."))
@@ -55,12 +55,16 @@
 
 (defmethod vertex-request-url ((provider vertex-gemini-provider) model)
   "Route Gemini to the native GenerateContent SSE endpoint."
-  (concatenate 'string (vertex--model-url provider model "google" "streamGenerateContent")
+  (concatenate 'string (vertex--model-url provider model
+                                          :publisher "google"
+                                          :operation "streamGenerateContent")
                "?alt=sse"))
 
 (defmethod vertex-request-url ((provider vertex-anthropic-provider) model)
   "Route Claude to the Messages-compatible raw prediction stream."
-  (vertex--model-url provider model "anthropic" "streamRawPredict"))
+  (vertex--model-url provider model
+                     :publisher "anthropic"
+                     :operation "streamRawPredict"))
 
 (defmethod provider-request-object :around
     ((provider vertex-gemini-provider) (projection wire-request) (tools vector)
