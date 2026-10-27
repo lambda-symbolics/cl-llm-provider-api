@@ -190,7 +190,7 @@
                     :completion         (lambda () (push :completion order)))
                  (provider-error (condition) condition))))
         (test-assert (not (open-stream-p stream)) "every response is closed")
-        (test-assert (string= (cdar raw-headers) secret)
+        (test-assert (string= (rest (first raw-headers)) secret)
                      "sanitization does not mutate transport headers")
         (case terminal
           (:complete
