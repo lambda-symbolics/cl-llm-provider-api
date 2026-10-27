@@ -1,6 +1,7 @@
 (in-package #:cl-llm-provider-api/tests)
 
-(defvar *assertions* 0)
+(defvar *assertions* 0
+  "The number of assertions the current test run has checked.")
 
 (defun check (value control &rest arguments)
   "Count one assertion and fail with CONTROL unless VALUE is true."
@@ -9,11 +10,13 @@
     (error (apply #'format nil control arguments))))
 
 (defclass test-responses-provider (responses-api-provider)
-  ())
+  ()
+  (:documentation "A Responses provider that answers every turn without a network call."))
 
 (defmethod provider-stream-turn
     ((provider test-responses-provider) conversation
      &key tool-namespaces event-callback goal-context compaction-p)
+  "Emit one assistant delta and return a finished result that echoes CONVERSATION."
   (declare (ignore provider tool-namespaces goal-context compaction-p))
   (when event-callback
     (funcall event-callback

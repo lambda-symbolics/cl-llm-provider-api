@@ -4,6 +4,7 @@
   (:documentation "Exercise metadata after a host's Code Assist envelope adapter."))
 
 (defmethod provider-gemini-stream-response ((provider metadata-test-code-assist-provider) event)
+  "Unwrap the response and its identifier from a Code Assist EVENT envelope."
   (declare (ignore provider))
   (let ((response (json-get event "response")))
     (values response (json-get response "responseId"))))

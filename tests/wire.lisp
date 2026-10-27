@@ -1,6 +1,7 @@
 (in-package #:cl-llm-provider-api)
 
-(defvar *wire-test-checks* 0)
+(defvar *wire-test-checks* 0
+  "The number of wire checks the current run has passed.")
 
 (defun test-assert (value message)
   "Check a portable wire invariant."
