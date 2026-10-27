@@ -19,13 +19,6 @@ policy, conversation projection, and tool dispatch.
 - Package: =CL-LLM-PROVIDER-API=
 - Nickname: =LLM-PROVIDER-API=
 
-Install the locked dependencies and run all tests:
-
-#+begin_src sh
-./script/bootstrap
-./script/check
-#+end_src
-
 * Google Vertex AI
 
 Use =VERTEX-GEMINI-PROVIDER= for Gemini and =VERTEX-ANTHROPIC-PROVIDER=
@@ -424,6 +417,20 @@ the context window from whichever of the common field names a catalog uses.
 - Bordeaux Threads
 - Ironclad
 - ASDF/UIOP
+
+* Development
+
+#+begin_src sh
+./script/bootstrap
+./script/check
+./script/check --fix
+#+end_src
+
+=./script/check= runs the tests, then checks the source with
+[[https://github.com/lambda-symbolics/cheque][cheque]] as =cheque.sexp=
+configures it. =--fix= skips the tests and repairs what cheque can repair.
+cheque and its tools are development dependencies: =checks/qlfile= lists them,
+and the check installs them on first use into =~/.cache/cheque/tools/=.
 
 * License
 
