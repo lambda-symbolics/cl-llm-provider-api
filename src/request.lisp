@@ -15,6 +15,15 @@
             :documentation "Wire options as a keyword property list."))
   (:documentation "An application-independent projection for a provider request."))
 
+(defun wire-request-tool-choice (projection)
+  "Return PROJECTION's tool choice, \"none\" or \"auto\".
+
+The :TOOL-CHOICE option ':NONE keeps the tool definitions, and so the cached
+prefix they begin, while asking the model to answer without calling one."
+  (if (eq (getf (wire-request-options projection) :tool-choice ':auto) ':none)
+      "none"
+      "auto"))
+
 (defmethod provider-request-object
     ((provider responses-api-provider) (projection wire-request) (tools vector)
      &key goal-context compaction-p)
@@ -48,7 +57,7 @@
             (responses-standard-instructions
              (append prefix (and compaction-p suffix)))))
     (when (plusp (length wire-tools))
-      (setf (gethash "tool_choice" request) "auto"))
+      (setf (gethash "tool_choice" request) (wire-request-tool-choice projection)))
     (when (getf options :reasoning-effort)
       (setf (gethash "reasoning" request)
             (apply #'json-object
@@ -92,7 +101,7 @@
             (json-object "include_usage" t)))
     (when (plusp (length tools))
       (setf (gethash "tools" request) tools
-            (gethash "tool_choice" request) "auto"))
+            (gethash "tool_choice" request) (wire-request-tool-choice projection)))
     (when (getf options :reasoning-parameter)
       (setf (gethash (getf options :reasoning-parameter) request)
             (getf options :reasoning-effort)))

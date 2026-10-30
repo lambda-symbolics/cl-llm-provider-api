@@ -1010,5 +1010,6 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
       (when cache-p
         (anthropic--mark-tool-cache-breakpoint wire-tools))
       (setf (gethash "tools" request) wire-tools
-            (gethash "tool_choice" request) (json-object "type" "auto")))
+            (gethash "tool_choice" request)
+            (json-object "type" (wire-request-tool-choice projection))))
     request))

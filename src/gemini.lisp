@@ -55,7 +55,8 @@ specialize this to unwrap it."))
 
 PREFIX texts form the systemInstruction, history ITEMS become contents, and
 SUFFIX texts trail them as one user content. TOOLS is the result of
-PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS and :INCLUDE-THOUGHTS-P."
+PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS, :INCLUDE-THOUGHTS-P,
+and :TOOL-CHOICE."
   (declare (ignore provider goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (contents   (gemini--contents (wire-request-items projection)))
@@ -69,7 +70,10 @@ PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS and :INCLUDE-THOUGHTS-P.
       (setf (gethash "systemInstruction" request) system))
     (when (plusp (length tools))
       (setf (gethash "tools" request)
-            (json-array (json-object "functionDeclarations" (map 'vector #'json-object-copy tools)))))
+            (json-array (json-object "functionDeclarations" (map 'vector #'json-object-copy tools))))
+      (when (string= (wire-request-tool-choice projection) "none")
+        (setf (gethash "toolConfig" request)
+              (json-object "functionCallingConfig" (json-object "mode" "NONE")))))
     (when (getf options :maximum-output-tokens)
       (setf (gethash "maxOutputTokens" generation) (getf options :maximum-output-tokens)))
     (when (getf options :include-thoughts-p)
