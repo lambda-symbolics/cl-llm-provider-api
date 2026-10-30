@@ -65,14 +65,18 @@ Call =PROVIDER-REQUEST-OBJECT= with a provider, the projection, and tool vector.
 Responses accepts namespace declarations; Chat Completions and Messages accept
 encoded tools. Use =PROVIDER-WIRE-TOOLS= for protocol-specific tool projection.
 
-Shared options include =:maximum-output-tokens=. Responses additionally accepts
+Shared options include =:maximum-output-tokens= and =:tool-choice=. A
+=:tool-choice= of =:none= keeps the tool definitions, and so the cached prefix
+they start, but asks the model to answer without calling one; the default is
+=:auto=. Responses additionally accepts
 =:reasoning-effort=, =:reasoning-summary=, and =:fields= (alternating wire keys and
 values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
 =:reasoning-effort=, =:output-ceiling-field=, and =:cache-breakpoint-fields=:
 alternating wire keys and values, such as ="cache_control"= and its object,
 added to the last text part of the system message and of the final durable
-history message, before the trailing context. Messages accepts =:cache-p= and
-=:ephemeral-items= for separately projected volatile history.
+history message, before the trailing context. Chat and Messages accept
+=:ephemeral-items=, the exchanges that last one response. They follow the
+durable history, past its cache breakpoint. Messages also accepts =:cache-p=.
 
 Messages projects root =oneOf=, =allOf=, and =anyOf= tool-schema constraints into
 an =input_schema.description= annotation because Anthropic rejects those keywords
