@@ -206,7 +206,23 @@
                     (let ((content (json-get message "content")))
                       (or (null content) (stringp content))))
                   plain)
-           "without breakpoint fields the request is unchanged"))))
+           "without breakpoint fields the request is unchanged"))
+        (let* ((volatile-call   (json-object "type" "function_call" "call_id" "call-v"
+                                             "name" "write" "arguments" "{}"))
+               (volatile-output (json-object "type" "function_call_output"
+                                             "call_id" "call-v" "output" "blocked"))
+               (marked          (request-messages
+                                 (list :cache-breakpoint-fields (list "cache_control" breakpoint)
+                                       :ephemeral-items         (list volatile-call volatile-output)))))
+          (test-assert
+           (and (= (length marked) 7)
+                (eq (json-get (aref (json-get (aref marked 3) "content") 0) "cache_control")
+                    breakpoint)
+                (equal (json-get (aref (json-get (aref marked 4) "tool_calls") 0) "id")
+                       "call-v")
+                (equal (json-get (aref marked 5) "content") "blocked")
+                (equal (json-get (aref marked 6) "content") "temporary"))
+           "one-response exchanges follow the breakpoint at the end of durable history"))))
     (openai-compatible-provider-tests--terminal-semantics provider)
     (let* ((text-event
             (openai-compatible-provider-tests--stream-event
