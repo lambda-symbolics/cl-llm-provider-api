@@ -618,6 +618,24 @@
                             :prefix '("prefix") :options '(:cache-p nil))
              tools))))
      "one-off requests disable cache annotations on history, system, and tools")
+    (flet ((lifetimes (options)
+             "Return the ttl of each cache marker in a request encoded with OPTIONS."
+             (let ((request (provider-request-object
+                             provider
+                             (make-instance 'wire-request :model "claude-test" :items items
+                                            :prefix '("prefix") :options options)
+                             tools)))
+               (list (json-get (json-get (aref (json-get request "system") 0) "cache_control")
+                               "ttl")
+                     (json-get (json-get (aref (json-get request "tools") 0) "cache_control")
+                               "ttl")
+                     (let ((content (json-get (aref (json-get request "messages") 1) "content")))
+                       (json-get (json-get (aref content (1- (length content))) "cache_control")
+                                 "ttl"))))))
+      (test-assert (equal (lifetimes '(:cache-ttl "1h")) '("1h" "1h" "1h"))
+                   "a requested cache lifetime applies to every marker")
+      (test-assert (equal (lifetimes '()) '(nil nil nil))
+                   "markers keep the service default lifetime unless one is requested"))
     (let* ((guidance
              (list (json-object "type" "message" "role" "developer" "content" "d")
                    (json-object "type" "message" "role" "system" "content" "s")))

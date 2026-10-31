@@ -303,17 +303,21 @@ system cache prefix when mid-conversation guidance changes."
 (defparameter *anthropic-maximum-output-tokens* 32000
   "The output token budget requested for Anthropic streaming turns.")
 
-(defun anthropic--cache-control ()
-  "Return one explicit ephemeral Anthropic cache breakpoint declaration."
-  (json-object "type" "ephemeral"))
+(defun anthropic--cache-control (ttl)
+  "Return one explicit ephemeral Anthropic cache breakpoint declaration.
 
-(defun anthropic--mark-cache-breakpoint (object)
-  "Add an explicit ephemeral cache breakpoint to OBJECT and return it."
-  (setf (gethash "cache_control" object) (anthropic--cache-control))
+TTL is a lifetime such as \"1h\", or NIL for the service default."
+  (if ttl
+      (json-object "type" "ephemeral" "ttl" ttl)
+      (json-object "type" "ephemeral")))
+
+(defun anthropic--mark-cache-breakpoint (object &key ttl)
+  "Add an explicit ephemeral cache breakpoint living TTL to OBJECT and return it."
+  (setf (gethash "cache_control" object) (anthropic--cache-control ttl))
   object)
 
-(defun anthropic--system-blocks (texts &key cache-p)
-  "Return Anthropic system blocks for nonempty TEXTS, optionally cache-marked."
+(defun anthropic--system-blocks (texts &key cache-p ttl)
+  "Return Anthropic system blocks for nonempty TEXTS, optionally cache-marked for TTL."
   (let ((kept (remove-if-not #'non-empty-string-p texts)))
     (when kept
       (let ((blocks
@@ -323,22 +327,24 @@ system cache prefix when mid-conversation guidance changes."
                       'vector)))
         (when cache-p
           (anthropic--mark-cache-breakpoint
-           (aref blocks (1- (length blocks)))))
+           (aref blocks (1- (length blocks)))
+           :ttl ttl))
         blocks))))
 
-(defun anthropic--mark-tool-cache-breakpoint (tools)
-  "Mark the final tool declaration as an explicit Anthropic cache breakpoint."
+(defun anthropic--mark-tool-cache-breakpoint (tools &key ttl)
+  "Mark the final tool declaration as an explicit Anthropic cache breakpoint living TTL."
   (when (plusp (length tools))
-    (anthropic--mark-cache-breakpoint (aref tools (1- (length tools)))))
+    (anthropic--mark-cache-breakpoint (aref tools (1- (length tools))) :ttl ttl))
   tools)
 
-(defun anthropic--mark-history-cache-breakpoint (messages)
-  "Mark the final content block of chronological MESSAGES as cacheable."
+(defun anthropic--mark-history-cache-breakpoint (messages &key ttl)
+  "Mark the final content block of chronological MESSAGES as cacheable for TTL."
   (when messages
     (let ((content (json-get (first (last messages)) "content")))
       (when (and (vectorp content) (plusp (length content)))
         (anthropic--mark-cache-breakpoint
-         (aref content (1- (length content)))))))
+         (aref content (1- (length content)))
+         :ttl ttl))))
   messages)
 
 (defun anthropic--append-messages (messages trailing-messages)
@@ -979,22 +985,26 @@ system cache prefix when mid-conversation guidance changes."
 
 ITEMS is durable history. The :EPHEMERAL-ITEMS option and SUFFIX texts follow
 that history without a cache marker. PREFIX contains stable system texts.
-:CACHE-P defaults to true; callers disable it for one-off requests. TOOLS is
+:CACHE-P defaults to true; callers disable it for one-off requests. :CACHE-TTL
+names one lifetime, such as \"1h\", for every marker; NIL keeps the
+service default. One lifetime keeps longer entries ahead of shorter ones. TOOLS is
 the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
   (declare (ignore provider goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (cache-p    (getf options :cache-p t))
+         (ttl        (getf options :cache-ttl))
          (history    (anthropic--input-messages (wire-request-items projection)))
          (messages
            (anthropic--append-user-texts
             (anthropic--append-messages
              (if cache-p
-                 (anthropic--mark-history-cache-breakpoint history)
+                 (anthropic--mark-history-cache-breakpoint history :ttl ttl)
                  history)
              (anthropic--input-messages (getf options :ephemeral-items)))
             (wire-request-suffix projection)))
          (system     (anthropic--system-blocks (wire-request-prefix projection)
-                                              :cache-p cache-p))
+                                              :cache-p cache-p
+                                              :ttl     ttl))
          (wire-tools (map 'vector #'json-object-copy tools))
          (request
            (json-object
@@ -1008,7 +1018,7 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
       (setf (gethash "system" request) system))
     (when (plusp (length wire-tools))
       (when cache-p
-        (anthropic--mark-tool-cache-breakpoint wire-tools))
+        (anthropic--mark-tool-cache-breakpoint wire-tools :ttl ttl))
       (setf (gethash "tools" request) wire-tools
             (gethash "tool_choice" request)
             (json-object "type" (wire-request-tool-choice projection))))

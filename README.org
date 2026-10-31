@@ -76,7 +76,9 @@ alternating wire keys and values, such as ="cache_control"= and its object,
 added to the last text part of the system message and of the final durable
 history message, before the trailing context. Chat and Messages accept
 =:ephemeral-items=, the exchanges that last one response. They follow the
-durable history, past its cache breakpoint. Messages also accepts =:cache-p=.
+durable history, past its cache breakpoint. Messages also accepts =:cache-p=
+and =:cache-ttl=, a lifetime such as ="1h"= given to every cache marker; NIL
+keeps the five-minute default.
 
 Messages projects root =oneOf=, =allOf=, and =anyOf= tool-schema constraints into
 an =input_schema.description= annotation because Anthropic rejects those keywords
