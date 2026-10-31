@@ -18,6 +18,28 @@
            #:output-text-answer
            #:output-json-schema->schema
            #:rlm-usage-billable-tokens
+           #:cost-ledger
+           #:cost-ledger-check-limit
+           #:cost-ledger-entries
+           #:cost-ledger-record
+           #:cost-ledger-summary
+           #:cost-ledger-total
+           #:cost-limit-reached
+           #:cost-limit-reached-currency
+           #:cost-limit-reached-limit
+           #:cost-limit-reached-spent
+           #:make-cost-ledger
+           #:make-model-price
+           #:model-price
+           #:model-price-cache-read
+           #:model-price-cache-write
+           #:model-price-currency
+           #:model-price-input
+           #:model-price-output
+           #:model-price-source
+           #:usage-price-amount
+           #:usage-reported-cost
+           #:usage-token-categories
            #:provider-account-label-for-registration
            #:provider-post-event-stream
            #:google-cloud-authentication-error

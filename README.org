@@ -382,6 +382,36 @@ and passing an object to another store re-interns its verified content there.
           (llm-provider-api:rlm-context-object-content object)))
 #+end_src
 
+* Monetary cost
+
+Token budgets limit work; money is accounted for apart from them.
+=make-model-price= takes rates per million tokens: =:input= for uncached
+input, =:cache-read=, =:cache-write= (both default to the input rate),
+=:output=, a =:currency= (default ="USD"=) and a =:source= saying where and
+when the rates were taken. Decimal rates are kept as exact fractions.
+
+=usage-token-categories= splits portable usage into uncached input, cache
+reads, cache writes and output. =usage-price-amount= prices usage under a
+price, and =usage-reported-cost= returns a charge the provider reported, such
+as OpenRouter's =cost= field in US dollars.
+
+#+BEGIN_SRC lisp
+(let ((ledger (make-cost-ledger)))
+  (cost-ledger-record ledger usage
+                      :price (make-model-price :input 3 :cache-read 0.3
+                                               :output 15 :source "vendor page, 2026-10")
+                      :model "some-model" :route "direct")
+  (cost-ledger-check-limit ledger 5)
+  (cost-ledger-summary ledger))
+#+END_SRC
+
+=cost-ledger-record= prefers a reported charge, else the estimate. Each entry
+has a =:basis= of =:reported=, =:estimated=, =:unpriced= (no price) or
+=:unknown= (usage without input or output counts). Only the first two add to
+the totals; =cost-ledger-summary= counts the others, so unknown spending stays
+visible instead of counting as free. =cost-ledger-check-limit= signals
+=cost-limit-reached= once a currency's total reaches a limit.
+
 * Provider registry
 
 =cl-llm-provider-api/registry= keeps provider registrations in ordered source

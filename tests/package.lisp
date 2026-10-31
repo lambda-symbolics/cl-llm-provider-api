@@ -202,6 +202,18 @@
                 #:rlm-context-store-create
                 #:rlm-context-store-root
                 #:rlm-usage-billable-tokens
+                #:cost-ledger-check-limit
+                #:cost-ledger-entries
+                #:cost-ledger-record
+                #:cost-ledger-summary
+                #:cost-ledger-total
+                #:cost-limit-reached
+                #:cost-limit-reached-spent
+                #:make-cost-ledger
+                #:make-model-price
+                #:usage-price-amount
+                #:usage-reported-cost
+                #:usage-token-categories
                 #:rlm-view-digest
                 #:rlm-view-error
                 #:rlm-view-label

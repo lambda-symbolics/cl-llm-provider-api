@@ -15,7 +15,7 @@
   :components
   ((:module "src" :serial t :components
     ((:file "package") (:file "provider") (:file "engine")
-     (:file "inference-budget") (:file "inference-view")
+     (:file "inference-budget") (:file "cost") (:file "inference-view")
      (:file "inference-object"))))
   :in-order-to
   ((asdf/lisp-action:test-op
