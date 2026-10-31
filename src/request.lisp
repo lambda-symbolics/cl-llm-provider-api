@@ -78,28 +78,35 @@ prefix they begin, while asking the model to answer without calling one."
      &key goal-context compaction-p)
   "Encode projected Chat Completions history and model options.
 
-ITEMS is durable history. The :EPHEMERAL-ITEMS option holds exchanges that
-last one response; they follow that history, past its cache breakpoint."
+ITEMS is durable history. The :SHARED-ITEMS option holds durable items before
+it that sibling requests repeat, ending at their own cache breakpoint. The
+:EPHEMERAL-ITEMS option holds exchanges that last one response; they follow
+that history, past its cache breakpoint."
   (declare (ignore goal-context compaction-p))
   (let* ((options  (wire-request-options projection))
          (context  (openai-compatible--chat-context-message
                     (wire-request-suffix projection)))
          (system   (openai-compatible--chat-system-message
                     (wire-request-prefix projection)))
+         (shared   (openai-compatible--chat-input-messages
+                    (getf options :shared-items)))
          (history  (openai-compatible--chat-input-messages
                     (wire-request-items projection)))
          (volatile (openai-compatible--chat-input-messages
                     (getf options :ephemeral-items)))
          (fields   (getf options :cache-breakpoint-fields))
-         (messages (append (list system) history volatile (when context (list context))))
+         (messages (append (list system) shared history volatile
+                           (when context (list context))))
          (request  (json-object "model" (wire-request-model projection)
                                 "messages" (coerce messages 'vector) "stream" t)))
     ;; The temporary exchanges and context message change on every request, so
     ;; a provider's cache breakpoint belongs on the stable system message and
-    ;; at the end of durable history, where the next request's prefix still
-    ;; matches.
+    ;; at the end of shared and durable history, where the next request's
+    ;; prefix still matches.
     (when fields
       (openai-compatible--chat-cache-breakpoint system fields)
+      (loop for message in (reverse shared)
+            thereis (openai-compatible--chat-cache-breakpoint message fields))
       (loop for message in (reverse history)
             thereis (openai-compatible--chat-cache-breakpoint message fields)))
     (when (getf options :stream-usage-p t)

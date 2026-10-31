@@ -75,8 +75,11 @@ values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
 alternating wire keys and values, such as ="cache_control"= and its object,
 added to the last text part of the system message and of the final durable
 history message, before the trailing context. Chat and Messages accept
-=:ephemeral-items=, the exchanges that last one response. They follow the
-durable history, past its cache breakpoint. Messages also accepts =:cache-p=
+=:shared-items=, durable items before the history that sibling requests repeat,
+such as documents several questions read. They end at their own cache
+breakpoint, so a sibling with different history still reuses them. Chat and
+Messages also accept =:ephemeral-items=, the exchanges that last one response.
+They follow the durable history, past its cache breakpoint. Messages also accepts =:cache-p=
 and =:cache-ttl=, a lifetime such as ="1h"= given to every cache marker; NIL
 keeps the five-minute default.
 

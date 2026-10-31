@@ -222,7 +222,21 @@
                        "call-v")
                 (equal (json-get (aref marked 5) "content") "blocked")
                 (equal (json-get (aref marked 6) "content") "temporary"))
-           "one-response exchanges follow the breakpoint at the end of durable history"))))
+           "one-response exchanges follow the breakpoint at the end of durable history"))
+        (let ((marked (request-messages
+                       (list :cache-breakpoint-fields (list "cache_control" breakpoint)
+                             :shared-items
+                             (list (json-object "type" "message" "role" "user"
+                                                "content" "views"))))))
+          (test-assert
+           (and (= (length marked) 6)
+                (eq (json-get (aref (json-get (aref marked 1) "content") 0) "cache_control")
+                    breakpoint)
+                (equal (json-get (aref (json-get (aref marked 1) "content") 0) "text") "views")
+                (equal (json-get (aref marked 2) "content") "start")
+                (eq (json-get (aref (json-get (aref marked 4) "content") 0) "cache_control")
+                    breakpoint))
+           "shared items precede the history and end at their own breakpoint"))))
     (openai-compatible-provider-tests--terminal-semantics provider)
     (let* ((text-event
             (openai-compatible-provider-tests--stream-event

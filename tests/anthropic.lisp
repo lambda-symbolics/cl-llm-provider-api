@@ -636,6 +636,20 @@
                    "a requested cache lifetime applies to every marker")
       (test-assert (equal (lifetimes '()) '(nil nil nil))
                    "markers keep the service default lifetime unless one is requested"))
+    (let* ((shared  (list (json-object "type" "message" "role" "user" "content" "views")))
+           (request (provider-request-object
+                     provider
+                     (make-instance 'wire-request :model "claude-test" :items items
+                                    :prefix  '("prefix")
+                                    :options (list :shared-items shared))
+                     tools))
+           (content (json-get (aref (json-get request "messages") 0) "content")))
+      (test-assert (and (= (length (json-get request "messages")) 2)
+                        (equal (map 'list (lambda (block) (json-get block "text")) content)
+                               '("views" "question"))
+                        (json-object-p (json-get (aref content 0) "cache_control"))
+                        (null (json-get (aref content 1) "cache_control")))
+                   "shared items end at their own marker before the history they join"))
     (let* ((guidance
              (list (json-object "type" "message" "role" "developer" "content" "d")
                    (json-object "type" "message" "role" "system" "content" "s")))

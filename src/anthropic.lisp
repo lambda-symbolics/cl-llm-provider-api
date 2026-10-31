@@ -983,8 +983,10 @@ TTL is a lifetime such as \"1h\", or NIL for the service default."
      &key goal-context compaction-p)
   "Encode projected messages, instruction texts, tools, and cache boundaries.
 
-ITEMS is durable history. The :EPHEMERAL-ITEMS option and SUFFIX texts follow
-that history without a cache marker. PREFIX contains stable system texts.
+ITEMS is durable history. The :SHARED-ITEMS option holds durable items before
+it that sibling requests repeat; they end at their own cache marker. The
+:EPHEMERAL-ITEMS option and SUFFIX texts follow that history without a cache
+marker. PREFIX contains stable system texts.
 :CACHE-P defaults to true; callers disable it for one-off requests. :CACHE-TTL
 names one lifetime, such as \"1h\", for every marker; NIL keeps the
 service default. One lifetime keeps longer entries ahead of shorter ones. TOOLS is
@@ -993,13 +995,18 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
   (let* ((options    (wire-request-options projection))
          (cache-p    (getf options :cache-p t))
          (ttl        (getf options :cache-ttl))
+         (shared     (anthropic--input-messages (getf options :shared-items)))
          (history    (anthropic--input-messages (wire-request-items projection)))
          (messages
            (anthropic--append-user-texts
             (anthropic--append-messages
-             (if cache-p
-                 (anthropic--mark-history-cache-breakpoint history :ttl ttl)
-                 history)
+             (anthropic--append-messages
+              (if cache-p
+                  (anthropic--mark-history-cache-breakpoint shared :ttl ttl)
+                  shared)
+              (if cache-p
+                  (anthropic--mark-history-cache-breakpoint history :ttl ttl)
+                  history))
              (anthropic--input-messages (getf options :ephemeral-items)))
             (wire-request-suffix projection)))
          (system     (anthropic--system-blocks (wire-request-prefix projection)
