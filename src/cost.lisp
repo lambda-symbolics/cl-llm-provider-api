@@ -7,6 +7,17 @@
 ;;; A provider-reported charge is preferred over an estimate. Usage that
 ;;; cannot be priced stays unknown instead of counting as free.
 
+(define-condition model-price-error (error)
+  ((message
+    :initarg       :message
+    :reader        model-price-error-message
+    :type          string
+    :documentation "What is wrong with the requested price."))
+  (:documentation "A model price was requested with an invalid rate or currency.")
+  (:report
+   (lambda (condition stream)
+     (write-string (model-price-error-message condition) stream))))
+
 (define-condition cost-limit-reached (error)
   ((limit
     :initarg       :limit
@@ -108,9 +119,12 @@ where and when the rates were taken."
              ((and (realp value) (>= value 0))
               (rationalize value))
              (t
-              (error "A model price ~A rate must be a nonnegative real, not ~S." name value)))))
+              (error 'model-price-error
+                     :message (format nil "A model price ~A rate must be a nonnegative real, not ~S."
+                                      name value))))))
     (unless (and (stringp currency) (plusp (length currency)))
-      (error "A model price needs a currency name, not ~S." currency))
+      (error 'model-price-error
+             :message (format nil "A model price needs a currency name, not ~S." currency)))
     (make-instance 'model-price
                    :currency    currency
                    :input       (rate input "input")

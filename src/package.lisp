@@ -34,6 +34,8 @@
            #:model-price-cache-read
            #:model-price-cache-write
            #:model-price-currency
+           #:model-price-error
+           #:model-price-error-message
            #:model-price-input
            #:model-price-output
            #:model-price-source
