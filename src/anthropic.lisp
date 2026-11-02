@@ -347,6 +347,13 @@ TTL is a lifetime such as \"1h\", or NIL for the service default."
          :ttl ttl))))
   messages)
 
+(defun anthropic--content-block-count (message)
+  "Return the number of content blocks MESSAGE carries, or 0 without a block vector."
+  (let ((content (and message (json-get message "content"))))
+    (if (and (vectorp content) (not (stringp content)))
+        (length content)
+        0)))
+
 (defun anthropic--append-messages (messages trailing-messages)
   "Append TRAILING-MESSAGES, merging an equal-role boundary when necessary."
   (cond
@@ -990,25 +997,34 @@ marker. PREFIX contains stable system texts.
 :CACHE-P defaults to true; callers disable it for one-off requests. :CACHE-TTL
 names one lifetime, such as \"1h\", for every marker; NIL keeps the
 service default. One lifetime keeps longer entries ahead of shorter ones. TOOLS is
-the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
+the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated.
+Return the request and the count of trailing messages that change from one
+request to the next: those added for the exchanges and suffix texts, plus the
+final durable message when they were merged into it."
   (declare (ignore provider goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (cache-p    (getf options :cache-p t))
          (ttl        (getf options :cache-ttl))
          (shared     (anthropic--input-messages (getf options :shared-items)))
          (history    (anthropic--input-messages (wire-request-items projection)))
+         (durable
+           (anthropic--append-messages
+            (if cache-p
+                (anthropic--mark-history-cache-breakpoint shared :ttl ttl)
+                shared)
+            (if cache-p
+                (anthropic--mark-history-cache-breakpoint history :ttl ttl)
+                history)))
+         (final      (first (last durable)))
+         (blocks     (anthropic--content-block-count final))
          (messages
            (anthropic--append-user-texts
             (anthropic--append-messages
-             (anthropic--append-messages
-              (if cache-p
-                  (anthropic--mark-history-cache-breakpoint shared :ttl ttl)
-                  shared)
-              (if cache-p
-                  (anthropic--mark-history-cache-breakpoint history :ttl ttl)
-                  history))
+             durable
              (anthropic--input-messages (getf options :ephemeral-items)))
             (wire-request-suffix projection)))
+         (volatile   (+ (- (length messages) (length durable))
+                        (if (> (anthropic--content-block-count final) blocks) 1 0)))
          (system     (anthropic--system-blocks (wire-request-prefix projection)
                                               :cache-p cache-p
                                               :ttl     ttl))
@@ -1029,4 +1045,4 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated."
       (setf (gethash "tools" request) wire-tools
             (gethash "tool_choice" request)
             (json-object "type" (wire-request-tool-choice projection))))
-    request))
+    (values request volatile)))

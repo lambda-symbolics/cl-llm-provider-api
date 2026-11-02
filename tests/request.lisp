@@ -202,12 +202,44 @@
                                 (format nil "~(~A~) keeps identical tool definitions"
                                         class))))))))
 
+(defun test-request-volatile-tail ()
+  "Count the trailing sequence items that change per request, on every wire format."
+  (let ((items     (list (json-object "type" "message" "role" "user" "content" "go")
+                         (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                      "call_id" "call-1" "arguments" "{}")
+                         (json-object "type" "function_call_output" "call_id" "call-1"
+                                      "output" "done")))
+        (ephemeral (list (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                      "call_id" "call-2" "arguments" "{}"))))
+    (loop for (class volatile) in
+          (list (list 'responses-api-provider 2)
+                (list 'chat-completions-provider 2)
+                (list 'anthropic-messages-provider 2)
+                (list 'gemini-generate-content-provider 1))
+          do (let ((provider (make-instance class)))
+               (flet ((tail (&rest initargs)
+                        "Return the volatile tail count of a projection made with INITARGS."
+                        (nth-value 1 (provider-request-object
+                                      provider
+                                      (apply #'make-instance 'wire-request
+                                             :model "m" :items items initargs)
+                                      #()))))
+                 (test-assert (eql (tail) 0)
+                              (format nil "~(~A~) reuses a whole request without a suffix"
+                                      class))
+                 (test-assert (eql (tail :suffix  (list "goal" "" "temporary")
+                                         :options (list :ephemeral-items ephemeral))
+                                   volatile)
+                              (format nil "~(~A~) counts its suffix and exchange items"
+                                      class)))))))
+
 (defun run-request-tests ()
   "Exercise transport injection, cleanup, deadline, and redaction boundaries."
   (test-request-callback-condition-identity)
   (test-request-transport-conditions)
   (test-request-cleanup-failure-precedence)
   (test-request-tool-choice)
+  (test-request-volatile-tail)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case
       (let* ((secret      (make-string 19 :initial-element #\k))

@@ -56,7 +56,8 @@ specialize this to unwrap it."))
 PREFIX texts form the systemInstruction, history ITEMS become contents, and
 SUFFIX texts trail them as one user content. TOOLS is the result of
 PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS, :INCLUDE-THOUGHTS-P,
-and :TOOL-CHOICE."
+and :TOOL-CHOICE. Return the request and 1 when a trailing suffix content
+follows the history, else 0."
   (declare (ignore provider goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (contents   (gemini--contents (wire-request-items projection)))
@@ -80,7 +81,7 @@ and :TOOL-CHOICE."
       (setf (gethash "thinkingConfig" generation) (json-object "includeThoughts" t)))
     (when (plusp (hash-table-count generation))
       (setf (gethash "generationConfig" request) generation))
-    request))
+    (values request (if trailing 1 0))))
 
 (defmethod provider-consume-stream
     ((provider gemini-generate-content-provider) stream event-callback &key headers)

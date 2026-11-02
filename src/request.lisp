@@ -27,22 +27,26 @@ prefix they begin, while asking the model to answer without calling one."
 (defmethod provider-request-object
     ((provider responses-api-provider) (projection wire-request) (tools vector)
      &key goal-context compaction-p)
-  "Encode projected Responses input, instructions, tools, and model options."
+  "Encode projected Responses input, instructions, tools, and model options.
+
+Return the request and the count of trailing developer messages that carry the
+suffix texts, which change from one request to the next."
   (declare (ignore goal-context))
   (let* ((options    (wire-request-options projection))
          (placement  (provider-responses-instructions-placement provider))
          (prefix     (wire-request-prefix projection))
          (suffix     (wire-request-suffix projection))
          (wire-tools (provider-wire-tools provider tools))
+         (volatile   (when (or (eq placement ':input) (not compaction-p))
+                       (mapcar #'responses-developer-message
+                               (remove-if-not #'non-empty-string-p suffix))))
          (input      (append
                       (when (eq placement ':input)
                         (mapcar #'responses-developer-message
                                 (remove-if-not #'non-empty-string-p prefix)))
                       (mapcar (lambda (item) (provider-wire-input-item provider item))
                               (wire-request-items projection))
-                      (when (or (eq placement ':input) (not compaction-p))
-                        (mapcar #'responses-developer-message
-                                (remove-if-not #'non-empty-string-p suffix)))))
+                      volatile))
          (request    (json-object "model" (wire-request-model projection)
                                   "input" (coerce input 'vector)
                                   "tools" wire-tools
@@ -71,7 +75,7 @@ prefix they begin, while asking the model to answer without calling one."
             (getf options :maximum-output-tokens)))
     (loop for (name value) on (getf options :fields) by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash name request) value))
-    request))
+    (values request (length volatile))))
 
 (defmethod provider-request-object
     ((provider chat-completions-provider) (projection wire-request) (tools vector)
@@ -81,7 +85,8 @@ prefix they begin, while asking the model to answer without calling one."
 ITEMS is durable history. The :SHARED-ITEMS option holds durable items before
 it that sibling requests repeat, ending at their own cache breakpoint. The
 :EPHEMERAL-ITEMS option holds exchanges that last one response; they follow
-that history, past its cache breakpoint."
+that history, past its cache breakpoint. Return the request and the count of
+trailing messages that encode those exchanges and the suffix texts."
   (declare (ignore goal-context compaction-p))
   (let* ((options  (wire-request-options projection))
          (context  (openai-compatible--chat-context-message
@@ -122,7 +127,7 @@ that history, past its cache breakpoint."
       (setf (gethash (getf options :output-ceiling-field "max_completion_tokens")
                      request)
             (getf options :maximum-output-tokens)))
-    request))
+    (values request (+ (length volatile) (if context 1 0)))))
 
 
 ;;;; -- Request Execution --

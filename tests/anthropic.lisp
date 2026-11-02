@@ -609,6 +609,19 @@
                          "cache_control")))
      "request-local suffix text follows the cache-marked history")
     (test-assert
+     (eql (nth-value 1 (provider-request-object provider projection tools)) 2)
+     "the merged volatile call and the suffix message form the volatile tail")
+    (test-assert
+     (eql (nth-value 1 (provider-request-object
+                        provider
+                        (make-instance 'wire-request
+                                       :model  "claude-test"
+                                       :items  (list (first items))
+                                       :suffix '("suffix"))
+                        tools))
+          1)
+     "a suffix merged into the final user message makes that message volatile")
+    (test-assert
      (not (search
            "cache_control"
            (json-encode

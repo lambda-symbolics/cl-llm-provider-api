@@ -406,8 +406,12 @@ request field."))
   (:documentation
    "Build PROVIDER's complete request for CONVERSATION.
 
-Implementations may return a second delivery value whose lifecycle is owned by
-the caller."))
+Methods on a CONVERSATION may return a second delivery value whose lifecycle
+is owned by the caller. Methods on a WIRE-REQUEST projection return the encoded
+request and, as a second value, the number of trailing items of its
+conversation sequence that change from one request to the next: the encoded
+suffix texts and one-response exchanges. The items before them are the prefix
+a provider's prompt cache can reuse."))
 
 (defgeneric provider-normalize-output-item (provider item)
   (:documentation
