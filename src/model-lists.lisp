@@ -37,14 +37,17 @@ Integers, integral reals and decimal strings are accepted."
   "Return the context window model list ENTRY advertises, or NIL.
 
 The fields in *MODEL-LIST-CONTEXT-WINDOW-FIELDS* are tried in order, then
-OpenRouter's top_provider.context_length."
+OpenRouter's top_provider.context_length and OpenCode's limit.context."
   (or (loop for field in *model-list-context-window-fields*
             for window = (model-list-token-count (json-get entry field))
             when window
               return window)
       (let ((top-provider (json-get entry "top_provider")))
         (and (json-object-p top-provider)
-             (model-list-token-count (json-get top-provider "context_length"))))))
+             (model-list-token-count (json-get top-provider "context_length"))))
+      (let ((limit (json-get entry "limit")))
+        (and (json-object-p limit)
+             (model-list-token-count (json-get limit "context"))))))
 
 (defun model-list-decode (body &key entry-predicate)
   "Decode model list response BODY into model specifications.
