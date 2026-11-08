@@ -471,6 +471,64 @@
                t))
            "negative rates are refused")))
 
+(defun test-usage-snapshots ()
+  "Test bounded, detached numeric snapshots and additive observations."
+  (dolist (usage (list nil 42 '("bad" . 3)
+                      '(("output_tokens" -1) ("input_tokens" 1.5))))
+    (check (null (provider-usage-snapshot usage)) "invalid or unknown usage has no counters"))
+  (check (equal (provider-usage-snapshot '(("input_tokens" 0)))
+                '(("input_tokens" 0))) "reported zero is retained")
+  (let* ((source   (json-object "prompt_tokens" 3 "completion_tokens" 2
+                               "prompt_tokens_details"
+                               (json-object "cached_tokens" 0 "text_tokens" 3
+                                            "attribution" (make-hash-table))
+                               "completion_tokens_details"
+                               (json-object "reasoning_tokens" 1
+                                            "accepted_prediction_tokens" 0)
+                               "cache_creation"
+                               (json-object "ephemeral_5m_input_tokens" 7
+                                            "ephemeral_1h_input_tokens" 9)
+                               "attribution" (make-hash-table)))
+         (expected '(("prompt_tokens" 3) ("completion_tokens" 2)
+                     ("prompt_tokens_details" (("cached_tokens" 0) ("text_tokens" 3)))
+                     ("completion_tokens_details" (("reasoning_tokens" 1)
+                                                   ("accepted_prediction_tokens" 0)))
+                     ("cache_creation" (("ephemeral_5m_input_tokens" 7)
+                                        ("ephemeral_1h_input_tokens" 9)))))
+         (snapshot (provider-usage-snapshot source)))
+    (check (equal expected snapshot) "aliases and detailed counters exclude arbitrary metadata")
+    (check (equal expected (provider-usage-snapshot snapshot)) "portable snapshots are accepted")
+    (check (null (assoc "total_tokens" snapshot :test #'equal)) "snapshots do not infer totals")
+    (let ((merged (provider-usage-merge snapshot snapshot)))
+      (check (= 6 (second (assoc "prompt_tokens" merged :test #'equal)))
+             "each observation is added, including repeated identical observations")
+      (check (= 14 (second (assoc "ephemeral_5m_input_tokens"
+                                  (second (assoc "cache_creation" merged :test #'equal))
+                                  :test #'equal))) "nested observations are added")
+      (setf (char (first (first merged)) 0) #\X)
+      (setf (second (first (second (assoc "cache_creation" merged :test #'equal)))) 999)
+      (check (equal expected snapshot) "merge detaches keys and nested entries from both inputs"))
+    (setf (char (first (first snapshot)) 0) #\X)
+    (setf (second (first (second (assoc "prompt_tokens_details" snapshot :test #'equal)))) 88)
+    (check (= 0 (json-get (json-get source "prompt_tokens_details") "cached_tokens"))
+           "snapshot nested mutation does not affect wire usage")
+    (check (= 3 (json-get source "prompt_tokens")) "snapshot key mutation does not affect wire usage"))
+  (let* ((large (ash 1 256))
+         (usage (list (list "total_tokens" large))))
+    (check (= (* 2 large) (second (first (provider-usage-merge usage usage))))
+           "nonnegative integer counters add exactly beyond machine and JSON integer ranges"))
+  (let ((cycle (list '("input_tokens" 0) '("output_tokens" -1))))
+    (setf (rest (rest cycle)) cycle)
+    (check (equal '(("input_tokens" 0)) (provider-usage-snapshot cycle))
+           "cyclic portable usage is inspected within a bounded prefix"))
+  (let ((prefix (loop repeat 64 collect '("metadata" 1))))
+    (check (null (provider-usage-snapshot (append prefix '(("input_tokens" 1)))))
+           "portable field lookup scans at most 64 cells"))
+  (let ((usage (json-object "input_tokens" 2)))
+    (setf (gethash "attribution" usage) usage)
+    (check (equal '(("input_tokens" 2)) (provider-usage-snapshot usage))
+           "cyclic arbitrary wire metadata is not traversed")))
+
 (defun run-tests ()
   "Run every cl-llm-provider-api test."
   (setf *assertions* 0)
@@ -486,6 +544,7 @@
   (test-inference-budget-contention)
   (test-billable-tokens)
   (test-cost-ledger)
+  (test-usage-snapshots)
   (test-inference-views)
   (test-inference-objects)
   (test-inference-object-paths)

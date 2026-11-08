@@ -19,6 +19,20 @@ policy, conversation projection, and tool dispatch.
 - Package: =CL-LLM-PROVIDER-API=
 - Nickname: =LLM-PROVIDER-API=
 
+* Usage snapshots
+
+Load =cl-llm-provider-api/wire= for =provider-usage-snapshot= and
+=provider-usage-merge=. Snapshots contain reported nonnegative integer token
+counters in detached string-keyed association lists, including supported nested
+cache and token details. Each field lookup examines at most 64 association-list
+cells; the fixed schema bounds retained fields and nesting. Missing counters
+are unknown, distinct from reported zero. Integer counters and sums are exact.
+
+Merge adds every supplied observation, including repeated identical values.
+Callers decide which observations represent separate billable work. Snapshotting
+preserves reported aliases without inferring missing totals or retaining provider
+metadata; =provider-usage-normalize= serves the broader normalization contract.
+
 * Tool argument contracts
 
 Load =cl-llm-provider-api/wire= for schema-based argument helpers. Schemas and

@@ -65,3 +65,80 @@ rather than measured usage."))
         (when created
           (setf (gethash "cache_creation_input_tokens" normalized) created))
         normalized)))
+
+(defun provider-usage-snapshot (usage)
+  "Return a detached string-keyed alist of reported nonnegative integer counters.
+
+Accept a JSON object or portable ((NAME VALUE) ...) entries. Inspect only a
+fixed schema and at most 64 alist cells per lookup, without traversing arbitrary
+metadata. Preserve zero and aliases as reported; do not infer missing totals.
+NIL denotes no known counters. Integers retain Common Lisp's exact range."
+  (labels ((field (object name)
+             "Read NAME from a JSON object or bounded portable association list."
+             (if (json-object-p object)
+                 (json-get object name)
+                 (loop for tail = object then (rest tail)
+                       for entry = (and (consp tail) (first tail))
+                       repeat 64
+                       while (consp tail)
+                       when (and (consp entry)
+                                 (equal name (first entry))
+                                 (consp (rest entry))
+                                 (null (nthcdr 2 entry)))
+                         return (second entry))))
+
+           (project (object schema)
+             "Copy only SCHEMA's numeric leaves from OBJECT."
+             (loop for (name . nested) in schema
+                   for value = (field object name)
+                   for retained = (if nested
+                                      (project value nested)
+                                      (and (typep value '(integer 0)) value))
+                   when retained
+                     collect (list (copy-seq name) retained))))
+    (project usage
+             '(("input_tokens")
+               ("output_tokens")
+               ("total_tokens")
+               ("cached_input_tokens")
+               ("cache_creation_input_tokens")
+               ("reasoning_tokens")
+               ("prompt_tokens")
+               ("completion_tokens")
+               ("cache_read_input_tokens")
+               ("prompt_cache_hit_tokens")
+               ("prompt_cache_miss_tokens")
+               ("input_tokens_details" ("cached_tokens") ("cache_write_tokens")
+                                       ("audio_tokens") ("text_tokens") ("image_tokens"))
+               ("prompt_tokens_details" ("cached_tokens") ("cache_write_tokens")
+                                        ("audio_tokens") ("text_tokens") ("image_tokens"))
+               ("output_tokens_details" ("reasoning_tokens") ("audio_tokens")
+                                        ("accepted_prediction_tokens")
+                                        ("rejected_prediction_tokens") ("text_tokens"))
+               ("completion_tokens_details" ("reasoning_tokens") ("audio_tokens")
+                                            ("accepted_prediction_tokens")
+                                            ("rejected_prediction_tokens") ("text_tokens"))
+               ("cache_creation" ("ephemeral_5m_input_tokens")
+                                 ("ephemeral_1h_input_tokens"))))))
+
+(defun provider-usage-merge (aggregate usage)
+  "Add one USAGE observation to AGGREGATE and return a detached counter snapshot.
+
+Project both arguments before adding matching fields and nested counters.
+Every observation contributes, even when identical to a previous observation.
+Missing counters contribute nothing; zero is retained. Integer sums are exact."
+  (labels ((merge-counters (left right)
+             "Merge already projected counter objects without retaining metadata."
+             (dolist (entry right left)
+               (let* ((name     (first entry))
+                      (value    (second entry))
+                      (existing (assoc name left :test #'string=)))
+                 (if existing
+                     (setf (second existing)
+                           (let ((old-value (second existing)))
+                             (if (and (integerp old-value) (integerp value))
+                                 (+ old-value value)
+                                 (merge-counters old-value value))))
+                     (setf left (append left (list entry))))))))
+    (merge-counters (provider-usage-snapshot aggregate)
+                    (provider-usage-snapshot usage))))

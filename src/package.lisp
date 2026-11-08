@@ -397,6 +397,8 @@
            #:provider-usage--field
            #:provider-usage--nested-field
            #:provider-usage-normalize
+           #:provider-usage-snapshot
+           #:provider-usage-merge
            #:provider-error-status
            #:provider-error-code
            #:provider-error-request-id

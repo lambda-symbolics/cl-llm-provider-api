@@ -73,6 +73,8 @@
                 #:provider-attempt-failed-event-retryable-p
                 #:provider-boolean-property
                 #:provider-cache-write-tokens
+                #:provider-usage-snapshot
+                #:provider-usage-merge
                 #:provider-completed-event
                 #:provider-completed-event-metadata
                 #:provider-completed-event-response-id
