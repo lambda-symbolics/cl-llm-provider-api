@@ -19,6 +19,40 @@ policy, conversation projection, and tool dispatch.
 - Package: =CL-LLM-PROVIDER-API=
 - Nickname: =LLM-PROVIDER-API=
 
+* Tool argument contracts
+
+Load =cl-llm-provider-api/wire= for schema-based argument helpers. Schemas and
+arguments use JSON objects (string-keyed hash tables), arrays use vectors, null
+uses =nil=, and false uses =:json-false=. Yason boolean markers are also
+accepted by these helpers.
+
+- =provider-schema-argument-diagnostic= checks unknown fields before missing
+  requirements. Only explicit =additionalProperties: false= closes an object;
+  =patternProperties= leaves name validation to the caller. Supply
+  =:allowed-extra-names= for application-owned metadata. Required fields check
+  presence, including explicit false and null. Alternative requirement groups
+  record =:one-of= or =:any-of= without claiming full combinator validation.
+- =provider-schema-argument-retry= returns a detached diagnostic skeleton. It
+  preserves explicit values, renames only unique noncolliding suggestions, and
+  inserts placeholders for absent requirements. Applications decide how to
+  present the skeleton; it is never dispatched automatically.
+- =provider-schema-argument-value= returns the selected value, its original
+  supplied-p flag, and a diagnostic or =nil=. A schema default applies only when
+  absent and is checked like an explicit value. An absent field without a
+  default returns three =nil= values. Defaults are copied before checking.
+
+Selected-field checks support integer, string, boolean and array types, or a
+vector containing one supported type and ="null"=. Supported assertions are
+=enum= (case-sensitive JSON equality), =minimum=/=maximum= for integers,
+=minLength=/=maxLength= for strings, =minItems=/=maxItems= and recursively checked
+=items= for arrays. =title=, =description= and =default= are annotations.
+Unsupported types, assertions, or incompatible assertion/type combinations
+return =:unsupported-contract=, including item contracts on empty arrays.
+
+Diagnostics contain codes, field/index paths, names, suggestions and requirement
+groups, never argument values. Applications retain dispatch, authorization,
+telemetry and domain-specific checks such as file paths and session ownership.
+
 * Google Vertex AI
 
 Use =VERTEX-GEMINI-PROVIDER= for Gemini and =VERTEX-ANTHROPIC-PROVIDER=

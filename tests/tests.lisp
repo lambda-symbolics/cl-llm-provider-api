@@ -477,6 +477,8 @@
   (test-provider-values)
   (test-provider-protocol)
   (test-tool-helpers)
+  (test-tool-argument-contracts)
+  (test-tool-argument-edge-contracts)
   (test-sse-decoding)
   (test-bounded-character-reads)
   (test-bounded-retries)

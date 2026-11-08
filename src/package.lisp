@@ -234,6 +234,16 @@
            #:provider-schema-required-groups
            #:provider-schema-missing-required-names
            #:provider-schema-argument-placeholder
+           #:provider-argument-diagnostic
+           #:provider-argument-diagnostic-code
+           #:provider-argument-diagnostic-path
+           #:provider-argument-diagnostic-names
+           #:provider-argument-diagnostic-suggestions
+           #:provider-argument-diagnostic-groups
+           #:provider-argument-diagnostic-operator
+           #:provider-schema-argument-diagnostic
+           #:provider-schema-argument-retry
+           #:provider-schema-argument-value
            #:provider-call-canonical-name
            #:provider-group-tool-schemas
            #:provider-wire-tools

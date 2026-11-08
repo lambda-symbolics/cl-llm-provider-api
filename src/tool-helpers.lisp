@@ -228,16 +228,18 @@ not a required-name array."
                 schemas)
         (list base))))
 
+(defun provider-schema--missing-required-groups (schema arguments)
+  "Return each required group's absent names, preserving schema order."
+  (mapcar (lambda (group)
+            (remove-if (lambda (name) (nth-value 1 (gethash name arguments))) group))
+          (provider-schema-required-groups schema)))
+
 (defun provider-schema-missing-required-names (schema arguments)
   "Return missing required names, or a :ONE-OF diagnostic, for ARGUMENTS.
 
 Presence is determined by hash-table presence, so false and null values count
 as supplied. Malformed schemas contribute no requirements."
-  (let ((missing (mapcar (lambda (group)
-                           (remove-if (lambda (name)
-                                        (nth-value 1 (gethash name arguments)))
-                                      group))
-                         (provider-schema-required-groups schema))))
+  (let ((missing (provider-schema--missing-required-groups schema arguments)))
     (cond ((some #'null missing)
            nil)
           ((and (rest missing)

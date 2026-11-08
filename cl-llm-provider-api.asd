@@ -53,7 +53,7 @@
     ((:file "wire-json") (:file "model-lists") (:file "wire-conditions") (:file "wire-transport")
      (:file "wire-items") (:file "usage") (:file "response-metadata")
      (:file "wire-client") (:file "responses") (:file "tool-search")
-     (:file "tool-helpers") (:file "chat-policy") (:file "chat-completions")
+     (:file "tool-helpers") (:file "tool-arguments") (:file "chat-policy") (:file "chat-completions")
      (:file "request") (:file "anthropic") (:file "gemini") (:file "copilot")
      (:file "google-cloud-auth") (:file "vertex")))))
 
