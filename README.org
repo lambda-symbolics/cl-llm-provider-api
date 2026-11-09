@@ -175,6 +175,13 @@ types, enums, alternatives, and additional-property constraints are supported.
 Invalid contracts and values signal =OUTPUT-CONTRACT-ERROR= and
 =OUTPUT-VALUE-ERROR= with field diagnostics.
 
+The wire and contract string codecs use Argo's exact RFC 8259 document
+parser. Wire values use =:json-false=, =NIL=, and vectors for false, null,
+and arrays. Contract values use =yason:false=, =:null=, and vectors;
+portable tagged trees use =NIL=, =:null=, and =(:array ...)=. The wire
+stream adapter consumes one value at a time through Yason. Parser policy
+bindings do not change the object, array, true, or null representations.
+
 =OUTPUT-TEXT-ANSWER= reads a model's free-text answer against a schema: it finds
 one JSON value in the text, tolerating prose and code fences around an object or
 array, validates it, and returns the tagged value, whether it was valid, and

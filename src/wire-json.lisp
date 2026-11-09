@@ -28,112 +28,66 @@
 
 (defun json-object (&rest key-values)
   "Return a string-keyed JSON object built from alternating KEY-VALUES."
-  (unless (evenp (length key-values))
-    (error 'provider-api-error :message
-           "JSON objects require an even number of key and value arguments."))
-  (let ((object (make-hash-table :test #'equal)))
-    (loop for (key value) on key-values by (lambda (tail) (nthcdr 2 tail))
-          do (unless (stringp key)
-               (error 'provider-api-error :message
-                      (format nil "JSON object key ~S is not a string." key))) (setf (gethash
-                                                                                      key
-                                                                                      object)
-                                                                                     value))
-    object))
+  (handler-case
+      (apply #'argo:json-object key-values)
+    (argo:json-error ()
+      (error 'provider-api-error :message "Invalid JSON object arguments."))))
 
 (defun json-array (&rest elements)
   "Return a JSON array containing ELEMENTS."
-  (coerce elements 'vector))
+  (apply #'argo:json-array elements))
 
 (defun json-object-copy (object)
   "Return a detached shallow copy of JSON OBJECT."
-  (let ((copy
-         (make-hash-table :test (hash-table-test object) :size
-                          (max 1 (hash-table-count object)))))
-    (maphash (lambda (key value) (setf (gethash key copy) value)) object)
-    copy))
+  (argo:json-object-copy object))
 
 (defun json-get-present (object key)
-  "Return KEY from JSON OBJECT and whether the key is present.
-
-Decoded JSON false is presented as NIL while its internal marker remains in
-OBJECT so that re-encoding preserves the distinction from JSON null."
-  (multiple-value-bind (value present-p)
-      (gethash key object)
-    (values
-     (if (eq value *json-decoded-false*)
-         nil
-         value)
-     present-p)))
+  "Return KEY from OBJECT and its presence, presenting the bound false marker as NIL."
+  (argo:json-get-present object key :false-value *json-decoded-false*))
 
 (defun json-get (object key &optional default)
-  "Return KEY from JSON OBJECT, or DEFAULT when the key is absent.
-
-Decoded JSON false is presented as NIL while its internal marker remains in
-OBJECT so that re-encoding preserves the distinction from JSON null."
-  (multiple-value-bind (value present-p)
-      (json-get-present object key)
-    (if present-p
-        value
-        default)))
+  "Return KEY from OBJECT, or DEFAULT when absent, presenting decoded false as NIL."
+  (multiple-value-bind (value present-p) (json-get-present object key)
+    (if present-p value default)))
 
 (defun json-string= (value expected)
   "Return true when VALUE is the JSON string EXPECTED."
-  (and (stringp value) (string= value expected)))
+  (argo:json-string= value expected))
 
 (defun json-string-member-p (value expected)
   "Return true when VALUE is a JSON string in EXPECTED."
-  (not (null (and (stringp value) (member value expected :test #'string=)))))
-
-(defun json--encoding-value (value)
-  "Return VALUE with decoded-false markers translated for Yason encoding."
-  (cond ((eq value *json-decoded-false*)
-         yason:false)
-        ((json-object-p value)
-         (let ((copy
-                (make-hash-table :test (hash-table-test value) :size
-                                 (max 1 (hash-table-count value)))))
-           (maphash
-            (lambda (key child) (setf (gethash key copy) (json--encoding-value child)))
-            value)
-           copy))
-        ((stringp value)
-         value)
-        ((vectorp value)
-         (map 'vector #'json--encoding-value value))
-        ((consp value)
-         (mapcar #'json--encoding-value value))
-        (t
-         value)))
+  (argo:json-string-member-p value expected))
 
 (defun json-encode (value)
-  "Encode VALUE as a compact JSON string."
-  (with-output-to-string (stream) (yason:encode (json--encoding-value value) stream)))
+  "Encode VALUE as compact JSON, preserving the bound false marker."
+  (handler-case
+      (argo:json-encode value :false-value *json-decoded-false*)
+    (error ()
+      (error 'provider-api-error :message "Could not encode the JSON value."))))
 
 (defun json-decode (source)
-  "Decode one JSON value from SOURCE without conflating false and null."
-  (let ((yason:*parse-json-arrays-as-vectors*   t)
-        (yason:*parse-json-booleans-as-symbols* t)
-        (yason:true                             t)
-        (yason:false                            *json-decoded-false*))
-    (yason:parse source)))
+  "Decode JSON from a string or one value from a character stream.
+
+String input must contain exactly one RFC 8259 value and whitespace.
+Streams retain incremental Yason parsing so the following value is unread.
+False uses *JSON-DECODED-FALSE*, null NIL, and arrays vectors."
+  (handler-case
+      (if (streamp source)
+          ;; Argo's bounded document codec accepts strings. Keep this adapter
+          ;; for callers that read successive values from an open stream.
+          (let ((yason:true                    t)
+                (yason:false                   *json-decoded-false*)
+                (yason:*parse-object-as-alist* nil))
+            (yason:parse source :object-as ':hash-table :object-key-fn #'identity
+                                :json-arrays-as-vectors t :json-booleans-as-symbols t
+                                :json-nulls-as-keyword nil))
+          (argo:json-decode source :false-value *json-decoded-false*))
+    (error ()
+      (error 'provider-api-error :message "Could not decode the JSON value."))))
 
 (defun json-object-source-p (source)
   "Return true when SOURCE contains exactly one JSON object and whitespace."
-  (and (stringp source)
-       (handler-case
-        (with-input-from-string (stream source)
-          (let ((yason:*parse-json-arrays-as-vectors*   t)
-                (yason:*parse-json-booleans-as-symbols* t)
-                (yason:true                             t)
-                (yason:false                            *json-decoded-false*))
-            (let ((value (yason:parse stream)))
-              (loop for character = (peek-char nil stream nil nil)
-                    while (and character
-                               (member character '(#\Space #\Tab #\Newline #\Return)))
-                    do (read-char stream))
-              (and (json-object-p value) (null (peek-char nil stream nil nil))))))
-        (error nil nil))))
+  (argo:json-object-source-p source))
 
 (deftype option (type) "An optional wire value." `(or null ,type))
 

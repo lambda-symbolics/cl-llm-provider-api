@@ -452,20 +452,11 @@ lists, cycles, excessive nesting, and inconsistent bounds."
 (defun output-json-decode (source)
   "Decode exactly one JSON value, distinguishing false from null and empty arrays."
   (handler-case
-      (with-input-from-string (stream source)
-        (let ((yason:*parse-json-arrays-as-vectors*   t)
-              (yason:*parse-json-booleans-as-symbols* t)
-              (yason:*parse-json-null-as-keyword*     t)
-              (yason:true                             t)
-              (end                                    (gensym "END")))
-          (let ((value (yason:parse stream)))
-            (unless (eq (peek-char t stream nil end) end)
-              (error 'output-value-error :message "Trailing data follows the JSON value."))
-            value)))
-    (output-value-error (condition)
-      (error condition))
+      (argo:json-decode source :false-value yason:false :null-value ':null)
+    (argo:json-trailing-data ()
+      (error 'output-value-error :message "Trailing data follows the JSON value."))
     (error ()
-      ;; Parser diagnostics may include input payloads. Do not retain them.
+      ;; Codec reports may include values on encoding paths. Retain no payload.
       (error 'output-value-error :message "Could not decode the JSON value."))))
 
 ;;;; -- Answers in Model Text --

@@ -125,7 +125,8 @@
 
 (defun test-output-value-failures ()
   "Test exact JSON framing and malformed portable output values."
-  (dolist (text '("{\"complete\":true} false" "" "{" "[1," "\"unterminated"))
+  (dolist (text '("{\"complete\":true} false" "" "{" "[1," "\"unterminated"
+                  "{\"duplicate\":1,\"duplicate\":2}"))
     (check (handler-case (progn (output-json-decode text) nil)
              (output-value-error () t)) "invalid JSON framing was accepted"))
   (dolist (native '((:object ("duplicate" 1) ("duplicate" 2))
@@ -201,4 +202,46 @@
   (test-output-contract-types)
   (test-output-value-failures)
   (test-output-text-answers)
-  (test-output-json-schema-import))
+  (test-output-json-schema-import)
+  (test-output-codec-compatibility))
+
+(defun test-output-codec-compatibility ()
+  "Exercise contract markers, ambient decoder policy, and private diagnostics."
+  (let ((yason:*parse-object-as*                ':plist)
+        (yason:*parse-object-as-alist*          t)
+        (yason:*parse-object-key-fn*            #'string-upcase)
+        (yason:*parse-json-arrays-as-vectors*   nil)
+        (yason:*parse-json-booleans-as-symbols* nil)
+        (yason:*parse-json-null-as-keyword*     nil)
+        (yason:true                             ':ambient-true)
+        (yason:false                            ':ambient-false))
+    (let ((value (output-json-decode "{\"key\":[true,false,null,[],{}]}")))
+      (check (hash-table-p value) "contracts always decode hash-table objects")
+      (check (equal '(:object ("key" (:array t nil :null (:array) (:object))))
+                     (output-json->sexp value))
+             "contract parsing keeps its model despite ambient parser policy")
+      (check (eq yason:false (aref (gethash "key" value) 1))
+             "contract false retains the Yason marker")))
+  ;; Compare the supported document grammar with the former parser on valid
+  ;; documents, not on the non-JSON extensions its permissive reader accepts.
+  (dolist (source '("null" "false" "true" "[]" "{}"
+                    "[0,-1,1.5,2e3,123456789012345678901234567890]"
+                    "{\"a\":1,\"unicode\":\"\\u00e9\"}"))
+    (let* ((yason:true                    t)
+           (yason:*parse-object-as-alist* nil)
+           (legacy                        (yason:parse source :object-as ':hash-table :object-key-fn #'identity
+                                                              :json-arrays-as-vectors t :json-booleans-as-symbols t
+                                                              :json-nulls-as-keyword t)))
+      (check (equalp legacy (output-json-decode source))
+             "valid contract documents retain the former decoder's values")))
+  (let ((reports nil))
+    (dolist (source '("{} secret-payload" "{\"secret-payload\":}"))
+      (let ((condition (handler-case (progn (output-json-decode source) nil)
+                         (output-value-error (condition) condition))))
+        (check condition "codec failures preserve the output-value condition")
+        (let ((report (princ-to-string condition)))
+          (check (not (search "secret-payload" report))
+                 "contract decoder errors omit source payloads")
+          (push report reports))))
+    (check (not (string= (first reports) (second reports)))
+           "trailing data is distinguished from malformed JSON")))

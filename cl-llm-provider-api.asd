@@ -45,7 +45,7 @@
   :description
   "Concrete Responses, Chat Completions, and Messages protocols."
   :depends-on
-  (#:cl-llm-provider-api #:yason #:clinker-transcript #:cl-rfc8628)
+  (#:cl-llm-provider-api #:argo #:yason #:clinker-transcript #:cl-rfc8628)
   :serial
   t
   :components
@@ -85,6 +85,6 @@
   :description
   "Structured output contracts and exact JSON values."
   :depends-on
-  (#:cl-llm-provider-api #:yason)
+  (#:cl-llm-provider-api #:argo #:yason)
   :components
   ((:file "src/contracts")))
