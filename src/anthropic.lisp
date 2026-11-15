@@ -1001,7 +1001,7 @@ the result of PROVIDER-WIRE-TOOLS. Caller-owned inputs are never annotated.
 Return the request and the count of trailing messages that change from one
 request to the next: those added for the exchanges and suffix texts, plus the
 final durable message when they were merged into it."
-  (declare (ignore provider goal-context compaction-p))
+  (declare (ignore goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (cache-p    (getf options :cache-p t))
          (ttl        (getf options :cache-ttl))
@@ -1044,5 +1044,8 @@ final durable message when they were merged into it."
         (anthropic--mark-tool-cache-breakpoint wire-tools :ttl ttl))
       (setf (gethash "tools" request) wire-tools
             (gethash "tool_choice" request)
-            (json-object "type" (wire-request-tool-choice projection))))
+            (let ((forced (wire-request-forced-tool provider projection)))
+              (if forced
+                  (json-object "type" "tool" "name" forced "disable_parallel_tool_use" t)
+                  (json-object "type" (wire-request-tool-choice projection))))))
     (values request volatile)))

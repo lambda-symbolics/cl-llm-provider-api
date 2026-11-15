@@ -506,6 +506,12 @@ the registry's unique-name dispatch."
                          :usage usage :metadata metadata :turn-state nil :turn-completion
                          turn-completion))))))
 
+(defmethod provider-wire-tool-name
+    ((provider chat-completions-provider) (namespace string) (name string))
+  "Encode a reversible namespaced Chat Completions function name."
+  (declare (ignore provider))
+  (openai-compatible--wire-tool-name namespace name))
+
 (defmethod provider-wire-tools ((provider chat-completions-provider) (tools vector))
   "Encode projected namespaces as Chat Completions function declarations."
   (declare (ignore provider))

@@ -24,6 +24,15 @@ prefix they begin, while asking the model to answer without calling one."
       "none"
       "auto"))
 
+(defun wire-request-forced-tool (provider projection)
+  "Return the wire name of the tool PROJECTION makes the model call, or NIL.
+
+A :TOOL-CHOICE option that lists a namespace and a tool name forces that tool."
+  (let ((choice (getf (wire-request-options projection) :tool-choice)))
+    (when (consp choice)
+      (destructuring-bind (namespace name) choice
+        (provider-wire-tool-name provider namespace name)))))
+
 (defmethod provider-request-object
     ((provider responses-api-provider) (projection wire-request) (tools vector)
      &key goal-context compaction-p)
@@ -61,7 +70,11 @@ suffix texts, which change from one request to the next."
             (responses-standard-instructions
              (append prefix (and compaction-p suffix)))))
     (when (plusp (length wire-tools))
-      (setf (gethash "tool_choice" request) (wire-request-tool-choice projection)))
+      (setf (gethash "tool_choice" request)
+            (let ((forced (wire-request-forced-tool provider projection)))
+              (if forced
+                  (json-object "type" "function" "name" forced)
+                  (wire-request-tool-choice projection)))))
     (when (getf options :reasoning-effort)
       (setf (gethash "reasoning" request)
             (apply #'json-object
@@ -119,7 +132,11 @@ trailing messages that encode those exchanges and the suffix texts."
             (json-object "include_usage" t)))
     (when (plusp (length tools))
       (setf (gethash "tools" request) tools
-            (gethash "tool_choice" request) (wire-request-tool-choice projection)))
+            (gethash "tool_choice" request)
+            (let ((forced (wire-request-forced-tool provider projection)))
+              (if forced
+                  (json-object "type" "function" "function" (json-object "name" forced))
+                  (wire-request-tool-choice projection)))))
     (when (getf options :reasoning-parameter)
       (setf (gethash (getf options :reasoning-parameter) request)
             (getf options :reasoning-effort)))

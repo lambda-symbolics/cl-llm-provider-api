@@ -155,7 +155,7 @@
                      "cleanup errors do not change successful completion ownership")))))
 
 (defun test-request-tool-choice ()
-  "Keep tool definitions when a request disables calls, on every wire format."
+  "Keep tool definitions when a request disables or forces calls, on every wire format."
   (let* ((namespaces
            (json-array
             (json-object "type" "namespace" "name" "fs"
@@ -163,13 +163,16 @@
                                   (json-object "name" "read" "description" "Read"
                                                "parameters" (json-object))))))
          (items (list (json-object "type" "message" "role" "user" "content" "go"))))
-    (loop for (class choice-of) in
+    (loop for (class choice-of forced-of) in
           (list (list 'responses-api-provider
-                      (lambda (request) (json-get request "tool_choice")))
+                      (lambda (request) (json-get request "tool_choice"))
+                      (lambda (choice) (json-get choice "name")))
                 (list 'chat-completions-provider
-                      (lambda (request) (json-get request "tool_choice")))
+                      (lambda (request) (json-get request "tool_choice"))
+                      (lambda (choice) (json-get (json-get choice "function") "name")))
                 (list 'anthropic-messages-provider
-                      (lambda (request) (json-get (json-get request "tool_choice") "type")))
+                      (lambda (request) (json-get (json-get request "tool_choice") "type"))
+                      (lambda (choice) (json-get choice "name")))
                 (list 'gemini-generate-content-provider
                       (lambda (request)
                         (let ((configuration (json-get request "toolConfig")))
@@ -177,7 +180,11 @@
                               (string-downcase
                                (json-get (json-get configuration "functionCallingConfig")
                                          "mode"))
-                              "auto")))))
+                              "auto")))
+                      (lambda (choice)
+                        (aref (json-get (json-get choice "functionCallingConfig")
+                                        "allowedFunctionNames")
+                              0))))
           do (let* ((provider (make-instance class))
                     ;; The Responses encoder projects namespaces itself.
                     (tools    (if (eq class 'responses-api-provider)
@@ -191,14 +198,22 @@
                                                       :options options)
                          tools)))
                  (let ((automatic (encode nil))
-                       (disabled  (encode (list :tool-choice ':none))))
+                       (disabled  (encode (list :tool-choice ':none)))
+                       (forced    (encode (list :tool-choice '("fs" "read")))))
                    (test-assert (string= (funcall choice-of automatic) "auto")
                                 (format nil "~(~A~) lets the model choose tools by default"
                                         class))
                    (test-assert (string= (funcall choice-of disabled) "none")
                                 (format nil "~(~A~) disables calls on request" class))
-                   (test-assert (string= (json-encode (json-get automatic "tools"))
-                                         (json-encode (json-get disabled "tools")))
+                   (test-assert (string= (funcall forced-of
+                                                  (or (json-get forced "tool_choice")
+                                                      (json-get forced "toolConfig")))
+                                         (provider-wire-tool-name provider "fs" "read"))
+                                (format nil "~(~A~) forces the named tool" class))
+                   (test-assert (every (lambda (request)
+                                         (string= (json-encode (json-get automatic "tools"))
+                                                  (json-encode (json-get request "tools"))))
+                                       (list disabled forced))
                                 (format nil "~(~A~) keeps identical tool definitions"
                                         class))))))))
 

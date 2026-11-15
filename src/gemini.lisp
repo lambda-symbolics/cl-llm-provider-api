@@ -58,7 +58,7 @@ SUFFIX texts trail them as one user content. TOOLS is the result of
 PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS, :INCLUDE-THOUGHTS-P,
 and :TOOL-CHOICE. Return the request and 1 when a trailing suffix content
 follows the history, else 0."
-  (declare (ignore provider goal-context compaction-p))
+  (declare (ignore goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (contents   (gemini--contents (wire-request-items projection)))
          (trailing   (gemini--text-content (wire-request-suffix projection)))
@@ -72,9 +72,16 @@ follows the history, else 0."
     (when (plusp (length tools))
       (setf (gethash "tools" request)
             (json-array (json-object "functionDeclarations" (map 'vector #'json-object-copy tools))))
-      (when (string= (wire-request-tool-choice projection) "none")
-        (setf (gethash "toolConfig" request)
-              (json-object "functionCallingConfig" (json-object "mode" "NONE")))))
+      (let ((forced (wire-request-forced-tool provider projection)))
+        (cond
+          (forced
+           (setf (gethash "toolConfig" request)
+                 (json-object "functionCallingConfig"
+                              (json-object "mode" "ANY"
+                                           "allowedFunctionNames" (json-array forced)))))
+          ((string= (wire-request-tool-choice projection) "none")
+           (setf (gethash "toolConfig" request)
+                 (json-object "functionCallingConfig" (json-object "mode" "NONE")))))))
     (when (getf options :maximum-output-tokens)
       (setf (gethash "maxOutputTokens" generation) (getf options :maximum-output-tokens)))
     (when (getf options :include-thoughts-p)
