@@ -217,6 +217,36 @@
                                 (format nil "~(~A~) keeps identical tool definitions"
                                         class))))))))
 
+(defun test-request-strict-tools ()
+  "Declare a strict function schema only for a tool that asks for one."
+  (flet ((namespaces (&rest declaration)
+           "Return one namespaced tool with DECLARATION added to its fields."
+           (json-array
+            (json-object "type" "namespace" "name" "fs"
+                         "tools" (json-array
+                                  (apply #'json-object "name" "read" "description" "Read"
+                                         "parameters" (provider-object-schema
+                                                       (json-object "path" (provider-string-property "File."))
+                                                       '("path"))
+                                         declaration))))))
+    (loop for (class function-of) in
+          (list (list 'responses-api-provider #'identity)
+                (list 'chat-completions-provider
+                      (lambda (tool) (json-get tool "function"))))
+          do (let ((provider (make-instance class)))
+               (flet ((wire (tools)
+                        "Return the one function PROVIDER declares for TOOLS."
+                        (funcall function-of (aref (provider-wire-tools provider tools) 0))))
+                 (let ((strict (wire (namespaces "strict" t)))
+                       (hint   (wire (namespaces))))
+                   (test-assert (eq (json-get strict "strict") t)
+                                (format nil "~(~A~) declares a strict schema on request" class))
+                   (test-assert (eq (gethash "strict" hint) yason:false)
+                                (format nil "~(~A~) leaves other schemas as hints" class))
+                   (test-assert (string= (json-encode (json-get strict "parameters"))
+                                         (json-encode (json-get hint "parameters")))
+                                (format nil "~(~A~) sends a strict schema unchanged" class))))))))
+
 (defun test-request-volatile-tail ()
   "Count the trailing sequence items that change per request, on every wire format."
   (let ((items     (list (json-object "type" "message" "role" "user" "content" "go")
@@ -254,6 +284,7 @@
   (test-request-transport-conditions)
   (test-request-cleanup-failure-precedence)
   (test-request-tool-choice)
+  (test-request-strict-tools)
   (test-request-volatile-tail)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case

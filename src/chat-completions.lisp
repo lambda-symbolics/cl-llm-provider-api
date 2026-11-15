@@ -67,7 +67,8 @@ of positive alternatives without mutating the host's validation schema."
 (defun openai-compatible--wire-function (name tool)
   "Return one Chat Completions function declaration for TOOL NAME."
   (json-object "name" name "description" (json-get tool "description") "parameters"
-   (openai-compatible--wire-parameters (json-get tool "parameters")) "strict" yason:false))
+   (openai-compatible--wire-parameters (json-get tool "parameters"))
+   "strict" (provider-tool-strict tool)))
 
 (defun openai-compatible--wire-tool (namespace tool)
   "Return one namespaced Autolith TOOL as a Chat Completions function tool."

@@ -142,12 +142,18 @@
         (values nil nil)))
       (values nil nil)))
 
+(defun provider-tool-strict (tool)
+  "Return whether TOOL declares a strict schema, as a JSON boolean."
+  (if (eq (json-get tool "strict") t)
+      t
+      yason:false))
+
 (defmethod provider-wire-tool
            ((provider responses-api-provider) (namespace string) (tool hash-table))
   "Encode one namespaced tool as a standard Responses function tool."
   (json-object "type" "function" "name"
    (provider-wire-tool-name provider namespace (json-get tool "name")) "description"
-   (json-get tool "description") "strict" yason:false "parameters"
+   (json-get tool "description") "strict" (provider-tool-strict tool) "parameters"
    (json-get tool "parameters")))
 
 (defmethod provider-wire-tools
