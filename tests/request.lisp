@@ -247,6 +247,40 @@
                                          (json-encode (json-get hint "parameters")))
                                 (format nil "~(~A~) sends a strict schema unchanged" class))))))))
 
+(defclass test-top-level-instructions-provider (responses-api-provider)
+  ()
+  (:documentation "A Responses provider that sends its prefix as the instructions field."))
+
+(defmethod provider-responses-instructions-placement
+    ((provider test-top-level-instructions-provider))
+  "Place the prefix texts in the top-level instructions field."
+  (declare (ignore provider))
+  ':top-level)
+
+(defun test-request-suffix-follows-history ()
+  "Keep the instructions field free of suffix texts, whatever the request is for."
+  (let ((provider (make-instance 'test-top-level-instructions-provider))
+        (items    (list (json-object "type" "message" "role" "user" "content" "go"))))
+    (flet ((encode (suffix compaction-p)
+             "Encode ITEMS with SUFFIX as an ordinary or a compaction request."
+             (provider-request-object
+              provider
+              (make-instance 'wire-request :model "m" :items items
+                                           :prefix (list "stable") :suffix suffix)
+              #() :compaction-p compaction-p)))
+      (let ((plain    (encode nil nil))
+            (ordinary (encode (list "goal") nil))
+            (compact  (encode (list "compact now") t)))
+        (test-assert (every (lambda (request)
+                              (string= (json-get plain "instructions")
+                                       (json-get request "instructions")))
+                            (list ordinary compact))
+                     "the instructions field holds only the prefix texts")
+        (test-assert (every (lambda (request)
+                              (= 2 (length (json-get request "input"))))
+                            (list ordinary compact))
+                     "each suffix text follows the history as one developer message")))))
+
 (defun test-request-volatile-tail ()
   "Count the trailing sequence items that change per request, on every wire format."
   (let ((items     (list (json-object "type" "message" "role" "user" "content" "go")
@@ -285,6 +319,7 @@
   (test-request-cleanup-failure-precedence)
   (test-request-tool-choice)
   (test-request-strict-tools)
+  (test-request-suffix-follows-history)
   (test-request-volatile-tail)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case

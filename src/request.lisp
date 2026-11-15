@@ -38,17 +38,18 @@ A :TOOL-CHOICE option that lists a namespace and a tool name forces that tool."
      &key goal-context compaction-p)
   "Encode projected Responses input, instructions, tools, and model options.
 
-Return the request and the count of trailing developer messages that carry the
-suffix texts, which change from one request to the next."
-  (declare (ignore goal-context))
+The suffix texts always follow the history as developer messages, so requests
+that differ only in their suffix share their instructions, tools and history.
+Return the request and the count of those trailing messages, which change
+from one request to the next."
+  (declare (ignore goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
          (placement  (provider-responses-instructions-placement provider))
          (prefix     (wire-request-prefix projection))
          (suffix     (wire-request-suffix projection))
          (wire-tools (provider-wire-tools provider tools))
-         (volatile   (when (or (eq placement ':input) (not compaction-p))
-                       (mapcar #'responses-developer-message
-                               (remove-if-not #'non-empty-string-p suffix))))
+         (volatile   (mapcar #'responses-developer-message
+                             (remove-if-not #'non-empty-string-p suffix)))
          (input      (append
                       (when (eq placement ':input)
                         (mapcar #'responses-developer-message
@@ -66,9 +67,7 @@ suffix texts, which change from one request to the next."
              :message (format nil "Unsupported Responses instruction placement ~S."
                               placement)))
     (when (eq placement ':top-level)
-      (setf (gethash "instructions" request)
-            (responses-standard-instructions
-             (append prefix (and compaction-p suffix)))))
+      (setf (gethash "instructions" request) (responses-standard-instructions prefix)))
     (when (plusp (length wire-tools))
       (setf (gethash "tool_choice" request)
             (let ((forced (wire-request-forced-tool provider projection)))
