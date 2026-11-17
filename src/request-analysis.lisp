@@ -55,7 +55,7 @@ Unknown transports report no assumed markers."))
 
 (defmethod provider-request-output-limits ((provider model-provider) (request hash-table))
   "Read declared and common positive limits without choosing host min/max policy."
-  (let* ((body (provider-request-body provider request))
+  (let* ((body  (provider-request-body provider request))
          (paths (remove-duplicates
                  (append (provider-request-output-paths provider)
                          '(("max_output_tokens") ("max_completion_tokens") ("max_tokens")
@@ -63,6 +63,7 @@ Unknown transports report no assumed markers."))
                  :test #'equal)))
     (remove-if-not (lambda (value) (and (integerp value) (plusp value)))
                    (mapcar (lambda (path) (request-analysis--path-value body path)) paths))))
+
 (defmethod provider-request-with-output-ceiling
     ((provider model-provider) (request hash-table) (ceiling integer))
   "Copy the supported output path without changing caller-owned nested settings."
@@ -133,6 +134,7 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
               (t
                nil)))
           path :initial-value object))
+
 (defun request-analysis--with-path (object path value)
   "Copy each object on PATH before installing VALUE."
   (let ((copy (if (json-object-p object) (json-object-copy object) (json-object))))
@@ -197,6 +199,7 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
                         when (json-object-p message)
                           append (array-markers (json-get message "content")
                                                 (list history-field index "content")))))))))
+
 (defun request-analysis--remove-path (object path)
   "Remove PATH in a private copy, pruning empty parent objects."
   (when (json-object-p object)
@@ -216,18 +219,19 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
   "Count unknown wire objects in full, including root image-shaped JSON."
   (declare (ignore provider path))
   nil)
+
 (defun request-analysis--content-image-location-p (path history-field part-field)
   "Recognize direct parts, history vectors and encoded history/content array paths."
   (block nil
     (when (or (null path) (and (integerp (first path)) (null (rest path))))
       (return t))
-    (let ((tail path)
+    (let ((tail      path)
           (content-p nil))
       (loop while (and (integerp (first tail)) (equal (second tail) part-field))
-            do (setf tail (cddr tail) content-p t))
+            do (setf tail (nthcdr 2 tail) content-p t))
       (and content-p
            (or (null tail)
                (and (integerp (first tail))
                     (or (null (rest tail))
-                        (and (equal (second tail) history-field) (null (cddr tail))))))
+                        (and (equal (second tail) history-field) (null (nthcdr 2 tail))))))
            t))))

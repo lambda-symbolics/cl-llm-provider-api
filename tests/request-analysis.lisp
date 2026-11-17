@@ -36,13 +36,13 @@
           (class field path image-type)
           case
         (let* ((provider (make-instance class))
-               (control (json-object "type" "ephemeral" "ttl" "1h"))
+               (control  (json-object "type" "ephemeral" "ttl" "1h"))
                (item
                 (json-object "content"
                              (vector
                               (json-object "type" "text" "text" "hello"
                                            "cache_control" control))))
-               (history (vector item))
+               (history  (vector item))
                (request
                 (json-object "model" "test" field history "request"
                              (json-object "opaque" "schema")))
@@ -117,7 +117,7 @@
        "opaque nested input contributes to cold estimation"))
     (let* ((provider (make-instance 'gemini-generate-content-provider))
            (settings (json-object "temperature" 0.4 "maxOutputTokens" 300))
-           (request (json-object "generationConfig" settings "max_tokens" 100))
+           (request  (json-object "generationConfig" settings "max_tokens" 100))
            (candidate
             (provider-request-with-output-ceiling provider request 75)))
       (check
@@ -154,7 +154,7 @@
            "Count a public request-analysis assertion."
            (cl-llm-provider-api/tests::check value description)))
     (dolist (class '(anthropic-messages-provider request-analysis-test-chat))
-      (let* ((provider (make-instance class))
+      (let* ((provider       (make-instance class))
              (schema
               (json-object "type" "object" "properties"
                            (json-object "cache_control"
@@ -176,8 +176,8 @@
                                                        "hello" "cache_control"
                                                        (json-object "type"
                                                                     "ephemeral")))))))
-             (snapshot (json-encode request))
-             (canonical (provider-request-context-body provider request))
+             (snapshot       (json-encode request))
+             (canonical      (provider-request-context-body provider request))
              (canonical-tool (aref (json-get canonical "tools") 0))
              (canonical-content
               (json-get (aref (json-get canonical "messages") 0) "content")))
@@ -202,14 +202,14 @@
         (setf (gethash "type"
                        (json-get (json-get schema "properties")
                                  "cache_control"))
-                "integer")
+              "integer")
         (check
          (not
           (string= (json-encode canonical)
                    (json-encode
                     (provider-request-context-body provider request))))
          "a schema property change invalidates the measured-input comparison")))
-    (let* ((provider (make-instance 'gemini-generate-content-provider))
+    (let* ((provider      (make-instance 'gemini-generate-content-provider))
            (image
             (json-object "inlineData"
                          (json-object "mimeType" "image/png" "data"
