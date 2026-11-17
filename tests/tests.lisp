@@ -534,6 +534,7 @@
   (setf *assertions* 0)
   (test-provider-values)
   (test-provider-protocol)
+  (cl-llm-provider-api::test-request-analysis)
   (test-tool-helpers)
   (test-tool-argument-contracts)
   (test-tool-argument-edge-contracts)

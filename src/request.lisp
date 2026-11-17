@@ -200,3 +200,59 @@ before emitting detached wire values."
                   (error () nil)))))
         (when completion (funcall completion))
         result))))
+
+(defmethod provider-request-history ((provider responses-api-provider) (request hash-table))
+  "Read the encoder's declared history sequence."
+  (request-analysis--history provider request "input"))
+
+(defmethod provider-request-output-paths ((provider responses-api-provider))
+  "Return the encoder's output paths, with the write path first."
+  (declare (ignore provider))
+  '(("max_output_tokens")))
+
+(defmethod provider-request-context-body ((provider responses-api-provider) (request hash-table))
+  "Exclude cache annotations and output controls from measured-input comparison."
+  (request-analysis--context-body provider request))
+
+(defmethod provider-request-cache-breakpoints ((provider responses-api-provider) (request hash-table))
+  "This protocol has no standard explicit cache_control annotations."
+  (declare (ignore provider request))
+  nil)
+
+(defmethod provider-request-image-p ((provider responses-api-provider) (value hash-table))
+  "Recognize image input in this encoder's wire representation."
+  (declare (ignore provider))
+  (equal (json-get value "type") "input_image"))
+
+(defmethod provider-request-history ((provider chat-completions-provider) (request hash-table))
+  "Read the encoder's declared history sequence."
+  (request-analysis--history provider request "messages"))
+
+(defmethod provider-request-output-paths ((provider chat-completions-provider))
+  "Return the encoder's output paths, with the write path first."
+  (declare (ignore provider))
+  '(("max_completion_tokens") ("max_tokens")))
+
+(defmethod provider-request-context-body ((provider chat-completions-provider) (request hash-table))
+  "Exclude cache annotations and output controls from measured-input comparison."
+  (request-analysis--context-body provider request))
+
+(defmethod provider-request-cache-breakpoints ((provider chat-completions-provider) (request hash-table))
+  "Locate explicit controls at declared wire annotation positions."
+  (request-analysis--cache-breakpoints (provider-request-body provider request)
+                                       :history-field "messages" :tools-p t))
+
+(defmethod provider-request-image-p ((provider chat-completions-provider) (value hash-table))
+  "Recognize image input in this encoder's wire representation."
+  (declare (ignore provider))
+  (equal (json-get value "type") "image_url"))
+
+(defmethod request-analysis--image-location-p ((provider responses-api-provider) path)
+  "Recognize images only in the encoder's history/content part positions."
+  (declare (ignore provider))
+  (request-analysis--content-image-location-p path "input" "content"))
+
+(defmethod request-analysis--image-location-p ((provider chat-completions-provider) path)
+  "Recognize images only in the encoder's history/content part positions."
+  (declare (ignore provider))
+  (request-analysis--content-image-location-p path "messages" "content"))

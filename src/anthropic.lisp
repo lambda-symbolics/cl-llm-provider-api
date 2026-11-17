@@ -1049,3 +1049,31 @@ final durable message when they were merged into it."
                   (json-object "type" "tool" "name" forced "disable_parallel_tool_use" t)
                   (json-object "type" (wire-request-tool-choice projection))))))
     (values request volatile)))
+
+(defmethod provider-request-history ((provider anthropic-messages-provider) (request hash-table))
+  "Read the encoder's declared history sequence."
+  (request-analysis--history provider request "messages"))
+
+(defmethod provider-request-output-paths ((provider anthropic-messages-provider))
+  "Return the encoder's output paths, with the write path first."
+  (declare (ignore provider))
+  '(("max_tokens")))
+
+(defmethod provider-request-context-body ((provider anthropic-messages-provider) (request hash-table))
+  "Exclude cache annotations and output controls from measured-input comparison."
+  (request-analysis--context-body provider request))
+
+(defmethod provider-request-cache-breakpoints ((provider anthropic-messages-provider) (request hash-table))
+  "Locate explicit controls at declared wire annotation positions."
+  (request-analysis--cache-breakpoints (provider-request-body provider request)
+                                       :history-field "messages" :tools-p t :system-field "system" :request-p t))
+
+(defmethod provider-request-image-p ((provider anthropic-messages-provider) (value hash-table))
+  "Recognize image input in this encoder's wire representation."
+  (declare (ignore provider))
+  (equal (json-get value "type") "image"))
+
+(defmethod request-analysis--image-location-p ((provider anthropic-messages-provider) path)
+  "Recognize images only in the encoder's history/content part positions."
+  (declare (ignore provider))
+  (request-analysis--content-image-location-p path "messages" "content"))

@@ -31,7 +31,7 @@
   t
   :components
   ((:module "tests" :serial t :components
-    ((:file "package") (:file "tests") (:file "request") (:file "wire") (:file "context-tests")
+    ((:file "package") (:file "tests") (:file "request") (:file "request-analysis") (:file "wire") (:file "context-tests")
      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
      (:file "registry-tests") (:file "retry-tests")
      (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")
@@ -50,7 +50,7 @@
   t
   :components
   ((:module "src" :serial t :components
-    ((:file "wire-json") (:file "model-lists") (:file "wire-conditions") (:file "wire-transport")
+    ((:file "wire-json") (:file "request-analysis") (:file "model-lists") (:file "wire-conditions") (:file "wire-transport")
      (:file "wire-items") (:file "usage") (:file "response-metadata")
      (:file "wire-client") (:file "responses") (:file "tool-search")
      (:file "tool-helpers") (:file "tool-arguments") (:file "chat-policy") (:file "chat-completions")

@@ -429,3 +429,35 @@ of the CALLS; a response with calls continues the turn."
                    :metadata        metadata
                    :turn-state      nil
                    :turn-completion turn-completion)))
+
+(defmethod provider-request-history ((provider gemini-generate-content-provider) (request hash-table))
+  "Read the encoder's declared history sequence."
+  (request-analysis--history provider request "contents"))
+
+(defmethod provider-request-output-paths ((provider gemini-generate-content-provider))
+  "Return the encoder's output paths, with the write path first."
+  (declare (ignore provider))
+  '(("generationConfig" "maxOutputTokens")))
+
+(defmethod provider-request-context-body ((provider gemini-generate-content-provider) (request hash-table))
+  "Exclude cache annotations and output controls from measured-input comparison."
+  (request-analysis--context-body provider request))
+
+(defmethod provider-request-cache-breakpoints ((provider gemini-generate-content-provider) (request hash-table))
+  "This protocol has no standard explicit cache_control annotations."
+  (declare (ignore provider request))
+  nil)
+
+(defmethod provider-request-image-p ((provider gemini-generate-content-provider) (value hash-table))
+  "Recognize GenerateContent inlineData/fileData parts with an image MIME type."
+  (declare (ignore provider))
+  (not (null (some (lambda (field)
+                    (let* ((data (json-get value field))
+                           (mime (and (json-object-p data) (json-get data "mimeType"))))
+                      (and (stringp mime) (uiop:string-prefix-p "image/" mime))))
+                  '("inlineData" "fileData")))))
+
+(defmethod request-analysis--image-location-p ((provider gemini-generate-content-provider) path)
+  "Recognize images only in the encoder's history/content part positions."
+  (declare (ignore provider))
+  (request-analysis--content-image-location-p path "contents" "parts"))

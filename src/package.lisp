@@ -61,6 +61,15 @@
            #:vertex-request-body
            #:vertex-request-headers
            #:vertex-open-response-stream
+           #:provider-request-body
+           #:provider-request-history
+           #:provider-request-output-paths
+           #:provider-request-output-limits
+           #:provider-request-with-output-ceiling
+           #:provider-request-context-body
+           #:provider-request-cache-breakpoints
+           #:provider-request-image-p
+           #:provider-request-characters
            #:gemini-generate-content-provider
            #:provider-gemini-stream-response
            #:*provider-tool-search-default-limit*
