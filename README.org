@@ -118,7 +118,11 @@ Shared options include =:maximum-output-tokens= and =:tool-choice=. A
 they start, but asks the model to answer without calling one; the default is
 =:auto=. A list of a namespace and a tool name, such as =("fs" "read")=, makes
 the model call that tool; Messages also turns parallel calls off for such a
-request. Responses additionally accepts
+request. Messages and GenerateContent accept =:failed-output-p=, a function of
+one function-call output item that returns true for the result of a failed tool
+call: Messages then sends =is_error= on the result, and GenerateContent sends
+the output under =error=. Responses and Chat Completions have no such field.
+Responses additionally accepts
 =:reasoning-effort=, =:reasoning-summary=, and =:fields= (alternating wire keys and
 values). Chat accepts =:stream-usage-p=, =:reasoning-parameter=,
 =:reasoning-effort=, =:output-ceiling-field=, and =:cache-breakpoint-fields=:

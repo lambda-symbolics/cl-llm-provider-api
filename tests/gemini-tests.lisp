@@ -90,6 +90,39 @@
                                      "generationConfig")))
                  "a request without options carries no generation configuration")))
 
+(defun gemini-test--failed-tool-results ()
+  "Test only the results the caller calls failed hold their output under error."
+  (let* ((failed    (json-object "type" "function_call_output" "call_id" "call-2"
+                                 "output" "fs.read failed: no such file"))
+         (items     (list (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                       "call_id" "call-1" "arguments" "{}")
+                          (json-object "type" "function_call_output" "call_id" "call-1"
+                                       "output" "contents")
+                          (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                       "call_id" "call-2" "arguments" "{}")
+                          failed))
+         (request   (provider-request-object
+                     (gemini-test--provider)
+                     (make-instance 'wire-request
+                                    :model   "gemini-test"
+                                    :items   items
+                                    :options (list :failed-output-p
+                                                   (lambda (item) (eq item failed))))
+                     #()))
+         (responses (loop for content across (json-get request "contents")
+                          append (loop for part across (json-get content "parts")
+                                       for response = (json-get part "functionResponse")
+                                       when response
+                                         collect (json-get response "response")))))
+    (destructuring-bind (first-response second-response) responses
+      (test-assert (and (string= (json-get second-response "error")
+                                 "fs.read failed: no such file")
+                        (null (nth-value 1 (json-get-present second-response "output"))))
+                   "a failed tool result holds its text under error")
+      (test-assert (and (string= (json-get first-response "output") "contents")
+                        (null (nth-value 1 (json-get-present first-response "error"))))
+                   "a successful tool result holds its text under output"))))
+
 (defun gemini-test--image-parts ()
   "Test images reach Gemini inline and unsendable images fail instead of vanishing."
   (let* ((contents (gemini--contents
@@ -217,6 +250,7 @@
   "Run the Gemini GenerateContent wire checks and return their count."
   (let ((*wire-test-checks* 0))
     (gemini-test--request-encoding)
+    (gemini-test--failed-tool-results)
     (gemini-test--image-parts)
     (gemini-test--stream-decoding)
     (gemini-test--terminal-semantics)

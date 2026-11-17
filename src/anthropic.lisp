@@ -170,33 +170,38 @@ Nested composition and all other object constraints are preserved."
                 tool-name)
      "input" input)))
 
-(defun anthropic--tool-result-block (item)
-  "Translate one Responses function-call output ITEM into a tool_result block."
+(defun anthropic--tool-result-block (item &key failed-p)
+  "Translate one Responses function-call output ITEM into a tool_result block.
+
+With FAILED-P the block says that the tool call failed."
   (let ((call-id (json-get item "call_id"))
         (output  (json-get item "output")))
     (unless (non-empty-string-p call-id)
       (anthropic--signal-request-conversion-failure
        "A replayed tool result has no valid Anthropic tool-use identifier."))
-    (json-object
-     "type" "tool_result"
-     "tool_use_id" call-id
-     "content"
-     (cond
-       ((stringp output)
-        output)
-       ((vectorp output)
-        (multiple-value-bind (blocks complete-p)
-            (anthropic--content-blocks output)
-          (cond
-            ((and complete-p blocks)
-             (coerce blocks 'vector))
-            ((null blocks)
-             (bounded-string (json-encode output) :limit 2000))
-            (t
-             (anthropic--signal-request-conversion-failure
-              "A tool result mixes supported and unsupported content.")))))
-       (t
-        (bounded-string output :limit 2000))))))
+    (let ((block (json-object
+                  "type" "tool_result"
+                  "tool_use_id" call-id
+                  "content"
+                  (cond
+                    ((stringp output)
+                     output)
+                    ((vectorp output)
+                     (multiple-value-bind (blocks complete-p)
+                         (anthropic--content-blocks output)
+                       (cond
+                         ((and complete-p blocks)
+                          (coerce blocks 'vector))
+                         ((null blocks)
+                          (bounded-string (json-encode output) :limit 2000))
+                         (t
+                          (anthropic--signal-request-conversion-failure
+                           "A tool result mixes supported and unsupported content.")))))
+                    (t
+                     (bounded-string output :limit 2000))))))
+      (when failed-p
+        (setf (gethash "is_error" block) t))
+      block)))
 
 (defstruct (anthropic--message-state
             (:constructor anthropic--message-state (role)))
@@ -215,12 +220,14 @@ Nested composition and all other object constraints are preserved."
                "content" (coerce (nreverse (anthropic--message-state-blocks state))
                                  'vector)))
 
-(defun anthropic--input-messages (items)
+(defun anthropic--input-messages (items &key failed-output-p)
   "Translate portable Responses ITEMS into alternating Anthropic messages.
 
 Developer and system items retain their transcript position as user content.
 Hoisting them into the top-level system field would invalidate the stable
-system cache prefix when mid-conversation guidance changes."
+system cache prefix when mid-conversation guidance changes. FAILED-OUTPUT-P,
+when given, is called with each function-call output item and returns true for
+the result of a failed tool call."
   (let ((messages        nil)
         (state           nil)
         (tool-use-states (make-hash-table :test #'equal)))
@@ -283,7 +290,10 @@ system cache prefix when mid-conversation guidance changes."
                  (begin "assistant")
                  (anthropic--message-state-push state block)))
               ((json-string= type "function_call_output")
-               (let* ((block   (anthropic--tool-result-block item))
+               (let* ((block   (anthropic--tool-result-block
+                                item
+                                :failed-p (and failed-output-p
+                                               (funcall failed-output-p item))))
                       (call-id (json-get block "tool_use_id")))
                  (unless (eq (gethash call-id tool-use-states) ':pending)
                    (anthropic--signal-request-conversion-failure
@@ -993,7 +1003,9 @@ TTL is a lifetime such as \"1h\", or NIL for the service default."
 ITEMS is durable history. The :SHARED-ITEMS option holds durable items before
 it that sibling requests repeat; they end at their own cache marker. The
 :EPHEMERAL-ITEMS option and SUFFIX texts follow that history without a cache
-marker. PREFIX contains stable system texts.
+marker. PREFIX contains stable system texts. The :FAILED-OUTPUT-P option is a
+function of one function-call output item; where it returns true, the
+tool_result block carries is_error.
 :CACHE-P defaults to true; callers disable it for one-off requests. :CACHE-TTL
 names one lifetime, such as \"1h\", for every marker; NIL keeps the
 service default. One lifetime keeps longer entries ahead of shorter ones. TOOLS is
@@ -1005,8 +1017,11 @@ final durable message when they were merged into it."
   (let* ((options    (wire-request-options projection))
          (cache-p    (getf options :cache-p t))
          (ttl        (getf options :cache-ttl))
-         (shared     (anthropic--input-messages (getf options :shared-items)))
-         (history    (anthropic--input-messages (wire-request-items projection)))
+         (failed-p   (getf options :failed-output-p))
+         (shared     (anthropic--input-messages (getf options :shared-items)
+                                                :failed-output-p failed-p))
+         (history    (anthropic--input-messages (wire-request-items projection)
+                                                :failed-output-p failed-p))
          (durable
            (anthropic--append-messages
             (if cache-p
@@ -1021,7 +1036,8 @@ final durable message when they were merged into it."
            (anthropic--append-user-texts
             (anthropic--append-messages
              durable
-             (anthropic--input-messages (getf options :ephemeral-items)))
+             (anthropic--input-messages (getf options :ephemeral-items)
+                                        :failed-output-p failed-p))
             (wire-request-suffix projection)))
          (volatile   (+ (- (length messages) (length durable))
                         (if (> (anthropic--content-block-count final) blocks) 1 0)))

@@ -56,11 +56,14 @@ specialize this to unwrap it."))
 PREFIX texts form the systemInstruction, history ITEMS become contents, and
 SUFFIX texts trail them as one user content. TOOLS is the result of
 PROVIDER-WIRE-TOOLS. Options are :MAXIMUM-OUTPUT-TOKENS, :INCLUDE-THOUGHTS-P,
-and :TOOL-CHOICE. Return the request and 1 when a trailing suffix content
-follows the history, else 0."
+:TOOL-CHOICE and :FAILED-OUTPUT-P, a function of one function-call output item;
+where it returns true, the function response holds the output under error.
+Return the request and 1 when a trailing suffix content follows the history,
+else 0."
   (declare (ignore goal-context compaction-p))
   (let* ((options    (wire-request-options projection))
-         (contents   (gemini--contents (wire-request-items projection)))
+         (contents   (gemini--contents (wire-request-items projection)
+                                       :failed-output-p (getf options :failed-output-p)))
          (trailing   (gemini--text-content (wire-request-suffix projection)))
          (system     (gemini--text-content (wire-request-prefix projection)))
          (request    (json-object "contents" (if trailing
@@ -215,10 +218,15 @@ reason is a retryable interruption."
           (json-object "value" arguments)
           (json-object))))
 
-(defun gemini--function-response (output)
-  "Return tool OUTPUT as a Gemini functionResponse response object."
-  (or (gemini--decoded-object output)
-      (json-object "output" output)))
+(defun gemini--function-response (output &key failed-p)
+  "Return tool OUTPUT as a Gemini functionResponse response object.
+
+With FAILED-P the object holds OUTPUT under error, the key Gemini reads as the
+details of a failed call."
+  (if failed-p
+      (json-object "error" output)
+      (or (gemini--decoded-object output)
+          (json-object "output" output))))
 
 (defun gemini--image-part (part)
   "Translate one portable input_image PART into a Gemini inlineData part.
@@ -262,10 +270,12 @@ terminal PROVIDER-ERROR instead of being dropped from the request."
       (list (json-object "text" (bounded-string content :limit 2000)))))
    'vector))
 
-(defun gemini--contents (items)
+(defun gemini--contents (items &key failed-output-p)
   "Translate portable conversation ITEMS into Gemini contents.
 
-Function responses carry the name of the call they answer, found by call_id."
+Function responses carry the name of the call they answer, found by call_id.
+FAILED-OUTPUT-P, when given, is called with each function-call output item and
+returns true for the result of a failed tool call."
   (let ((contents   nil)
         (call-names (make-hash-table :test #'equal)))
     (dolist (item items)
@@ -300,7 +310,10 @@ Function responses carry the name of the call they answer, found by call_id."
                                                       (json-get item "name")
                                                       "unknown_function")
                                            "response" (gemini--function-response
-                                                       (json-get item "output"))))))
+                                                       (json-get item "output")
+                                                       :failed-p (and failed-output-p
+                                                                      (funcall failed-output-p
+                                                                               item)))))))
                    contents))
             ((json-string= type "reasoning_content")
              (push (json-object "role" "model"

@@ -499,6 +499,44 @@
              "wire tool names round-trip through the readable encoding"))))))
   nil)
 
+(defun anthropic-provider-test--failed-tool-results ()
+  "Test only the results the caller calls failed carry is_error."
+  (let* ((provider (make-instance 'anthropic-messages-provider))
+         (failed   (json-object "type" "function_call_output" "call_id" "call-2"
+                                "output" "fs.read failed: no such file"))
+         (items    (list (json-object "type" "message" "role" "user" "content" "read both")
+                         (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                      "call_id" "call-1" "arguments" "{}")
+                         (json-object "type" "function_call_output" "call_id" "call-1"
+                                      "output" "contents")
+                         (json-object "type" "function_call" "namespace" "fs" "name" "read"
+                                      "call_id" "call-2" "arguments" "{}")
+                         failed)))
+    (flet ((results (options)
+             "Return the tool_result blocks of a request over ITEMS with OPTIONS."
+             (loop for message across (json-get (provider-request-object
+                                                 provider
+                                                 (make-instance 'wire-request
+                                                                :model   "claude-test"
+                                                                :items   items
+                                                                :options options)
+                                                 #())
+                                                "messages")
+                   append (loop for block across (json-get message "content")
+                                when (json-string= (json-get block "type") "tool_result")
+                                  collect block))))
+      (destructuring-bind (first-result second-result)
+          (results (list :failed-output-p (lambda (item) (eq item failed))))
+        (test-assert (and (eq (json-get second-result "is_error") t)
+                          (string= (json-get second-result "content")
+                                   "fs.read failed: no such file"))
+                     "a failed tool result carries is_error beside its text")
+        (test-assert (null (nth-value 1 (json-get-present first-result "is_error")))
+                     "a successful tool result carries no is_error field"))
+      (test-assert (notany (lambda (block) (nth-value 1 (json-get-present block "is_error")))
+                           (results nil))
+                   "a request that names no failed results marks none"))))
+
 (defun anthropic-provider-test--portable-content ()
   "Test cross-provider refusal and multimodal tool-result encoding."
   (let* ((provider (make-instance 'anthropic-messages-provider))
@@ -938,6 +976,7 @@
   (let ((*wire-test-checks* 0))
     (anthropic-provider-test--request-conversion-failures)
     (anthropic-provider-test--request-encoding)
+    (anthropic-provider-test--failed-tool-results)
     (anthropic-provider-test--tool-schema-projection)
     (anthropic-provider-test--portable-content)
     (anthropic-provider-test--cache-boundaries)
