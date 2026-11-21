@@ -18,8 +18,66 @@
   (declare (ignore provider))
   t)
 
+(defun test-cache-wire-plan ()
+  "Compare wire fingerprints, changed fields, markers and bounded histories."
+  (flet ((check (value description)
+           (cl-llm-provider-api/tests::check value description)))
+    (labels ((request (&key (tools "read") (texts '("a" "b" "c")) ttl)
+               (let ((messages
+                       (mapcar (lambda (text)
+                                 (json-object "role" "user" "content"
+                                              (vector (json-object "type" "text" "text" text))))
+                               texts)))
+                 (setf (gethash "cache_control" (aref (json-get (first (last messages)) "content") 0))
+                       (if ttl (json-object "type" "ephemeral" "ttl" ttl)
+                           (json-object "type" "ephemeral")))
+                 (json-object "model" "test" "tools" (vector (json-object "name" tools))
+                              "messages" (coerce messages 'vector)))))
+      (let* ((provider (make-instance 'anthropic-messages-provider))
+             (base     (provider-cache-wire-plan provider (request))))
+        (check (and (equal (mapcar #'first (getf base :fields)) '("model" "tools"))
+                    (= (length (getf base :items)) 3)
+                    (equal (getf base :breakpoints) '((("messages" 2 "content" 0) nil))))
+               "a plan fingerprints fields, items and cache markers")
+        (dolist (case '((() nil nil nil)
+                        ((:texts ("a" "b" "c" "d")) nil 2 t)
+                        ((:texts ("a" "x" "c")) nil 1 nil)
+                        ((:texts ("a" "b")) nil 1 t)
+                        ((:tools "write") ("tools") nil nil)
+                        ((:ttl "1h") nil 2 t)))
+          (destructuring-bind (arguments fields first-changed moved-p) case
+            (let ((change (provider-cache-wire-change
+                           base (provider-cache-wire-plan provider (apply #'request arguments)))))
+              (check (and (equal (getf change :fields) fields)
+                          (eql (getf change :first-changed-item) first-changed)
+                          (eq (getf change :breakpoints-moved-p) moved-p))
+                     "wire changes identify edited fields, items and markers"))))
+        (check (null (provider-cache-wire-change nil base)) "an initial request has no change")
+        (flet ((plain (texts &key (volatile-items 0))
+                 (provider-cache-wire-plan
+                  provider (json-object "model" "test" "messages"
+                                        (map 'vector (lambda (text) (json-object "role" "user" "content" text)) texts))
+                  :volatile-items volatile-items)))
+          (let ((bounded (plain '("a" "b" "c") :volatile-items 1)))
+            (check (and (= (getf base :prefix-items) 3) (= (getf bounded :prefix-items) 2))
+                   "a volatile tail shortens the reusable prefix")
+            (dolist (case '((("a" "b" "c" "d") nil) (("a" "b" "x") nil)
+                            (("a" "y" "c") 1) (("a") 1)))
+              (destructuring-bind (texts first-changed) case
+                (check (eql (getf (provider-cache-wire-change bounded (plain texts)) :first-changed-item)
+                            first-changed)
+                       "only edits within the reusable prefix invalidate its history")))))))
+    (let* ((value       (json-object "content" "private prompt"))
+           (fingerprint (provider-request-fingerprint value)))
+      (check (and (= 64 (length (first fingerprint)))
+                  (= (length (json-encode value)) (second fingerprint))
+                  (not (search "private prompt" (prin1-to-string fingerprint))))
+             "fingerprints retain a digest and encoded count without prompt text")))
+  nil)
+
 (defun test-request-analysis ()
   "Exercise declared wire shapes, opaque fallbacks, detached copies and image uncertainty."
+  (test-cache-wire-plan)
   (flet ((check (value description)
            "Count a public library contract assertion."
            (cl-llm-provider-api/tests::check value description)))
@@ -36,13 +94,13 @@
           (class field path image-type)
           case
         (let* ((provider (make-instance class))
-               (control (json-object "type" "ephemeral" "ttl" "1h"))
+               (control  (json-object "type" "ephemeral" "ttl" "1h"))
                (item
                 (json-object "content"
                              (vector
                               (json-object "type" "text" "text" "hello"
                                            "cache_control" control))))
-               (history (vector item))
+               (history  (vector item))
                (request
                 (json-object "model" "test" field history "request"
                              (json-object "opaque" "schema")))
@@ -117,7 +175,7 @@
        "opaque nested input contributes to cold estimation"))
     (let* ((provider (make-instance 'gemini-generate-content-provider))
            (settings (json-object "temperature" 0.4 "maxOutputTokens" 300))
-           (request (json-object "generationConfig" settings "max_tokens" 100))
+           (request  (json-object "generationConfig" settings "max_tokens" 100))
            (candidate
             (provider-request-with-output-ceiling provider request 75)))
       (check
@@ -154,7 +212,7 @@
            "Count a public request-analysis assertion."
            (cl-llm-provider-api/tests::check value description)))
     (dolist (class '(anthropic-messages-provider request-analysis-test-chat))
-      (let* ((provider (make-instance class))
+      (let* ((provider       (make-instance class))
              (schema
               (json-object "type" "object" "properties"
                            (json-object "cache_control"
@@ -176,8 +234,8 @@
                                                        "hello" "cache_control"
                                                        (json-object "type"
                                                                     "ephemeral")))))))
-             (snapshot (json-encode request))
-             (canonical (provider-request-context-body provider request))
+             (snapshot       (json-encode request))
+             (canonical      (provider-request-context-body provider request))
              (canonical-tool (aref (json-get canonical "tools") 0))
              (canonical-content
               (json-get (aref (json-get canonical "messages") 0) "content")))
@@ -202,14 +260,14 @@
         (setf (gethash "type"
                        (json-get (json-get schema "properties")
                                  "cache_control"))
-                "integer")
+              "integer")
         (check
          (not
           (string= (json-encode canonical)
                    (json-encode
                     (provider-request-context-body provider request))))
          "a schema property change invalidates the measured-input comparison")))
-    (let* ((provider (make-instance 'gemini-generate-content-provider))
+    (let* ((provider      (make-instance 'gemini-generate-content-provider))
            (image
             (json-object "inlineData"
                          (json-object "mimeType" "image/png" "data"

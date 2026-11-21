@@ -38,6 +38,59 @@ Unknown transports report no assumed markers."))
 (defgeneric provider-request-image-p (provider value)
   (:documentation "Return whether JSON object VALUE represents image input for PROVIDER."))
 
+(defun provider-request-fingerprint (value)
+  "Return VALUE's JSON digest and character count without retaining prompt text."
+  (let ((text (json-encode value)))
+    (list (ironclad:byte-array-to-hex-string
+           (ironclad:digest-sequence :sha256 (babel:string-to-octets text :encoding :utf-8)))
+          (length text))))
+
+(defun provider-cache-wire-plan (provider request &key (volatile-items 0))
+  "Fingerprint the final REQUEST, keeping only digests, counts and cache marker metadata.
+FIELDS are sorted by name. ITEMS follow the declared wire history; PREFIX-ITEMS
+excludes the volatile tail. Unknown transports retain opaque fields without
+assuming history or marker semantics."
+  (let ((body (provider-request-body provider request)))
+    (multiple-value-bind (history sequence) (provider-request-history provider request)
+      (let ((items (and history (map 'list #'provider-request-fingerprint history))))
+        (list :fields
+              (sort (loop for name being the hash-keys of body using (hash-value value)
+                          unless (equal name sequence)
+                            collect (cons name (provider-request-fingerprint value)))
+                    #'string< :key #'first)
+              :items        items
+              :prefix-items (max 0 (- (length items) volatile-items))
+              :breakpoints  (provider-request-cache-breakpoints provider request))))))
+
+(defun provider-cache-wire-change (previous current)
+  "Describe fields, reusable-prefix changes and marker movement between wire plans.
+Return NIL if a plan is absent. Appends and changes confined to the old volatile
+tail do not change its reusable prefix; truncation does. Retain no prompt text."
+  (when (and previous current)
+    (let* ((old-fields (getf previous :fields))
+           (new-fields (getf current :fields))
+           (old-items  (getf previous :items))
+           (reusable   (subseq old-items 0 (min (getf previous :prefix-items (length old-items))
+                                               (length old-items))))
+           (new-items  (getf current :items))
+           (names      (remove-duplicates (mapcar #'first (append old-fields new-fields))
+                                          :test #'string=)))
+      (list :fields
+            (sort (remove-if (lambda (name)
+                               (equal (assoc name old-fields :test #'string=)
+                                      (assoc name new-fields :test #'string=)))
+                             names)
+                  #'string<)
+            :first-changed-item
+            (or (loop for old in reusable
+                      for new in new-items
+                      for index from 0
+                      unless (equal old new) return index)
+                (and (< (length new-items) (length reusable)) (length new-items)))
+            :items               (length new-items)
+            :breakpoints-moved-p (not (equal (getf previous :breakpoints)
+                                             (getf current :breakpoints)))))))
+
 (defmethod provider-request-body ((provider model-provider) (request hash-table))
   "Keep an unknown request intact."
   (declare (ignore provider))
@@ -55,7 +108,7 @@ Unknown transports report no assumed markers."))
 
 (defmethod provider-request-output-limits ((provider model-provider) (request hash-table))
   "Read declared and common positive limits without choosing host min/max policy."
-  (let* ((body (provider-request-body provider request))
+  (let* ((body  (provider-request-body provider request))
          (paths (remove-duplicates
                  (append (provider-request-output-paths provider)
                          '(("max_output_tokens") ("max_completion_tokens") ("max_tokens")
@@ -63,6 +116,7 @@ Unknown transports report no assumed markers."))
                  :test #'equal)))
     (remove-if-not (lambda (value) (and (integerp value) (plusp value)))
                    (mapcar (lambda (path) (request-analysis--path-value body path)) paths))))
+
 (defmethod provider-request-with-output-ceiling
     ((provider model-provider) (request hash-table) (ceiling integer))
   "Copy the supported output path without changing caller-owned nested settings."
@@ -133,6 +187,7 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
               (t
                nil)))
           path :initial-value object))
+
 (defun request-analysis--with-path (object path value)
   "Copy each object on PATH before installing VALUE."
   (let ((copy (if (json-object-p object) (json-object-copy object) (json-object))))
@@ -197,6 +252,7 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
                         when (json-object-p message)
                           append (array-markers (json-get message "content")
                                                 (list history-field index "content")))))))))
+
 (defun request-analysis--remove-path (object path)
   "Remove PATH in a private copy, pruning empty parent objects."
   (when (json-object-p object)
@@ -216,18 +272,19 @@ Count arbitrary nested JSON in full, including image-shaped tool payloads."
   "Count unknown wire objects in full, including root image-shaped JSON."
   (declare (ignore provider path))
   nil)
+
 (defun request-analysis--content-image-location-p (path history-field part-field)
   "Recognize direct parts, history vectors and encoded history/content array paths."
   (block nil
     (when (or (null path) (and (integerp (first path)) (null (rest path))))
       (return t))
-    (let ((tail path)
+    (let ((tail      path)
           (content-p nil))
       (loop while (and (integerp (first tail)) (equal (second tail) part-field))
-            do (setf tail (cddr tail) content-p t))
+            do (setf tail (rest (rest tail)) content-p t))
       (and content-p
            (or (null tail)
                (and (integerp (first tail))
                     (or (null (rest tail))
-                        (and (equal (second tail) history-field) (null (cddr tail))))))
+                        (and (equal (second tail) history-field) (null (rest (rest tail)))))))
            t))))

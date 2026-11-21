@@ -1,0 +1,30 @@
+(in-package #:cl-llm-provider-api/tests)
+
+;;;; -- Context Byte Accounting --
+
+(defun test-context-inserted-utf8-bytes ()
+  "Exercise UTF-8 insertion charges, unchanged islands and bounded large edits."
+  (dolist (case '(("" "" 0)
+                  ("abc" "" 0)
+                  ("" "č😊" 6)
+                  ("abc" "axc" 1)
+                  ("abc" "ačc" 2)
+                  ("x" "😊" 4)
+                  ("aXislandYz" "aBislandCz" 2)
+                  ("axbcyd" "abXcd" 1)
+                  ("aaaa" "aa" 0)
+                  ("ab" "ba" 1)))
+    (destructuring-bind (before after expected) case
+      (check (= expected (cl-llm-provider-api:context-inserted-utf8-bytes before after))
+             "the edit script charges inserted UTF-8 bytes without deletion credits")))
+  (let* ((text   "Autolith retains measured context across prompt and tool changes. ")
+         (before (make-string 200000))
+         (after  nil))
+    (dotimes (index (length before))
+      (setf (char before index) (char text (mod index (length text)))))
+    (setf after (copy-seq before))
+    (dotimes (index 20)
+      (setf (char after (+ 1000 (* index 10000))) #\#))
+    (check (= 20 (cl-llm-provider-api:context-inserted-utf8-bytes before after))
+           "dispersed edits to a large header retain unchanged islands"))
+  nil)

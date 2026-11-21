@@ -16,7 +16,7 @@
   ((:module "src" :serial t :components
     ((:file "package") (:file "provider") (:file "engine")
      (:file "inference-budget") (:file "cost") (:file "inference-view")
-     (:file "inference-object"))))
+      (:file "inference-object") (:file "context-byte-accounting"))))
   :in-order-to
   ((asdf/lisp-action:test-op
     (asdf/lisp-action:test-op #:cl-llm-provider-api/tests))))
@@ -31,11 +31,12 @@
   t
   :components
   ((:module "tests" :serial t :components
-    ((:file "package") (:file "tests") (:file "request") (:file "request-analysis") (:file "wire") (:file "context-tests")
-     (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
-     (:file "registry-tests") (:file "retry-tests")
-     (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")
-     (:file "metadata-tests") (:file "dexador-tests") (:file "vertex-tests"))))
+     ((:file "package") (:file "tests") (:file "request") (:file "request-analysis") (:file "wire") (:file "context-tests")
+      (:file "context-byte-accounting-tests")
+      (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
+      (:file "registry-tests") (:file "retry-tests")
+      (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")
+      (:file "metadata-tests") (:file "dexador-tests") (:file "vertex-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
    (declare (ignore operation component))

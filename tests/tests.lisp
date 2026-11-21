@@ -321,6 +321,11 @@
     (check (string= (read-sse-data stream)
                     (format nil "tail~A one" (string #\Return)))
            "an interior carriage return was not preserved"))
+  (let ((*sse-maximum-line-characters* 7))
+    (with-input-from-string (stream
+                             (format nil "data: x~%~%"))
+      (check (string= (read-sse-data stream) "x")
+             "a line exactly at the configured limit was rejected")))
   (let ((*sse-maximum-line-characters* 8))
     (with-input-from-string (stream
                              (format nil "data: 123456789~%~%"))
@@ -328,6 +333,11 @@
                  (progn (read-sse-data stream) nil)
                (provider-stream-limit-error () t))
              "an oversized line did not signal the stream limit error")))
+  (let ((*sse-maximum-event-characters* 4))
+    (with-input-from-string (stream
+                             (format nil "data: ab~%data: c~%~%"))
+      (check (string= (read-sse-data stream) (format nil "ab~%c"))
+             "an event exactly at the configured joined-data limit was rejected")))
   (let ((*sse-maximum-event-characters* 4))
     (with-input-from-string (stream
                              (format nil "data: abc~%data: def~%~%"))
@@ -558,6 +568,7 @@
   (test-copilot-wire)
   (test-copilot-auto-wire)
   (test-context-assembly)
+  (test-context-inserted-utf8-bytes)
   (test-output-contracts)
   (run-registry-tests)
   (run-retry-tests)

@@ -68,6 +68,10 @@
            #:provider-request-with-output-ceiling
            #:provider-request-context-body
            #:provider-request-cache-breakpoints
+           #:provider-request-fingerprint
+           #:provider-cache-wire-plan
+           #:provider-cache-wire-change
+           #:context-inserted-utf8-bytes
            #:provider-request-image-p
            #:provider-request-characters
            #:gemini-generate-content-provider

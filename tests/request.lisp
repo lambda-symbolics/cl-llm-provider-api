@@ -312,6 +312,58 @@
                               (format nil "~(~A~) counts its suffix and exchange items"
                                       class)))))))
 
+(defun test-chat-projected-cache-prefix ()
+  "Keep complete assistant groups and cache only a byte-identical projected prefix."
+  (let* ((provider (make-instance 'chat-completions-provider))
+         (a        (json-object "type" "message" "role" "user" "content" "a"))
+         (b        (json-object "type" "message" "role" "user" "content" "b"))
+         (changed  (json-object "type" "message" "role" "user" "content" "changed"))
+         (fields   (list "cache_control" (json-object "type" "ephemeral" "ttl" "1h"))))
+    (dolist (case (list (list (list a b) (list a changed) nil '(0 1) 1)
+                       (list (list a) (list a b) nil '(0 1) 0)
+                       (list nil nil nil '(0) 0)
+                       (list (list a b) nil nil '(0) 2)
+                       (list (list b) (list a b) (list a) '(0 1 2) 0)))
+      (destructuring-bind (items durable shared markers volatile) case
+        (multiple-value-bind (request count)
+            (provider-request-object
+             provider (make-instance 'wire-request :model "m" :items items :prefix '("system")
+                                     :options (list :shared-items shared :durable-items durable
+                                                    :cache-breakpoint-fields fields)) #())
+          (test-assert (= volatile count) "volatile count starts at the first changed wire message")
+          (test-assert
+           (equal markers (mapcar (lambda (marker) (second (first marker)))
+                                  (provider-request-cache-breakpoints provider request)))
+           "cache markers end only complete unchanged shared and durable prefixes"))))
+    (let* ((reasoning (json-object "type" "reasoning_content" "content" "thinking"))
+           (call-a    (json-object "type" "function_call" "call_id" "a" "name" "first" "arguments" "{}"))
+           (call-b    (json-object "type" "function_call" "call_id" "b" "name" "second" "arguments" "{}"))
+           (out-a     (json-object "type" "function_call_output" "call_id" "a" "output" "one"))
+           (out-b     (json-object "type" "function_call_output" "call_id" "b" "output" "two"))
+           (all       (list a reasoning call-a call-b out-a out-b))
+           (durable   (list a reasoning call-a out-a))
+           (request   (provider-request-object
+                       provider (make-instance 'wire-request :model "m" :items (rest all) :prefix '("system")
+                                               :options (list :shared-items            (list a)
+                                                              :durable-items           durable
+                                                              :cache-breakpoint-fields fields)) #()))
+           (messages  (json-get request "messages"))
+           (assistant (aref messages 2)))
+      (test-assert (= 5 (length messages)) "a parallel exchange keeps one assistant and both tool outputs")
+      (test-assert (= 2 (length (json-get assistant "tool_calls"))) "parallel calls are not split at cache boundaries")
+      (test-assert (equal "thinking" (json-get assistant "reasoning_content")) "reasoning accompanies the complete assistant group")
+      (test-assert (equal '("a" "b") (loop for index from 3 below (length messages)
+                                             collect (json-get (aref messages index) "tool_call_id")))
+                   "each tool output matches its assistant call")
+      (test-assert (equal '(0 1) (mapcar (lambda (marker) (second (first marker)))
+                                        (provider-request-cache-breakpoints provider request)))
+                   "a changed merged assistant group has no cache marker")
+      (test-assert (equal '("one" "two")
+                          (loop for index from 3 below (length messages)
+                                collect (json-get (aref messages index) "content")))
+                   "cache placement preserves both tool output bodies")))
+  nil)
+
 (defun run-request-tests ()
   "Exercise transport injection, cleanup, deadline, and redaction boundaries."
   (test-request-callback-condition-identity)
@@ -321,6 +373,7 @@
   (test-request-strict-tools)
   (test-request-suffix-follows-history)
   (test-request-volatile-tail)
+  (test-chat-projected-cache-prefix)
   (dolist (case '((200 :complete) (200 :interrupted) (429 :failure)))
     (destructuring-bind (status terminal) case
       (let* ((secret      (make-string 19 :initial-element #\k))

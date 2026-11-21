@@ -89,42 +89,47 @@ from one request to the next."
           do (setf (gethash name request) value))
     (values request (length volatile))))
 
+(defun request--shared-chat-prefix (previous current)
+  "Count complete leading messages with identical wire bytes before adding markers."
+  (loop for old in previous
+        for new in current
+        while (string= (json-encode old) (json-encode new))
+        count t))
+
 (defmethod provider-request-object
     ((provider chat-completions-provider) (projection wire-request) (tools vector)
      &key goal-context compaction-p)
   "Encode projected Chat Completions history and model options.
 
-ITEMS is durable history. The :SHARED-ITEMS option holds durable items before
-it that sibling requests repeat, ending at their own cache breakpoint. The
-:EPHEMERAL-ITEMS option holds exchanges that last one response; they follow
-that history, past its cache breakpoint. Return the request and the count of
-trailing messages that encode those exchanges and the suffix texts."
+Encode shared, ordinary and ephemeral source items together so assistant/tool
+exchanges are never split at a cache boundary. :DURABLE-ITEMS, when supplied,
+is the complete projected durable source prefix, including shared items; an
+explicit NIL means no durable history. Cache only whole unchanged wire messages.
+Return the request and the count of volatile history and suffix messages."
   (declare (ignore goal-context compaction-p))
   (let* ((options  (wire-request-options projection))
          (context  (openai-compatible--chat-context-message
                     (wire-request-suffix projection)))
          (system   (openai-compatible--chat-system-message
                     (wire-request-prefix projection)))
-         (shared   (openai-compatible--chat-input-messages
-                    (getf options :shared-items)))
+         (items    (append (getf options :shared-items) (wire-request-items projection)))
          (history  (openai-compatible--chat-input-messages
-                    (wire-request-items projection)))
-         (volatile (openai-compatible--chat-input-messages
-                    (getf options :ephemeral-items)))
+                    (append items (getf options :ephemeral-items))))
+         (durable  (openai-compatible--chat-input-messages
+                    (getf options :durable-items items)))
+         (stable   (request--shared-chat-prefix durable history))
+         (shared   (request--shared-chat-prefix
+                    (openai-compatible--chat-input-messages (getf options :shared-items))
+                    history))
          (fields   (getf options :cache-breakpoint-fields))
-         (messages (append (list system) shared history volatile
-                           (when context (list context))))
+         (messages (append (list system) history (when context (list context))))
          (request  (json-object "model" (wire-request-model projection)
                                 "messages" (coerce messages 'vector) "stream" t)))
-    ;; The temporary exchanges and context message change on every request, so
-    ;; a provider's cache breakpoint belongs on the stable system message and
-    ;; at the end of shared and durable history, where the next request's
-    ;; prefix still matches.
     (when fields
       (openai-compatible--chat-cache-breakpoint system fields)
-      (loop for message in (reverse shared)
+      (loop for message in (reverse (subseq history 0 (min shared stable)))
             thereis (openai-compatible--chat-cache-breakpoint message fields))
-      (loop for message in (reverse history)
+      (loop for message in (reverse (subseq history 0 stable))
             thereis (openai-compatible--chat-cache-breakpoint message fields)))
     (when (getf options :stream-usage-p t)
       (setf (gethash "stream_options" request)
@@ -143,7 +148,7 @@ trailing messages that encode those exchanges and the suffix texts."
       (setf (gethash (getf options :output-ceiling-field "max_completion_tokens")
                      request)
             (getf options :maximum-output-tokens)))
-    (values request (+ (length volatile) (if context 1 0)))))
+    (values request (+ (- (length history) stable) (if context 1 0)))))
 
 
 ;;;; -- Request Execution --

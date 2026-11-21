@@ -139,8 +139,32 @@
                 (= (length (json-get (json-get wire-properties "query") "anyOf")) 2))
            "branch properties and alternative property types are advertised"))))))
 
+(defun test-chat-tool-name-recovery ()
+  "Round-trip wire tool names and recover legacy and dotted echoes."
+  (dolist (case '(("mcp__demo" "call_name") ("mcp__server" "get__status")))
+    (destructuring-bind (expected-namespace expected-name) case
+      (multiple-value-bind (namespace name)
+          (openai-compatible--decode-wire-tool-name
+           (openai-compatible--wire-tool-name expected-namespace expected-name))
+        (test-assert (and (equal namespace expected-namespace) (equal name expected-name))
+                     "tool names preserve both namespace and name"))))
+  (multiple-value-bind (namespace name)
+      (openai-compatible--decode-wire-tool-name "acmVzb3VyY2UAcmVhZA")
+    (test-assert (and (equal namespace "resource") (equal name "read"))
+                 "legacy Base64 wire names decode"))
+  (let* ((component (make-string 20 :initial-element #\_))
+         (wire-name (openai-compatible--wire-tool-name component component)))
+    (test-assert (<= (length wire-name) *openai-compatible-wire-tool-name-maximum-length*)
+                 "wire names respect the protocol length limit"))
+  (multiple-value-bind (namespace name)
+      (openai-compatible--fallback-tool-name "fs.view-image")
+    (test-assert (and (equal namespace "fs") (equal name "view-image"))
+                 "canonical dotted echoes recover their namespace"))
+  nil)
+
 (defun run-chat-tests ()
   "Run Chat Completions encoding and streamed terminal fixtures."
+  (test-chat-tool-name-recovery)
   (openai-compatible-provider-tests--object-parameters)
   (let ((provider (make-instance 'chat-completions-provider)))
     (let* ((call-a
