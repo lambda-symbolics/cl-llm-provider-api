@@ -23,10 +23,15 @@ unmatched replacement middle conservatively."
              (sizes          (map 'vector
                                  (lambda (character)
                                    (let ((code (char-code character)))
-                                     (cond ((< code #x80) 1)
-                                           ((< code #x800) 2)
-                                           ((< code #x10000) 3)
-                                           (t 4))))
+                                    (cond
+                                      ((< code #x80)
+                                       1)
+                                      ((< code #x800)
+                                       2)
+                                      ((< code #x10000)
+                                       3)
+                                      (t
+                                       4))))
                                  new))
              (budget         (max 1000000 (* 16 (+ old-count new-count))))
              (distance-limit (min (+ old-count new-count)
