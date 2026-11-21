@@ -564,6 +564,7 @@
   (cl-llm-provider-api::run-anthropic-tests)
   (cl-llm-provider-api::run-tool-search-tests)
   (cl-llm-provider-api::run-gemini-tests)
+  (cl-llm-provider-api::run-gemini-code-assist-setup-tests)
   (cl-llm-provider-api::run-vertex-tests)
   (test-copilot-wire)
   (test-copilot-auto-wire)

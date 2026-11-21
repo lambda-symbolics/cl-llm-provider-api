@@ -76,6 +76,9 @@
            #:provider-request-characters
            #:gemini-generate-content-provider
            #:provider-gemini-stream-response
+           #:gemini-code-assist-run-setup
+           #:gemini-code-assist-setup-error
+           #:gemini-code-assist-setup-error-stage
            #:*provider-tool-search-default-limit*
            #:*provider-tool-search-description*
            #:provider-deferred-namespace

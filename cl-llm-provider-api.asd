@@ -36,6 +36,7 @@
       (:file "contract-tests") (:file "tool-helpers") (:file "chat") (:file "anthropic")
       (:file "registry-tests") (:file "retry-tests")
       (:file "tool-search-tests") (:file "copilot-tests") (:file "gemini-tests")
+      (:file "gemini-code-assist-setup-tests")
       (:file "metadata-tests") (:file "dexador-tests") (:file "vertex-tests"))))
   :perform
   (asdf/lisp-action:test-op (operation component)
@@ -56,6 +57,7 @@
      (:file "wire-client") (:file "responses") (:file "tool-search")
      (:file "tool-helpers") (:file "tool-arguments") (:file "chat-policy") (:file "chat-completions")
      (:file "request") (:file "anthropic") (:file "gemini") (:file "copilot")
+     (:file "gemini-code-assist-setup")
      (:file "google-cloud-auth") (:file "vertex")))))
 
 (asdf/parse-defsystem:defsystem #:cl-llm-provider-api/registry
