@@ -344,6 +344,25 @@
         (check (string= (read-sse-data stream) "hooked")
                "the line reader hook was not consulted")))))
 
+(defclass short-character-input-stream
+    (trivial-gray-streams:fundamental-character-input-stream)
+  ((input
+    :initarg :input
+    :reader short-character-input-stream-input
+    :documentation "The string stream holding the test input.")
+   (requests
+    :initform nil
+    :accessor short-character-input-stream-requests
+    :documentation "The sizes requested by READ-SEQUENCE."))
+  (:documentation "A stream that records read sizes and returns at most two characters at a time."))
+
+(defmethod trivial-gray-streams:stream-read-sequence
+    ((stream short-character-input-stream) sequence start end &key)
+  "Record the requested window and read a short prefix into SEQUENCE."
+  (let ((end (or end (length sequence))))
+    (push (- end start) (short-character-input-stream-requests stream))
+    (read-sequence sequence (short-character-input-stream-input stream)
+                   :start start :end (min end (+ start 2)))))
 (defun test-bounded-character-reads ()
   "Exercise windowed READ-SEQUENCE character requests."
   (let ((*character-read-sequence-window* 3))
@@ -358,7 +377,20 @@
         (check (= (read-character-sequence buffer stream) 2)
                "a short read did not report the filled count")
         (check (string= buffer "xy...")
-               "a short read disturbed the unfilled tail")))))
+               "a short read disturbed the unfilled tail")))
+    (let* ((content "příliš žluťoučký kůň")
+           (stream  (make-instance 'short-character-input-stream
+                                  :input (make-string-input-stream content)))
+           (buffer  (make-string (length content))))
+      (check (= (read-character-sequence buffer stream) (length content))
+             "bounded character reads stop before filling a multibyte buffer")
+      (check (string= buffer content)
+             "bounded character reads change multibyte content")
+      (let ((requests (short-character-input-stream-requests stream)))
+        (check (and requests
+                    (every (lambda (size) (<= size *character-read-sequence-window*))
+                           requests))
+               "a read request exceeds its configured window")))))
 
 (defun test-bounded-retries ()
   "Exercise the bounded retry ladder and its events."

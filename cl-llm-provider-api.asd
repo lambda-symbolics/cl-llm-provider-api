@@ -26,7 +26,8 @@
   "Tests for cl-llm-provider-api."
   :depends-on
   (#:cl-llm-provider-api/dexador #:cl-llm-provider-api/context
-   #:cl-llm-provider-api/contracts #:cl-llm-provider-api/registry)
+   #:cl-llm-provider-api/contracts #:cl-llm-provider-api/registry
+   #:trivial-gray-streams)
   :serial
   t
   :components
