@@ -291,26 +291,70 @@ it had none, such as an assistant message carrying only tool calls."
               (length arguments))))
     state))
 
-(defun openai-compatible--tool-delta-index (tool fallback-index)
-  "Return TOOL's wire index, or FALLBACK-INDEX when it declares no valid one."
+(defun openai-compatible--tool-delta-explicit-index (tool)
+  "Return TOOL's valid wire index, or NIL when it declares none."
   (let ((index (json-get tool "index")))
-    (if (and (integerp index) (not (minusp index)))
-        index
-        fallback-index)))
+    (and (integerp index) (not (minusp index)) index)))
+
+(defun openai-compatible--tool-delta-anonymous-p (tool)
+  "Return true when TOOL declares neither a valid wire index nor a call id."
+  (not (or (openai-compatible--tool-delta-explicit-index tool)
+           (non-empty-string-p (json-get tool "id")))))
+
+(defun openai-compatible--next-tool-index (states)
+  "Return the wire index after every tool call accumulated in STATES."
+  (let ((next 0))
+    (maphash (lambda (index state)
+               (declare (ignore state))
+               (setf next (max next (1+ index))))
+             states)
+    next))
+
+(defun openai-compatible--tool-delta-index (states tool anonymous-count headers)
+  "Return the accumulator index in STATES for one Chat Completions TOOL delta.
+
+An explicit wire index wins. Without one, a known call id continues its call and
+an unseen id opens a call after every accumulated one. A delta with neither
+continues the most recently opened call, but only when it is the event's sole
+such delta (ANONYMOUS-COUNT); several of them in one event cannot be attributed
+without merging distinct calls, so the stream fails."
+  (let ((index (openai-compatible--tool-delta-explicit-index tool))
+        (id    (json-get tool "id")))
+    (cond (index
+           index)
+          ((non-empty-string-p id)
+           (loop for state being the hash-values of states
+                 when (equal (openai-compatible-tool-state-id state) id)
+                 return (openai-compatible-tool-state-index state)
+                 finally (return (openai-compatible--next-tool-index states))))
+          ((> anonymous-count 1)
+           (provider--signal-stream-protocol-failure headers
+            "The provider streamed several tool call deltas without an index or id."))
+          (t
+           (max 0 (1- (openai-compatible--next-tool-index states)))))))
 
 (defun openai-compatible--choice-tool-deltas (delta)
-  "Return validated indexed tool DELTA pairs from one Chat Completions delta."
+  "Return the tool call deltas of one Chat Completions DELTA in wire order."
   (let ((tool-deltas (json-get delta "tool_calls")))
     (if (vectorp tool-deltas)
-        (loop for tool across tool-deltas
-              for fallback-index from 0
-              when (json-object-p tool)
-              collect (list (openai-compatible--tool-delta-index tool fallback-index)
-                            tool))
+        (remove-if-not #'json-object-p (coerce tool-deltas 'list))
         (let ((function-call (json-get delta "function_call")))
           (if (json-object-p function-call)
-              (list (list 0 function-call))
+              (list function-call)
               nil)))))
+
+(defun openai-compatible--append-choice-tool-deltas (states delta headers)
+  "Merge every tool call delta of one Chat Completions DELTA into STATES.
+
+Return the merged tool deltas."
+  (let* ((tools (openai-compatible--choice-tool-deltas delta))
+         (anonymous-count
+          (count-if #'openai-compatible--tool-delta-anonymous-p tools)))
+    (dolist (tool tools tools)
+      (openai-compatible--append-tool-delta
+       states
+       (openai-compatible--tool-delta-index states tool anonymous-count headers)
+       tool))))
 
 (defun openai-compatible--stream-tool-states (states)
   "Return accumulated tool STATES in wire index order."
@@ -435,16 +479,11 @@ the registry's unique-name dispatch."
                                       (funcall event-callback
                                                (make-instance 'reasoning-delta-event
                                                               :text reasoning)))
-                                    (when (json-object-p delta)
-                                      (let ((tool-deltas
-                                              (openai-compatible--choice-tool-deltas delta)))
-                                        (dolist (tool-delta tool-deltas)
-                                          (openai-compatible--append-tool-delta
-                                           tool-states (first tool-delta)
-                                           (second tool-delta)))
-                                        (when tool-deltas
-                                          (funcall event-callback
-                                                   (make-instance 'generation-progress-event)))))
+                                    (when (and (json-object-p delta)
+                                               (openai-compatible--append-choice-tool-deltas
+                                                tool-states delta headers))
+                                      (funcall event-callback
+                                               (make-instance 'generation-progress-event)))
                                     (when finish
                                       (unless (non-empty-string-p finish)
                                         (provider--signal-invalid-terminal-reason

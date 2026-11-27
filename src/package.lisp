@@ -333,6 +333,7 @@
            #:openai-compatible--stream-tool-states
            #:openai-compatible--choice-tool-deltas
            #:openai-compatible--tool-delta-index
+           #:openai-compatible--append-choice-tool-deltas
            #:openai-compatible--append-tool-delta
            #:openai-compatible-tool-state
            #:openai-compatible--delta-text
