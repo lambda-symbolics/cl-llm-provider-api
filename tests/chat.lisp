@@ -98,6 +98,7 @@
                (if id
                    (json-object "id" id "type" "function" "function" function)
                    (json-object "function" function))))
+
            (consume (&rest tool-lists)
              "Stream one event per list in TOOL-LISTS and return the result."
              (provider-consume-stream
@@ -118,6 +119,7 @@
                   source)
                  (format source "data: [DONE]~%~%")))
               #'identity))
+
            (call-fields (result)
              "Return RESULT's tool calls as (call-id name arguments) lists."
              (mapcar (lambda (call)

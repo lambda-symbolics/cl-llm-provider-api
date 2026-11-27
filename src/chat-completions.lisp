@@ -310,7 +310,7 @@ it had none, such as an assistant message carrying only tool calls."
              states)
     next))
 
-(defun openai-compatible--tool-delta-index (states tool anonymous-count headers)
+(defun openai-compatible--tool-delta-index (states tool &key anonymous-count headers)
   "Return the accumulator index in STATES for one Chat Completions TOOL delta.
 
 An explicit wire index wins. Without one, a known call id continues its call and
@@ -353,7 +353,9 @@ Return the merged tool deltas."
     (dolist (tool tools tools)
       (openai-compatible--append-tool-delta
        states
-       (openai-compatible--tool-delta-index states tool anonymous-count headers)
+       (openai-compatible--tool-delta-index states tool
+                                            :anonymous-count anonymous-count
+                                            :headers         headers)
        tool))))
 
 (defun openai-compatible--stream-tool-states (states)
