@@ -88,6 +88,71 @@
              "permanent Chat stream errors do not retry"))))))
   nil)
 
+(defun openai-compatible-provider-tests--indexless-tool-calls (provider)
+  "Test tool call deltas that carry no wire index, as Gemini streams them."
+  (labels ((tool (&key id name arguments)
+             "Return one indexless tool call delta with the given fields."
+             (let ((function (json-object)))
+               (when name (setf (gethash "name" function) name))
+               (when arguments (setf (gethash "arguments" function) arguments))
+               (if id
+                   (json-object "id" id "type" "function" "function" function)
+                   (json-object "function" function))))
+
+           (consume (&rest tool-lists)
+             "Stream one event per list in TOOL-LISTS and return the result."
+             (provider-consume-stream
+              provider
+              (make-string-input-stream
+               (with-output-to-string (source)
+                 (dolist (tools tool-lists)
+                   (write-string
+                    (test-sse-event-string
+                     (openai-compatible-provider-tests--stream-event
+                      (json-object "tool_calls" (coerce tools 'vector))
+                      "chat-indexless"))
+                    source))
+                 (write-string
+                  (test-sse-event-string
+                   (openai-compatible-provider-tests--stream-event
+                    (json-object) "chat-indexless" "tool_calls"))
+                  source)
+                 (format source "data: [DONE]~%~%")))
+              #'identity))
+
+           (call-fields (result)
+             "Return RESULT's tool calls as (call-id name arguments) lists."
+             (mapcar (lambda (call)
+                       (list (json-get call "call_id") (json-get call "name")
+                             (json-get call "arguments")))
+                     (provider-result-tool-calls result))))
+    (test-assert
+     (equal (call-fields
+             (consume (list (tool :id "call_a" :name "probe_alpha" :arguments "{}"))
+                      (list (tool :id "call_b" :name "probe_beta" :arguments "{}"))))
+            '(("call_a" "probe_alpha" "{}") ("call_b" "probe_beta" "{}")))
+     "indexless singleton tool call events stay distinct calls")
+    (test-assert
+     (equal (call-fields
+             (consume (list (tool :id "call_a" :name "probe_alpha" :arguments "{\"path\":"))
+                      (list (tool :arguments "\"x\"}"))
+                      (list (tool :id "call_b" :name "probe_beta" :arguments "{\"n\":"))
+                      (list (tool :id "call_b" :arguments "1}"))))
+            '(("call_a" "probe_alpha" "{\"path\":\"x\"}")
+              ("call_b" "probe_beta" "{\"n\":1}")))
+     "fragmented indexless tool calls continue by call id or the latest call")
+    (test-assert
+     (handler-case
+         (progn
+           (consume (list (tool :id "call_a" :name "probe_alpha")
+                          (tool :id "call_b" :name "probe_beta"))
+                    (list (tool :arguments "{}") (tool :arguments "{}")))
+           nil)
+       (provider-protocol-error (condition)
+         (not (typep condition 'provider-retryable-error))))
+     "ambiguous indexless tool call continuations are terminal protocol failures"))
+  nil)
+
 (defun openai-compatible-provider-tests--object-parameters ()
   "Project composed tool schemas at the wire boundary without changing validation."
   (let* ((nested     (json-object "oneOf"
@@ -238,6 +303,7 @@
                     breakpoint))
            "shared items precede the history and end at their own breakpoint"))))
     (openai-compatible-provider-tests--terminal-semantics provider)
+    (openai-compatible-provider-tests--indexless-tool-calls provider)
     (let* ((text-event
             (openai-compatible-provider-tests--stream-event
              (json-object "content" "hello") "chat-test"))

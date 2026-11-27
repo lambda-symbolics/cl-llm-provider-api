@@ -347,12 +347,12 @@
 (defclass short-character-input-stream
     (trivial-gray-streams:fundamental-character-input-stream)
   ((input
-    :initarg :input
-    :reader short-character-input-stream-input
+    :initarg       :input
+    :reader        short-character-input-stream-input
     :documentation "The string stream holding the test input.")
    (requests
-    :initform nil
-    :accessor short-character-input-stream-requests
+    :initform      nil
+    :accessor      short-character-input-stream-requests
     :documentation "The sizes requested by READ-SEQUENCE."))
   (:documentation "A stream that records read sizes and returns at most two characters at a time."))
 
@@ -363,6 +363,7 @@
     (push (- end start) (short-character-input-stream-requests stream))
     (read-sequence sequence (short-character-input-stream-input stream)
                    :start start :end (min end (+ start 2)))))
+
 (defun test-bounded-character-reads ()
   "Exercise windowed READ-SEQUENCE character requests."
   (let ((*character-read-sequence-window* 3))
